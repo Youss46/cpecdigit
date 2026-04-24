@@ -11,12 +11,51 @@ function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "cpec-u-salt").digest("hex");
 }
 
+// In-memory login attempt tracker: email -> { count, lockedUntil }
+const loginAttempts = new Map<string, { count: number; lockedUntil: Date | null }>();
+const MAX_ATTEMPTS = 3;
+const LOCKOUT_MINUTES = 15;
+
+function getAttempts(email: string) {
+  return loginAttempts.get(email) ?? { count: 0, lockedUntil: null };
+}
+
+function resetAttempts(email: string) {
+  loginAttempts.delete(email);
+}
+
+function recordFailedAttempt(email: string): { count: number; locked: boolean } {
+  const entry = getAttempts(email);
+  const newCount = entry.count + 1;
+  const locked = newCount >= MAX_ATTEMPTS;
+  loginAttempts.set(email, {
+    count: newCount,
+    lockedUntil: locked ? new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000) : null,
+  });
+  return { count: newCount, locked };
+}
+
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
       res.status(400).json({ error: "Bad Request", message: "Email and password are required" });
       return;
+    }
+
+    // Check lockout
+    const attempts = getAttempts(email);
+    if (attempts.lockedUntil && attempts.lockedUntil > new Date()) {
+      const remaining = Math.ceil((attempts.lockedUntil.getTime() - Date.now()) / 60000);
+      res.status(429).json({
+        error: "TooManyAttempts",
+        message: `Compte temporairement bloqué. Réessayez dans ${remaining} minute${remaining > 1 ? "s" : ""}.`,
+      });
+      return;
+    }
+    // Reset stale lockout
+    if (attempts.lockedUntil && attempts.lockedUntil <= new Date()) {
+      resetAttempts(email);
     }
 
     // Find user by email globally — tenant is determined from the user's own account
@@ -26,15 +65,31 @@ router.post("/login", async (req, res) => {
 
     const user = users[0];
     if (!user) {
+      recordFailedAttempt(email);
       res.status(401).json({ error: "Unauthorized", message: "Invalid credentials" });
       return;
     }
 
     const hash = hashPassword(password);
     if (hash !== user.passwordHash) {
-      res.status(401).json({ error: "Unauthorized", message: "Invalid credentials" });
+      const { count, locked } = recordFailedAttempt(email);
+      const remaining = MAX_ATTEMPTS - count;
+      if (locked) {
+        res.status(429).json({
+          error: "TooManyAttempts",
+          message: `Trop de tentatives incorrectes. Compte bloqué pour ${LOCKOUT_MINUTES} minutes.`,
+        });
+      } else {
+        res.status(401).json({
+          error: "Unauthorized",
+          message: `Mot de passe incorrect. ${remaining} tentative${remaining > 1 ? "s" : ""} restante${remaining > 1 ? "s" : ""}.`,
+        });
+      }
       return;
     }
+
+    // Successful login — reset attempt counter
+    resetAttempts(email);
 
     const tenantId = user.tenantId!;
 

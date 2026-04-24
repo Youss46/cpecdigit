@@ -166,12 +166,15 @@ export default function Login() {
       },
       onError: (err: any) => {
         const apiData = err?.data ?? err?.response?.data;
-        const isDisabled = apiData?.error === "AccountDisabled";
+        const errorCode = apiData?.error;
+        const serverMessage = apiData?.message;
+        const isDisabled = errorCode === "AccountDisabled";
+        const isLocked = errorCode === "TooManyAttempts";
         toast({
-          title: isDisabled ? "Accès refusé" : "Erreur de connexion",
+          title: isDisabled ? "Accès refusé" : isLocked ? "Compte bloqué" : "Erreur de connexion",
           description: isDisabled
             ? "Votre compte a été désactivé. Veuillez contacter le développeur."
-            : "Identifiants incorrects. Veuillez réessayer.",
+            : serverMessage ?? "Identifiants incorrects. Veuillez réessayer.",
           variant: "destructive",
         });
       },
