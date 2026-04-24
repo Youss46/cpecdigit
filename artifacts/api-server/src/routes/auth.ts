@@ -49,7 +49,7 @@ router.post("/login", async (req, res) => {
       const remaining = Math.ceil((attempts.lockedUntil.getTime() - Date.now()) / 60000);
       res.status(429).json({
         error: "TooManyAttempts",
-        message: `Compte temporairement bloqué. Réessayez dans ${remaining} minute${remaining > 1 ? "s" : ""}.`,
+        message: `🔒 Compte temporairement bloqué. Réessayez dans ${remaining} minute${remaining > 1 ? "s" : ""}.`,
       });
       return;
     }
@@ -77,12 +77,13 @@ router.post("/login", async (req, res) => {
       if (locked) {
         res.status(429).json({
           error: "TooManyAttempts",
-          message: `Trop de tentatives incorrectes. Compte bloqué pour ${LOCKOUT_MINUTES} minutes.`,
+          message: `🚫 Trop de tentatives incorrectes ! Compte bloqué pendant ${LOCKOUT_MINUTES} minutes.`,
         });
       } else {
+        const emoji = remaining === 1 ? "⚠️" : "❌";
         res.status(401).json({
           error: "Unauthorized",
-          message: `Mot de passe incorrect. ${remaining} tentative${remaining > 1 ? "s" : ""} restante${remaining > 1 ? "s" : ""}.`,
+          message: `${emoji} Mot de passe incorrect. Il vous reste ${remaining} tentative${remaining > 1 ? "s" : ""}.`,
         });
       }
       return;
