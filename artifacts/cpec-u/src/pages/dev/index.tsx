@@ -1194,7 +1194,7 @@ export default function DevDashboard() {
                             </SelectItem>
                           ))}
                           {keys.filter(k => k.status === "available").length === 0 && (
-                            <SelectItem value="" disabled className="text-zinc-500">Aucune clé disponible</SelectItem>
+                            <p className="px-3 py-2 text-xs text-zinc-500 italic">Aucune clé disponible</p>
                           )}
                         </SelectContent>
                       </Select>
