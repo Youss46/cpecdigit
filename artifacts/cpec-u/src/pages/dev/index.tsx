@@ -1293,13 +1293,19 @@ export default function DevDashboard() {
                         {school.license ? (
                           <>
                             <div className="flex items-center gap-1.5">
-                              <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border",
-                                school.license.status === "assigned" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                                school.license.status === "revoked" ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                                "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              )}>
-                                {STATUS_CONFIG[school.license.status]?.label ?? school.license.status}
-                              </span>
+                              {!school.active ? (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/20">
+                                  Suspendue
+                                </span>
+                              ) : (
+                                <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border",
+                                  school.license.status === "assigned" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                                  school.license.status === "revoked" ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                                  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                )}>
+                                  {STATUS_CONFIG[school.license.status]?.label ?? school.license.status}
+                                </span>
+                              )}
                               <span className="text-[10px] text-zinc-500">{DURATION_LABELS[school.license.duration] ?? school.license.duration}</span>
                             </div>
                             <p className="text-xs font-mono text-zinc-300">{formatKey(school.license.key)}</p>

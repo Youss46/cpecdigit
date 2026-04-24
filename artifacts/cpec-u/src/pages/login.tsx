@@ -163,10 +163,14 @@ export default function Login() {
       onSuccess: (data) => {
         handleAfterLogin(data.user as any);
       },
-      onError: () => {
+      onError: (err: any) => {
+        const apiData = err?.data ?? err?.response?.data;
+        const isDisabled = apiData?.error === "AccountDisabled";
         toast({
-          title: "Erreur de connexion",
-          description: "Identifiants incorrects. Veuillez réessayer.",
+          title: isDisabled ? "Accès refusé" : "Erreur de connexion",
+          description: isDisabled
+            ? "Votre compte a été désactivé. Veuillez contacter le développeur."
+            : "Identifiants incorrects. Veuillez réessayer.",
           variant: "destructive",
         });
       },

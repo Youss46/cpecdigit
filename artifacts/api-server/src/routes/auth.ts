@@ -1,7 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { db } from "@workspace/db";
-import { usersTable, classEnrollmentsTable, classesTable, activationKeysTable } from "@workspace/db";
+import { usersTable, classEnrollmentsTable, classesTable, activationKeysTable, tenantsTable } from "@workspace/db";
 import { eq, and, isNull } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 
@@ -37,6 +37,18 @@ router.post("/login", async (req, res) => {
     }
 
     const tenantId = user.tenantId!;
+
+    // Block login if the school has been deactivated by the developer
+    const [tenant] = await db.select({ active: tenantsTable.active })
+      .from(tenantsTable)
+      .where(eq(tenantsTable.id, tenantId));
+    if (!tenant || !tenant.active) {
+      res.status(401).json({
+        error: "AccountDisabled",
+        message: "Votre compte a été désactivé. Veuillez contacter le développeur.",
+      });
+      return;
+    }
 
     const isFirstLogin = user.role === "admin" && user.adminSubRole === "directeur" && !user.firstLoginAt;
     if (isFirstLogin) {
