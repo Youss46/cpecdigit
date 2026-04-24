@@ -1,6 +1,12 @@
-const CACHE_NAME = 'm15-edutech-v11';
-const API_CACHE_NAME = 'm15-edutech-api-v4';
+const CACHE_NAME = 'm15-edutech-v12';
+const API_CACHE_NAME = 'm15-edutech-api-v5';
 const API_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+// Replit's external load balancer blocks /api/* paths. We rewrite to /srv/*
+// here too so direct browser fetches (img src, iframe src, etc.) that bypass
+// window.fetch still work.
+const API_PREFIX = '/srv/';
+const LEGACY_API_PREFIX = '/api/';
 
 const SHELL_ASSETS = [
   '/',
@@ -13,45 +19,45 @@ const SHELL_ASSETS = [
 
 const CACHEABLE_API_PREFIXES = [
   // Student
-  '/api/student/schedule',
-  '/api/student/grades',
-  '/api/student/card',
-  '/api/student/dashboard',
-  '/api/student/me',
-  '/api/student/cahier-de-texte',
-  '/api/student/attendance/my',
-  '/api/student/absences',
-  '/api/student/results',
-  '/api/student/balance',
-  '/api/student/evaluations',
-  '/api/student/reclamations',
-  '/api/student/suivi',
+  '/srv/student/schedule',
+  '/srv/student/grades',
+  '/srv/student/card',
+  '/srv/student/dashboard',
+  '/srv/student/me',
+  '/srv/student/cahier-de-texte',
+  '/srv/student/attendance/my',
+  '/srv/student/absences',
+  '/srv/student/results',
+  '/srv/student/balance',
+  '/srv/student/evaluations',
+  '/srv/student/reclamations',
+  '/srv/student/suivi',
   // Teacher
-  '/api/teacher/assignments',
-  '/api/teacher/dashboard',
-  '/api/teacher/cahier-de-texte',
-  '/api/teacher/attendance',
-  '/api/teacher/grades',
-  '/api/teacher/schedule',
-  '/api/teacher/students',
-  '/api/teacher/evaluations',
+  '/srv/teacher/assignments',
+  '/srv/teacher/dashboard',
+  '/srv/teacher/cahier-de-texte',
+  '/srv/teacher/attendance',
+  '/srv/teacher/grades',
+  '/srv/teacher/schedule',
+  '/srv/teacher/students',
+  '/srv/teacher/evaluations',
   // Admin (read-only dashboard data)
-  '/api/admin/stats',
-  '/api/admin/alertes/resume',
-  '/api/admin/alertes',
+  '/srv/admin/stats',
+  '/srv/admin/alertes/resume',
+  '/srv/admin/alertes',
   // Parent
-  '/api/parent/dashboard',
-  '/api/parent/student',
-  '/api/parent/absences',
-  '/api/parent/schedule',
-  '/api/parent/results',
-  '/api/parent/balance',
+  '/srv/parent/dashboard',
+  '/srv/parent/student',
+  '/srv/parent/absences',
+  '/srv/parent/schedule',
+  '/srv/parent/results',
+  '/srv/parent/balance',
   // Shared
-  '/api/housing/my',
-  '/api/semesters',
-  '/api/subjects',
-  '/api/notifications/unread-count',
-  '/api/messages/unread-count',
+  '/srv/housing/my',
+  '/srv/semesters',
+  '/srv/subjects',
+  '/srv/notifications/unread-count',
+  '/srv/messages/unread-count',
 ];
 
 function isCacheableApi(pathname) {
@@ -78,19 +84,42 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  let request = event.request;
+  let url = new URL(request.url);
 
-  if (url.pathname.startsWith('/api/')) {
-    if (event.request.method === 'GET' && isCacheableApi(url.pathname)) {
+  // Replit's external load balancer blocks /api/* paths. Rewrite any direct
+  // browser fetches (img src, iframe src, etc.) that bypassed the in-page
+  // window.fetch interceptor so they reach the backend via /srv/*.
+  if (url.pathname.startsWith(LEGACY_API_PREFIX)) {
+    const rewritten = new URL(url.toString());
+    rewritten.pathname = API_PREFIX + url.pathname.slice(LEGACY_API_PREFIX.length);
+    request = new Request(rewritten.toString(), {
+      method: request.method,
+      headers: request.headers,
+      body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
+      mode: request.mode === 'navigate' ? 'same-origin' : request.mode,
+      credentials: request.credentials,
+      cache: request.cache,
+      redirect: request.redirect,
+      referrer: request.referrer,
+      integrity: request.integrity,
+    });
+    url = rewritten;
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  if (url.pathname.startsWith(API_PREFIX)) {
+    if (request.method === 'GET' && isCacheableApi(url.pathname)) {
       event.respondWith(
-        fetch(event.request)
+        fetch(request)
           .then(response => {
             if (response.ok) {
               const clone = response.clone();
               caches.open(API_CACHE_NAME).then(cache => {
                 const headers = new Headers(clone.headers);
                 headers.set('sw-cached-at', Date.now().toString());
-                cache.put(event.request, new Response(clone.body, {
+                cache.put(request, new Response(clone.body, {
                   status: clone.status,
                   statusText: clone.statusText,
                   headers,
@@ -99,7 +128,7 @@ self.addEventListener('fetch', (event) => {
             }
             return response;
           })
-          .catch(() => caches.match(event.request).then(cached => {
+          .catch(() => caches.match(request).then(cached => {
             if (cached) {
               const cachedAt = parseInt(cached.headers.get('sw-cached-at') || '0', 10);
               if (cachedAt > 0 && Date.now() - cachedAt > API_CACHE_MAX_AGE_MS) {

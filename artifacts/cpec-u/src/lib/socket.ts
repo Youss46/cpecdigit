@@ -5,7 +5,7 @@ let socket: Socket | null = null;
 export function getSocket(): Socket {
   if (!socket) {
     socket = io({
-      path: "/api/socket.io",
+      path: "/srv/socket.io",
       withCredentials: true,
       autoConnect: false,
       reconnection: true,

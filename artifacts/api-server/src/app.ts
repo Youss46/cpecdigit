@@ -46,10 +46,14 @@ app.use(
   })
 );
 
-app.get("/api/healthz", (_req, res) => res.json({ ok: true }));
-app.use("/api/uploads", express.static(UPLOADS_DIR));
-app.use("/api", tenantMiddleware);
-app.use("/api", router);
+// Mount the same handlers on both /api and /srv. Replit's external load
+// balancer blocks /api/* with 502, so the frontend rewrites all calls to
+// /srv/*. Keeping /api as well preserves backward compatibility for any
+// non-Replit deployment, server-to-server callers, or older clients.
+app.get(["/api/healthz", "/srv/healthz"], (_req, res) => res.json({ ok: true }));
+app.use(["/api/uploads", "/srv/uploads"], express.static(UPLOADS_DIR));
+app.use(["/api", "/srv"], tenantMiddleware);
+app.use(["/api", "/srv"], router);
 
 if (process.env.NODE_ENV === "production") {
   const frontendDist = path.join(__dirname, "../../cpec-u/dist/public");

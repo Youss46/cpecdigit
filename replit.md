@@ -1,7 +1,9 @@
-# CPEC-U — Gestion Académique
+# M15 EduTech — Multi-Tenant Academic Management Platform
 
 ## Overview
-CPEC-U is a comprehensive academic management Progressive Web App (PWA) designed for educational institutions. It offers multi-role workflows for Admins (Directeur, Scolarité, Planificateur), Teachers, and Students, aiming to streamline academic operations, improve communication, and provide robust reporting and management tools. The project's vision is to enhance efficiency in educational administration and provide a modern, accessible platform for all stakeholders.
+M15 EduTech (formerly CPEC-Digital) is a multi-tenant SaaS academic management Progressive Web App (PWA) designed for educational institutions. It offers multi-role workflows for Admins (Directeur, Scolarité, Planificateur), Teachers, and Students, aiming to streamline academic operations, improve communication, and provide robust reporting and management tools. The project's vision is to enhance efficiency in educational administration and provide a modern, accessible platform for all stakeholders.
+
+Tenants (schools) are resolved at login from the user's email — there are no subdomains. A super-admin dev portal at `/dev` (protected by `DEV_MASTER_KEY`) lets the operator create new schools (tenant + admin user + activation key in a single form) and manage activation keys, directors, and tenants.
 
 ## User Preferences
 - **Communication Style**: I prefer clear and concise communication.
@@ -49,8 +51,24 @@ The project utilizes a monorepo structure managed by pnpm workspaces:
 
 ### Running the Application
 The application runs as two separate processes:
-- **API Server**: Runs on port 3001.
-- **Frontend PWA**: Runs on port 8081, mapped to external port 80. Vite proxies `/api/*` requests to the API server.
+- **API Server (Express)**: Runs on port 8080.
+- **Frontend (Vite)**: Runs on port 5000, mapped to external port 80. Vite proxies `/api/*` and `/srv/*` requests to the API server.
+
+### Multi-Tenancy
+Every primary table carries a `tenantId` foreign key to a central `tenants` table. A `tenantMiddleware` reads `req.session.tenantId` and exposes it on `req` so all routes can scope their queries. User emails are unique per `(email, tenantId)` rather than globally. Login finds the user by email across all tenants, then sets `session.tenantId` on success.
+
+### `/srv/*` Path Workaround (Replit Load Balancer)
+**Critical**: Replit's external load balancer returns `502 Bad Gateway` for any path starting with `/api/*`, even though those paths work fine on `localhost`. To bypass this:
+1. The Express API server mounts every router on **both** `/api` and `/srv` (`app.use(["/api", "/srv"], router)`).
+2. Socket.IO is served at `/srv/socket.io` (the only path; the client matches).
+3. The Vite dev proxy forwards `/srv/*` straight to the API server (no rewrite — backend accepts `/srv/*` natively).
+4. `artifacts/cpec-u/src/main.tsx` installs a global `window.fetch` interceptor that transparently rewrites every `/api/*` URL to `/srv/*`. This means the 367 existing `fetch` calls and React Query keys in the codebase did not need to change.
+5. The service worker (`artifacts/cpec-u/public/sw.js`) also rewrites `/api/*` to `/srv/*` for direct browser fetches (e.g. `<img src="/api/uploads/...">`) that bypass `window.fetch`.
+
+When updating the service worker, **always bump `CACHE_NAME`** (e.g. `m15-edutech-v12` → `v13`) so the browser detects the change and clears the old cache. The SW uses a network-first strategy — never cache-first — so deploys are immediately picked up.
+
+### Dev Portal Authentication (`/dev`)
+Token-based, no session cookies. The frontend computes `SHA-256("dev-token:" + password + ":m15edutech")` client-side, stores it in `localStorage["m15-dev-token"]`, and sends it as `Authorization: Bearer <token>` on every request. The backend validates by recomputing the same hash from `DEV_MASTER_KEY` and comparing.
 
 ### UI/UX Decisions
 - Frontend utilizes React 19, Vite 7, Tailwind CSS 4, and shadcn/ui for a modern, responsive, and mobile-friendly design.

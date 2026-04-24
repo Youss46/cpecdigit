@@ -6,7 +6,9 @@ let io: Server | null = null;
 export function initSocketIO(httpServer: HttpServer): Server {
   io = new Server(httpServer, {
     cors: { origin: true, credentials: true },
-    path: "/api/socket.io",
+    // Replit's external LB blocks /api/* paths. Use /srv/* which matches the
+    // client's path. The Vite dev proxy forwards /srv/* with ws:true.
+    path: "/srv/socket.io",
   });
 
   io.on("connection", (socket) => {

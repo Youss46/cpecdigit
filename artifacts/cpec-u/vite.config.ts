@@ -70,6 +70,11 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      "/srv": {
+        target: `http://localhost:${process.env.API_PORT ?? "3001"}`,
+        changeOrigin: true,
+        ws: true,
+      },
     },
     fs: {
       strict: true,
