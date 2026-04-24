@@ -766,7 +766,7 @@ router.get("/admin/reclamations", requireRole("admin"), async (req, res) => {
     const studentUser = usersTable;
     const teacherUser = { ...usersTable } as any;
 
-    const conditions: any[] = [eq(reclamationsTable.tenantId, tenantId)];
+    const conditions: any[] = [eq(usersTable.tenantId, tenantId)];
     if (status) conditions.push(eq(reclamationsTable.status, status as any));
     if (semesterId) conditions.push(eq(reclamationsTable.semesterId, Number(semesterId)));
 
@@ -792,7 +792,7 @@ router.get("/admin/reclamations", requireRole("admin"), async (req, res) => {
       .leftJoin(usersTable, eq(usersTable.id, reclamationsTable.studentId))
       .leftJoin(subjectsTable, eq(subjectsTable.id, reclamationsTable.subjectId))
       .leftJoin(semestersTable, eq(semestersTable.id, reclamationsTable.semesterId))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(and(...conditions))
       .orderBy(desc(reclamationsTable.createdAt));
     res.json(rows);
   } catch (err) {
@@ -806,7 +806,7 @@ router.get("/admin/reclamations/stats", requireRole("admin"), async (req, res) =
   try {
     const tenantId = req.tenantId!;
     const { semesterId } = req.query;
-    const baseCond = eq(reclamationsTable.tenantId, tenantId);
+    const baseCond = eq(reclamationPeriodsTable.tenantId, tenantId);
     const cond = semesterId ? and(baseCond, eq(reclamationsTable.semesterId, Number(semesterId))) : baseCond;
 
     const all = await db.select({
@@ -818,6 +818,7 @@ router.get("/admin/reclamations/stats", requireRole("admin"), async (req, res) =
       resolvedAt: reclamationsTable.resolvedAt,
     })
     .from(reclamationsTable)
+    .leftJoin(reclamationPeriodsTable, eq(reclamationPeriodsTable.id, reclamationsTable.periodId))
     .leftJoin(subjectsTable, eq(subjectsTable.id, reclamationsTable.subjectId))
     .leftJoin(usersTable, eq(usersTable.id, reclamationsTable.teacherId))
     .where(cond);
