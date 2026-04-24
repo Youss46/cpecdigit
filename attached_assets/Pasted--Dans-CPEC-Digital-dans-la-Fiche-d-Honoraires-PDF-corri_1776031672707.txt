@@ -1,0 +1,87 @@
+> Dans **CPEC-Digital**, dans la **Fiche d'Honoraires PDF**, corriger les anomalies restantes après la première correction.
+>
+> ---
+>
+> ### Problème 1 — Séparateur "/" toujours présent dans les montants
+>
+> **Constat :** Les montants affichent toujours **200/000 FCFA**, **150/000 FCFA**, **50/000 FCFA**, **100/000 F(** — le séparateur `/` n'a pas été corrigé
+>
+> **Correction :**
+> ```javascript
+> // ✅ Appliquer sur TOUS les montants du PDF
+> const formaterMontant = (montant) => {
+>   if (!montant && montant !== 0) return '—';
+>   return new Intl.NumberFormat('fr-FR', {
+>     minimumFractionDigits: 0,
+>     maximumFractionDigits: 0
+>   }).format(montant) + ' FCFA';
+> };
+>
+> // Résultat attendu :
+> // 200 000 FCFA ✅
+> // 150 000 FCFA ✅
+> //  50 000 FCFA ✅
+> // 100 000 FCFA ✅
+> ```
+>
+> > ⚠️ Vérifier que cette fonction est bien **appelée partout** dans le générateur PDF — récapitulatif financier ET historique des paiements
+>
+> ---
+>
+> ### Problème 2 — Montant tronqué dans le tableau historique
+>
+> **Constat :** Les montants dans le tableau affichent **"100/000 F("** et **"50/000 FC"** — le texte est coupé, la colonne est trop étroite
+>
+> **Correction — Largeurs des colonnes du tableau :**
+> ```javascript
+> // Ajuster les largeurs des colonnes pour que le montant soit complet
+> const colonnes = [
+>   { header: 'Date',              width: 80  },  // JJ/MM/AAAA
+>   { header: 'Montant',           width: 120 },  // 200 000 FCFA
+>   { header: 'Moyen de paiement', width: 110 },  // Orange Money
+>   { header: 'Description',       width: 130 },  // Texte libre
+> ];
+> // Total : 440 pts → adapter à la largeur utile du PDF
+> ```
+>
+> ---
+>
+> ### Problème 3 — Montant prévu mal positionné
+>
+> **Constat :** Dans le récapitulatif financier, **"MONTANT PRÉVU"** et son label sont décalés — le label `MONTANT VERSÉ` chevauche la zone de `MONTANT PRÉVU`
+>
+> **Correction — Structure en grille 2 colonnes :**
+> ```javascript
+> // Disposition correcte en 2 colonnes équilibrées
+> const recapitulatif = [
+>   // Ligne 1
+>   [
+>     { label: 'MONTANT PRÉVU',   valeur: formaterMontant(montantPrevu) },
+>     { label: 'MONTANT VERSÉ',   valeur: formaterMontant(montantVerse) }
+>   ],
+>   // Ligne 2
+>   [
+>     { label: 'MONTANT RESTANT', valeur: formaterMontant(montantRestant) },
+>     { label: 'TAUX',            valeur: `${taux}%` }
+>   ]
+> ];
+>
+> // Chaque cellule occupe exactement 50% de la largeur
+> // Aucun chevauchement possible
+> ```
+>
+> ---
+>
+> ### Récapitulatif des corrections restantes
+>
+> | # | Problème | Statut | Correction |
+> |---|---|---|---|
+> | 1 | Séparateur `/` dans montants | ❌ Non corrigé | `Intl.NumberFormat('fr-FR')` partout |
+> | 2 | Montant tronqué dans tableau | ❌ Non corrigé | Élargir colonne Montant à 120pts |
+> | 3 | Chevauchement récapitulatif | ❌ Non corrigé | Grille 2 colonnes à 50% chacune |
+> | 4 | Moyen de paiement | ✅ Corrigé | — |
+> | 5 | Date du paiement | ✅ Corrigé | — |
+
+---
+
+Le problème principal est que la fonction `formaterMontant` a été créée mais **n'est pas appelée** sur tous les montants du PDF — certains endroits utilisent encore la valeur brute directement. Une recherche globale dans le code du générateur PDF sur toutes les occurrences de `montant` permettra d'identifier les endroits non corrigés.

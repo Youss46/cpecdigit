@@ -1,0 +1,60 @@
+> Dans **CPEC-Digital**, dans le module **Emplois du Temps**, après avoir cliqué sur le bouton **"Publier"**, le statut global de l'emploi du temps reste affiché comme **"Non publié"** alors que certaines séances affichent individuellement le badge **"Publié"**.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - Les **séances individuelles** passent correctement au statut *"Publié"*
+> - Mais le **badge global** de la classe (*"Non publié"* en orange) ne se met pas à jour
+> - Il y a donc une **incohérence** entre le statut des séances et le statut global affiché
+>
+> ---
+>
+> ### 2. Causes probables
+>
+> **Cause 1 — Logique de calcul du statut global incorrecte**
+> - Le statut global *"Publié"* doit être calculé dynamiquement selon les séances :
+> ```javascript
+> // Statut global = Publié si TOUTES les séances sont publiées
+> // Statut global = Partiellement publié si CERTAINES séances sont publiées
+> // Statut global = Non publié si AUCUNE séance n'est publiée
+>
+> const statutGlobal = seances.every(s => s.publie)
+>   ? "Publié"
+>   : seances.some(s => s.publie)
+>     ? "Partiellement publié"
+>     : "Non publié";
+> ```
+>
+> **Cause 2 — Absence de rechargement après publication**
+> - Après l'action de publication, le composant ne **recharge pas** les données depuis l'API
+> - Le badge global affiche l'ancienne valeur en cache
+> - Ajouter un **rechargement forcé** des données après publication :
+> ```javascript
+> const handlePublier = async () => {
+>   await publierEmploiDuTemps();
+>   await refetchEmploiDuTemps(); // Recharger les données depuis l'API
+> };
+> ```
+>
+> **Cause 3 — Champ `statut_global` non mis à jour en base**
+> - Si le statut global est un champ séparé en base de données, vérifier qu'il est bien mis à jour lors de la publication des séances
+>
+> ---
+>
+> ### 3. Correction des statuts à afficher
+>
+> | Situation | Badge affiché | Couleur |
+> |---|---|---|
+> | Aucune séance publiée | Non publié | 🟠 Orange |
+> | Certaines séances publiées | Partiellement publié | 🔵 Bleu |
+> | Toutes les séances publiées | Publié | 🟢 Vert |
+>
+> ---
+>
+> ### 4. Correction côté backend
+> - Vérifier que la route de publication met bien à jour le statut **de toutes les séances concernées**
+> - La réponse de l'API après publication doit retourner le **statut mis à jour** pour que le frontend puisse l'afficher immédiatement sans rechargement manuel
+
+---
+
+La cause la plus probable ici est la **Cause 2** — le frontend n'actualise pas les données après publication, donc le badge global affiche toujours l'ancienne valeur. Un simple `refetch` après l'action de publication devrait régler le problème.

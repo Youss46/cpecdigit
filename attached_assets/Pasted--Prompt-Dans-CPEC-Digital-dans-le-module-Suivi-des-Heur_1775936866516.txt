@@ -1,0 +1,149 @@
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le module **Suivi des Heures**, définir un **principe de comptabilisation cohérent** des heures réalisées par les enseignants, basé sur les feuilles de présence soumises, **sans étape de validation administrative**.
+>
+> ---
+>
+> ### 1. Principe fondamental
+>
+> ```
+> Une heure est comptabilisée comme RÉALISÉE
+> si et seulement si :
+>
+> Séance programmée dans l'emploi du temps
+>         +
+> Feuille de présence soumise par l'enseignant
+>         =
+> Heures réalisées comptabilisées immédiatement
+> ```
+>
+> ---
+>
+> ### 2. Les 2 sources de données à croiser
+>
+> | Source | Rôle | Table |
+> |---|---|---|
+> | **Emploi du temps** | Définit les heures prévues | `seances` |
+> | **Feuilles de présence** | Confirme qu'une séance a eu lieu | `feuilles_presence` |
+>
+> ---
+>
+> ### 3. Règles de comptabilisation
+>
+> | Situation | Heures comptabilisées |
+> |---|---|
+> | Séance programmée, feuille **non soumise** | 0h — séance en attente |
+> | Séance programmée, feuille **soumise** | ✅ Durée de la séance comptabilisée |
+> | Séance annulée par l'administration | 0h — séance annulée |
+> | Séance remplacée par un autre enseignant | Heures créditées au **remplaçant** |
+>
+> ---
+>
+> ### 4. Calcul des heures réalisées
+>
+> ```javascript
+> const calculerHeuresRealisees = async (enseignantId, matiereId, semestreId) => {
+>
+>   // Récupérer toutes les feuilles soumises — pas de filtre sur statut
+>   const feuilles = await db('feuilles_presence')
+>     .join('seances', 'feuilles_presence.seance_id', 'seances.id')
+>     .where({
+>       'seances.enseignant_id': enseignantId,
+>       'seances.matiere_id': matiereId,
+>       'seances.semestre_id': semestreId,
+>       'feuilles_presence.statut': 'soumise' // ← Soumise suffit
+>     })
+>     .select(
+>       'seances.heure_debut',
+>       'seances.heure_fin',
+>       'feuilles_presence.duree_effective'
+>     );
+>
+>   // Sommer les heures réalisées
+>   const totalHeures = feuilles.reduce((sum, f) => {
+>     if (f.duree_effective) return sum + f.duree_effective;
+>     const debut = new Date(`2000-01-01 ${f.heure_debut}`);
+>     const fin = new Date(`2000-01-01 ${f.heure_fin}`);
+>     return sum + (fin - debut) / 3600000;
+>   }, 0);
+>
+>   return totalHeures;
+> };
+> ```
+>
+> ---
+>
+> ### 5. Calcul du statut d'avancement
+>
+> ```javascript
+> const calculerStatut = (heuresPrevues, heuresRealisees,
+>                         dateDebutSemestre, dateFinSemestre) => {
+>
+>   const tauxAvancement = (heuresRealisees / heuresPrevues) * 100;
+>
+>   // Taux d'avancement attendu à ce jour
+>   const dureeTotal = new Date(dateFinSemestre) - new Date(dateDebutSemestre);
+>   const dureeEcoulee = new Date() - new Date(dateDebutSemestre);
+>   const tauxAttendu = Math.min((dureeEcoulee / dureeTotal) * 100, 100);
+>
+>   if (tauxAvancement >= tauxAttendu - 5)
+>     return { statut: "A_JOUR", couleur: "🟢" };
+>   if (tauxAvancement >= tauxAttendu - 20)
+>     return { statut: "A_SURVEILLER", couleur: "🟡" };
+>   return { statut: "EN_RETARD", couleur: "🔴" };
+> };
+> ```
+>
+> ---
+>
+> ### 6. Statuts affichés dans le tableau
+>
+> | Statut | Condition | Couleur |
+> |---|---|---|
+> | ✅ **À jour** | Avancement >= taux attendu à ce jour | 🟢 Vert |
+> | ⚠️ **À surveiller** | Légèrement en dessous du taux attendu | 🟡 Orange |
+> | 🔴 **En retard** | Très en dessous du taux attendu | 🔴 Rouge |
+> | ⚫ **Non démarré** | Aucune feuille soumise, semestre récent | ⚫ Gris |
+>
+> ---
+>
+> ### 7. Correction du problème actuel — 0h réalisées
+>
+> Le fait que tout affiche **0h** signifie que l'une de ces conditions n'est pas remplie :
+>
+> ```
+> Vérifier dans cet ordre :
+>
+> 1. Les feuilles ont-elles été soumises
+>    par les enseignants ?
+>    → Vérifier table feuilles_presence
+>      WHERE statut = 'soumise'
+>
+> 2. La jointure entre feuilles_presence
+>    et seances utilise-t-elle le bon champ ?
+>    → seance_id doit correspondre
+>
+> 3. Le semestre_id du filtre correspond-il
+>    au semestre_id des séances en base ?
+>    → Vérifier que le semestre sélectionné
+>      dans le filtre est le bon
+> ```
+>
+> ---
+>
+> ### 8. Indicateurs à afficher dans le tableau
+>
+> | Colonne | Calcul |
+> |---|---|
+> | **Prévues** | Volume horaire défini à l'affectation |
+> | **Réalisées** | Somme des durées des feuilles **soumises** |
+> | **Restantes** | Prévues — Réalisées |
+> | **Séances** | Nombre de feuilles soumises |
+> | **Avancement** | (Réalisées / Prévues) × 100 |
+> | **Statut** | Calculé selon avancement vs date du jour |
+
+---
+
+Avec ce principe simplifié, dès qu'un enseignant soumet sa feuille de présence, les heures sont **immédiatement comptabilisées** dans le suivi — aucune action administrative requise.

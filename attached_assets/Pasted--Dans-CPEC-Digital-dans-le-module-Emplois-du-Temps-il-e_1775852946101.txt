@@ -1,0 +1,112 @@
+---
+
+> Dans **CPEC-Digital**, dans le module **Emplois du Temps**, il existe une **incohérence bidirectionnelle** entre le statut global affiché en haut de page et le statut individuel affiché sur chaque séance.
+>
+> ---
+>
+> ### 1. Problèmes observés
+>
+> | Situation | Statut global | Statut séances | Problème |
+> |---|---|---|---|
+> | Après publication | 🟠 Non publié | 🟢 Publié | Incohérence |
+> | Après dépublication | 🟢 Publié | 🟠 Brouillon | Incohérence inverse |
+>
+> ---
+>
+> ### 2. Cause racine
+> Il existe **deux sources de vérité distinctes** qui ne sont pas synchronisées :
+>
+> - **Source 1** — Un champ `statut_global` stocké séparément en base de données, mis à jour par le bouton Publier/Dépublier
+> - **Source 2** — Le champ `statut` de chaque séance individuelle, mis à jour séparément
+>
+> Ces deux sources **ne se parlent pas**, ce qui crée les incohérences observées
+>
+> ---
+>
+> ### 3. Correction à apporter
+>
+> **Supprimer le champ `statut_global` séparé** et calculer le statut global **dynamiquement** depuis les séances :
+>
+> ```javascript
+> // Calculer le statut global depuis les séances en temps réel
+> const calculerStatutGlobal = (seances) => {
+>   if (!seances || seances.length === 0)
+>     return "vide";
+>   if (seances.every(s => s.statut === "publie"))
+>     return "publie";
+>   if (seances.every(s => s.statut === "brouillon"))
+>     return "brouillon";
+>   return "partiel"; // Certaines publiées, d'autres non
+> };
+> ```
+>
+> **Côté backend — action Publier tout :**
+> ```javascript
+> // Publier TOUTES les séances de la période en une seule transaction
+> await db.transaction(async (trx) => {
+>   await trx('seances')
+>     .where({ classe_id, semestre_id })
+>     .update({ statut: 'publie', publie_le: new Date() });
+> });
+> // Retourner les séances mises à jour pour que le frontend se rafraîchisse
+> ```
+>
+> **Côté backend — action Dépublier tout :**
+> ```javascript
+> await db.transaction(async (trx) => {
+>   await trx('seances')
+>     .where({ classe_id, semestre_id })
+>     .update({ statut: 'brouillon', publie_le: null });
+> });
+> ```
+>
+> ---
+>
+> ### 4. Affichage des statuts corrigé
+>
+> | Statut calculé | Badge affiché | Couleur |
+> |---|---|---|
+> | Toutes séances publiées | ✅ Publié | 🟢 Vert |
+> | Aucune séance publiée | 📝 Non publié | 🟠 Orange |
+> | Certaines publiées | ⚡ Partiellement publié | 🔵 Bleu |
+> | Aucune séance créée | — Vide | ⚫ Gris |
+>
+> ---
+>
+> ### 5. Rafraîchissement du frontend
+>
+> Après chaque action Publier ou Dépublier, forcer le rechargement des données :
+>
+> ```javascript
+> const handlePublier = async () => {
+>   setLoading(true);
+>   await publierTout({ classeId, semestreId });
+>   await refetchSeances(); // Recharger TOUTES les séances depuis l'API
+>   setLoading(false);      // Le statut global se recalcule automatiquement
+> };
+>
+> const handleDepublier = async () => {
+>   setLoading(true);
+>   await depublierTout({ classeId, semestreId });
+>   await refetchSeances();
+>   setLoading(false);
+> };
+> ```
+>
+> ---
+>
+> ### 6. Visibilité — corriger la date affichée
+> Sur la capture, le badge indique **"Visible jusqu'au 11 avr. 2026"** alors que les séances sont en mai 2026. Cette date doit correspondre à la **dernière séance publiée** et non à une date fixe :
+>
+> ```javascript
+> // Date de visibilité = date de la dernière séance publiée
+> const derniereSeancePubliee = seances
+>   .filter(s => s.statut === 'publie')
+>   .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+>
+> const visibleJusquAu = derniereSeancePubliee?.date ?? null;
+> ```
+
+---
+
+La cause racine est claire : **deux sources de vérité non synchronisées**. La solution est de supprimer le champ `statut_global` séparé et de tout calculer dynamiquement depuis les statuts des séances individuelles — une seule source de vérité élimine toutes les incohérences d'un coup.

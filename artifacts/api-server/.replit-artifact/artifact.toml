@@ -1,0 +1,28 @@
+kind = "api"
+  previewPath = "/api"
+  title = "API Server"
+  version = "1.0.0"
+  id = "3B4_FFSkEVBkAeYMFRJ2e"
+
+  [[services]]
+  localPort = 3000
+  name = "API Server"
+  paths = ["/api"]
+
+  [services.development]
+  run = "PORT=3000 pnpm --filter @workspace/api-server run dev"
+
+  [services.production]
+  build = "PORT=3000 BASE_PATH=/ pnpm --filter @workspace/cpec-u run build && pnpm --filter @workspace/api-server run build"
+
+  [services.production.run]
+  args = ["pnpm", "--filter", "@workspace/api-server", "run", "start"]
+
+  [services.production.run.env]
+  PORT = "3000"
+  NODE_ENV = "production"
+  BASE_PATH = "/"
+
+  [services.production.health.startup]
+  path = "/api/healthz"
+  

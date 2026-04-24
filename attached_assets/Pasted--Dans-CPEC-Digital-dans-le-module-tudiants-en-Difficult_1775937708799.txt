@@ -1,0 +1,125 @@
+> Dans **CPEC-Digital**, dans le module **Étudiants en Difficulté**, corriger **deux anomalies** identifiées sur la page de suivi individuel d'un étudiant.
+>
+> ---
+>
+> ### Problème 1 — Crédits validés : principe de comptabilisation à clarifier et corriger
+>
+> **Constat :** La fiche affiche **43 crédits validés** — ce chiffre semble incorrect ou mal calculé.
+>
+> **Principe correct de comptabilisation des crédits (LMD) :**
+>
+> ```
+> Une UE est validée si :
+>   Moyenne UE >= 10/20
+>   ET aucune note <= 6/20 dans les matières de l'UE
+>         ↓
+>   Crédits de l'UE acquis définitivement
+>
+> Total crédits validés =
+>   Somme des crédits de toutes les UE validées
+>   depuis le début du parcours
+> ```
+>
+> **Règles strictes :**
+>
+> | Situation | Crédits |
+> |---|---|
+> | UE validée (moyenne >= 10, pas de note éliminatoire) | ✅ Crédits acquis |
+> | UE non validée (moyenne < 10) | ❌ 0 crédit |
+> | UE avec note éliminatoire (<= 6) même si moyenne >= 10 | ❌ 0 crédit |
+> | UE validée en rattrapage | ✅ Crédits acquis |
+> | UE validée par jury spécial | ✅ Crédits acquis |
+>
+> **Correction technique :**
+> ```javascript
+> const calculerCreditsValides = async (etudiantId) => {
+>
+>   // Récupérer toutes les UE de tous les semestres de l'étudiant
+>   const ues = await db('resultats_ue')
+>     .where({ etudiant_id: etudiantId })
+>     .select('ue_id', 'moyenne_ue', 'valide', 'credits');
+>
+>   // Sommer uniquement les crédits des UE validées
+>   const totalCredits = ues
+>     .filter(ue => ue.valide === true) // UE validée selon règles LMD
+>     .reduce((sum, ue) => sum + ue.credits, 0);
+>
+>   return totalCredits;
+>   // Licence = 180 crédits max
+>   // Chaque semestre = 30 crédits max
+> };
+> ```
+>
+> **Affichage corrigé :**
+> ```
+> Crédits validés : 43 / 180
+>                   ↑     ↑
+>             Acquis    Total Licence
+> ```
+>
+> - Afficher toujours **X / Y** pour que le chiffre soit interprétable
+> - Ajouter une **barre de progression** vers le diplôme
+>
+> ---
+>
+> ### Problème 2 — "Retour à la liste" redirige vers un mauvais environnement
+>
+> **Constat :** Le bouton **"Retour à la liste"** depuis la fiche de suivi d'un étudiant ne ramène pas à la liste **Étudiants en Difficulté** mais vers une autre page
+>
+> **Cause probable :**
+>
+> | Cause | Détail |
+> |---|---|
+> | **Lien en dur incorrect** | Le bouton pointe vers `/admin/students` (liste générale) au lieu de `/admin/etudiants-difficulte` |
+> | **Historique de navigation perdu** | `navigate(-1)` utilisé mais l'historique ne contient pas la bonne page |
+> | **Composant partagé** | La fiche de suivi est partagée entre plusieurs modules et le retour n'est pas contextualisé |
+>
+> **Correction — Retour contextuel :**
+> ```javascript
+> // ❌ ACTUEL — Retour générique
+> <button onClick={() => navigate(-1)}>
+>   Retour à la liste
+> </button>
+>
+> // ✅ CORRIGÉ — Retour vers la bonne page selon le contexte
+> // Passer l'origine en paramètre URL
+> // Ex: /admin/suivi/etudiant/7?from=etudiants-difficulte
+>
+> const { from } = useSearchParams();
+>
+> const retourListe = () => {
+>   switch(from) {
+>     case 'etudiants-difficulte':
+>       navigate('/admin/etudiants-difficulte');
+>       break;
+>     case 'utilisateurs':
+>       navigate('/admin/users');
+>       break;
+>     case 'resultats':
+>       navigate('/admin/resultats');
+>       break;
+>     default:
+>       navigate('/admin/etudiants-difficulte');
+>   }
+> };
+>
+> // Au niveau du bouton Suivi dans la liste Étudiants en difficulté
+> <button onClick={() =>
+>   navigate(`/admin/suivi/etudiant/${id}?from=etudiants-difficulte`)
+> }>
+>   Suivi
+> </button>
+> ```
+>
+> ---
+>
+> ### Récapitulatif des corrections
+>
+> | # | Problème | Correction |
+> |---|---|---|
+> | 1 | Crédits validés sans contexte | Afficher **X / 180** avec règles LMD strictes |
+> | 2 | Retour vers mauvaise page | Paramètre `?from=` pour retour contextuel |
+
+---
+
+Le paramètre `?from=` est la solution la plus robuste pour le retour contextuel — il fonctionne même si l'utilisateur a ouvert la fiche dans un nouvel onglet ou rafraîchi la page, contrairement à `navigate(-1)` qui dépend de l'historique du navigateur.

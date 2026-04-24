@@ -1,0 +1,222 @@
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans l'**Espace Administration** (Directeur du Centre et Assistant de Direction), les notifications et alertes doivent être **visibles et signalées** directement sur le tableau de bord principal pour attirer immédiatement l'attention, sans navigation supplémentaire.
+>
+> ---
+>
+> ### 1. Badges sur chaque entrée du menu latéral
+>
+> Chaque module du menu affiche un **badge rouge** si une action est requise :
+>
+> ```
+> 👥 Utilisateurs                           ← Pas d'alerte
+> 📚 Classes & Matières                     ← Pas d'alerte
+> 📅 Semestres & Résultats        [5]  ← 5 matières avec notes soumises non validées
+> 🗓️ Emplois du Temps             [2]  ← 2 séances en conflit ou non publiées
+> 📋 Feuilles de Présence         [8]  ← 8 feuilles soumises non traitées
+> 📊 Bilan des Absences           [3]  ← 3 étudiants au-dessus du seuil critique
+> 💰 Scolarité / Paiements        [6]  ← 6 échéances dépassées non payées
+> 🏠 Hébergement                        ← Pas d'alerte
+> ⚖️ Réclamations                 [2]  ← 2 réclamations transmises à l'admin
+> 🎓 Jury Spécial                 [1]  ← 1 session de jury en attente
+> 💬 Messages                     [4]  ← 4 messages non lus
+> ```
+>
+> ---
+>
+> ### 2. Widget principal sur le tableau de bord
+>
+> ```
+> 🔔 Centre de Notifications & Alertes          [Tout marquer lu]
+> ──────────────────────────────────────────────────────────────
+>
+> 🔴 ACTIONS URGENTES
+> ┌──────────────────────────────────────────────────────────┐
+> │ 📝 Notes soumises en attente de validation               │
+> │ 5 matières — Licence 3 Decogef — Semestre 5              │
+> │ Soumises il y a 2 jours      [Valider les notes →]       │
+> └──────────────────────────────────────────────────────────┘
+>
+> ┌──────────────────────────────────────────────────────────┐
+> │ 💰 Échéances de paiement dépassées                       │
+> │ 6 étudiants — Montant total : 540 000 FCFA               │
+> │ Retard moyen : 5 jours        [Voir les impayés →]       │
+> └──────────────────────────────────────────────────────────┘
+>
+> 🟠 ATTENTION REQUISE
+> ┌──────────────────────────────────────────────────────────┐
+> │ 🚨 Étudiants dépassant le seuil d'absences               │
+> │ 3 étudiants — Licence 3 Decogef                          │
+> │ Taux moyen : 32%              [Voir le bilan →]          │
+> └──────────────────────────────────────────────────────────┘
+>
+> ┌──────────────────────────────────────────────────────────┐
+> │ ⚖️ Réclamations transmises pour arbitrage                │
+> │ 2 réclamations en attente de décision administrative     │
+> │ Depuis 3 jours                [Arbitrer →]               │
+> └──────────────────────────────────────────────────────────┘
+>
+> 🔵 INFORMATIONS
+> ┌──────────────────────────────────────────────────────────┐
+> │ 📅 Emploi du temps publié                                │
+> │ Licence 3 Decogef — Semaine du 14 au 19 avril 2026       │
+> │ il y a 1 heure                                           │
+> └──────────────────────────────────────────────────────────┘
+> ```
+>
+> ---
+>
+> ### 3. Catégorisation par profil
+>
+> #### Directeur du Centre
+>
+> | Niveau | Alertes spécifiques |
+> |---|---|
+> | 🔴 **Urgent** | Jury spécial en attente, réclamations pour arbitrage, notes soumises non validées |
+> | 🟠 **Attention** | Étudiants en difficulté critique, honoraires non payés, taux de recouvrement bas |
+> | 🔵 **Info** | Résultats publiés, emploi du temps modifié, nouveaux utilisateurs créés |
+>
+> #### Assistant de Direction
+>
+> | Niveau | Alertes spécifiques |
+> |---|---|
+> | 🔴 **Urgent** | Feuilles de présence non traitées, notes soumises à valider, paiements en retard |
+> | 🟠 **Attention** | Absences au-dessus du seuil, chambres disponibles non affectées, messages non lus |
+> | 🔵 **Info** | Nouveaux étudiants inscrits, emploi du temps publié, évaluations clôturées |
+>
+> ---
+>
+> ### 4. Implémentation technique
+>
+> ```javascript
+> // Récupérer le résumé des alertes au chargement du tableau de bord
+> const fetchAlertesDashboard = async () => {
+>   const data = await api.get('/admin/alertes/resume');
+>
+>   setAlertes({
+>     // Urgentes
+>     notesSoumises: data.notes_en_attente_validation,
+>     echeancesDepassees: data.paiements_en_retard,
+>     reclamationsArbitrage: data.reclamations_admin,
+>     juryEnAttente: data.jury_en_attente,
+>
+>     // Attention
+>     etudiantsAbsences: data.etudiants_seuil_critique,
+>     etudiantsDifficulte: data.etudiants_en_difficulte,
+>     honorairesNonPayes: data.honoraires_dus,
+>
+>     // Info
+>     messagesNonLus: data.messages_non_lus,
+>     feuillesNonTraitees: data.feuilles_soumises,
+>   });
+>
+>   // Badges menu latéral
+>   setBadgesMenu({
+>     resultats: data.notes_en_attente_validation,
+>     presences: data.feuilles_soumises,
+>     absences: data.etudiants_seuil_critique,
+>     paiements: data.paiements_en_retard,
+>     reclamations: data.reclamations_admin,
+>     messages: data.messages_non_lus,
+>   });
+> };
+>
+> // Rafraichissement toutes les 30 secondes
+> useEffect(() => {
+>   fetchAlertesDashboard();
+>   const interval = setInterval(fetchAlertesDashboard, 30000);
+>   return () => clearInterval(interval);
+> }, []);
+> ```
+>
+> ---
+>
+> ### 5. Endpoint backend centralisé
+>
+> ```javascript
+> // GET /api/admin/alertes/resume
+> // Retourne toutes les alertes en une seule requête
+> router.get('/admin/alertes/resume', authMiddleware, async (req, res) => {
+>   const [
+>     notes,
+>     paiements,
+>     absences,
+>     reclamations,
+>     feuilles,
+>     messages,
+>     jury,
+>     honoraires,
+>     difficulte
+>   ] = await Promise.all([
+>     db('notes').where({ statut: 'soumise' }).count(),
+>     db('paiements_echeances')
+>       .where({ statut: 'en_retard' }).count(),
+>     db('absences_bilan')
+>       .where('taux', '>', seuilCritique).count(),
+>     db('reclamations')
+>       .where({ statut: 'transmise_admin' }).count(),
+>     db('feuilles_presence')
+>       .where({ statut: 'soumise' }).count(),
+>     db('messages')
+>       .where({ lu: false, destinataire_role: req.user.role }).count(),
+>     db('jury_special')
+>       .where({ statut: 'en_attente' }).count(),
+>     db('honoraires_paiements')
+>       .where({ statut: 'impaye' }).count(),
+>     db('etudiants_difficulte')
+>       .where({ niveau_risque: 'critique' }).count(),
+>   ]);
+>
+>   res.json({
+>     notes_en_attente_validation: notes[0].count,
+>     paiements_en_retard: paiements[0].count,
+>     etudiants_seuil_critique: absences[0].count,
+>     reclamations_admin: reclamations[0].count,
+>     feuilles_soumises: feuilles[0].count,
+>     messages_non_lus: messages[0].count,
+>     jury_en_attente: jury[0].count,
+>     honoraires_dus: honoraires[0].count,
+>     etudiants_en_difficulte: difficulte[0].count,
+>   });
+> });
+> ```
+>
+> ---
+>
+> ### 6. Résumé quotidien automatique — 8h00
+>
+> Chaque matin, envoyer un **push de synthèse** au Directeur et à l'Assistant :
+>
+> ```
+> 📋 Bonjour — Résumé CPEC-Digital du 14/04/2026
+> ─────────────────────────────────────────────────
+> 🔴 5 notes soumises en attente de validation
+> 🔴 6 paiements en retard — 540 000 FCFA
+> 🟠 3 étudiants au-dessus du seuil d'absences
+> 🟠 2 réclamations en attente d'arbitrage
+> 🔵 4 messages non lus
+> ─────────────────────────────────────────────────
+> → Ouvrir CPEC-Digital
+> ```
+>
+> ---
+>
+> ### 7. Différence entre les deux profils
+>
+> | Alerte | Directeur | Assistant de Direction |
+> |---|---|---|
+> | Notes à valider | ✅ Voit | ✅ Voit |
+> | Paiements en retard | ✅ Voit | ✅ Voit |
+> | Réclamations arbitrage | ✅ Voit | ✅ Voit |
+> | Jury spécial | ✅ Voit | ❌ Ne voit pas |
+> | Honoraires impayés | ✅ Voit | ❌ Ne voit pas |
+> | Rapport financier global | ✅ Voit | ❌ Ne voit pas |
+> | Étudiants en difficulté | ✅ Voit | ✅ Voit |
+> | Feuilles non traitées | ✅ Voit | ✅ Voit |
+> | Messages | ✅ Voit | ✅ Voit |
+
+---
+
+Le point le plus stratégique est l'**endpoint centralisé** `/api/admin/alertes/resume` qui agrège toutes les alertes en **une seule requête** via `Promise.all()` — sans ça, le tableau de bord ferait 9 requêtes séparées à chaque chargement, ce qui ralentirait considérablement l'interface.

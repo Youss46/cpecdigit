@@ -1,0 +1,126 @@
+> Dans **CPEC-Digital**, dans le module **Bulletins de Notes**, corriger la **disposition** de la section Vérification d'Authenticité qui apparaît avant les signatures au lieu d'être positionnée dans le pied de page du bulletin.
+>
+> ---
+>
+> ### 1. Problème identifié
+>
+> **Ordre actuel (incorrect) :**
+> ```
+> Récapitulatif
+>       ↓
+> Vérification d'Authenticité + QR Code  ← ❌ Mal placé
+>       ↓
+> Signatures (Directeur / Cachet / Étudiant)
+>       ↓
+> Pied de page (Date, Réf, Page)
+> ```
+>
+> **Ordre attendu (correct) :**
+> ```
+> Récapitulatif
+>       ↓
+> Signatures (Directeur / Cachet / Étudiant)
+>       ↓
+> ──────────────────────────────────────────
+> Pied de page :
+>   [QR Code] Scannez pour vérifier | Date | Réf | Page
+> ```
+>
+> ---
+>
+> ### 2. Structure corrigée du bulletin
+>
+> ```
+> ┌─────────────────────────────────────────────┐
+> │  EN-TÊTE                                    │
+> │  Logo + Nom établissement + Bulletin S5     │
+> ├─────────────────────────────────────────────┤
+> │  INFORMATIONS ÉTUDIANT                      │
+> │  Nom, Matricule, Classe, Sexe...            │
+> ├─────────────────────────────────────────────┤
+> │  TABLEAU DES NOTES                          │
+> │  UE1, UE2... avec matières et coefficients  │
+> ├─────────────────────────────────────────────┤
+> │  RÉCAPITULATIF                              │
+> │  Moyenne brute/nette, absences, classement  │
+> ├─────────────────────────────────────────────┤
+> │  SIGNATURES                  (zone libre)   │
+> │  Le Directeur | Cachet | L'étudiant(e)      │
+> │  ____________   _______   ______________    │
+> │     CPEC-U                  Kevin Kouman    │
+> ├─────────────────────────────────────────────┤
+> │  PIED DE PAGE (position fixe bas de page)   │
+> │  [QR]  Scannez pour vérifier l'authenticité │
+> │  Doc généré le 11/04/2026 | Réf: BLT-XXX-5 │
+> └─────────────────────────────────────────────┘
+> ```
+>
+> ---
+>
+> ### 3. Correction technique
+>
+> Le QR Code doit être intégré dans le **pied de page fixe** du bulletin, pas dans le flux du contenu :
+>
+> ```javascript
+> // Structure du bulletin PDF corrigée
+> const bulletinPDF = {
+>
+>   // Contenu principal (flux normal)
+>   contenu: [
+>     sectionEnTete(),
+>     sectionInfosEtudiant(),
+>     sectionTableauNotes(),
+>     sectionRecapitulatif(),
+>     sectionSignatures(),    // ← Signatures EN DERNIER dans le contenu
+>   ],
+>
+>   // Pied de page fixe (affiché en bas de chaque page)
+>   piedDePage: {
+>     position: 'fixed-bottom',
+>     contenu: [
+>       {
+>         type: 'qr-ligne',
+>         elements: [
+>           { type: 'qrcode', valeur: verificationUrl, taille: 45 },
+>           { type: 'texte', valeur: 'Scannez pour vérifier l\'authenticité de ce bulletin', style: 'italic' },
+>         ]
+>       },
+>       {
+>         type: 'ligne-info',
+>         elements: [
+>           { texte: `Document généré le ${dateGeneration}`, align: 'left' },
+>           { texte: `Réf : ${reference}`, align: 'center' },
+>           { texte: `Page ${pageNum}`, align: 'right' }
+>         ]
+>       }
+>     ]
+>   }
+> };
+> ```
+>
+> ---
+>
+> ### 4. Rendu final du pied de page
+>
+> ```
+> ─────────────────────────────────────────────────
+> [QR]  Scannez pour vérifier l'authenticité
+>       de ce bulletin
+> ─────────────────────────────────────────────────
+> Document généré le 11/04/2026  |  Réf: BLT-23INP2435-5  |  Page 1
+> ```
+>
+> ---
+>
+> ### 5. Autres corrections visuelles à appliquer
+>
+> | Élément | Correction |
+> |---|---|
+> | **Séparateur** | Ajouter une ligne de séparation entre signatures et pied de page |
+> | **QR Code taille** | Minimum **45x45mm** pour être scannable une fois imprimé |
+> | **Texte sous QR** | *"Scannez pour vérifier l'authenticité de ce bulletin"* en italique |
+> | **Espacement signatures** | Augmenter l'espace entre les 3 signataires pour permettre une vraie signature manuscrite |
+
+---
+
+Le point clé est de **sortir le QR Code du flux du contenu** et de le placer dans un **pied de page à position fixe** — ainsi il apparaîtra toujours en bas de page, après les signatures, quelle que soit la longueur du bulletin.

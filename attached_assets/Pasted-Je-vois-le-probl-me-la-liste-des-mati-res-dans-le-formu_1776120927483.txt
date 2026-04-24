@@ -1,0 +1,110 @@
+Je vois le problème : la liste des matières dans le formulaire d'affectation est **incomplète** — toutes les matières créées n'apparaissent pas. Voici le prompt :
+
+---
+
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le module **Affectations**, lors de la création d'une affectation, la liste déroulante des **matières** n'affiche pas toutes les matières créées dans le système.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - Certaines matières créées dans le module **Classes & Matières** n'apparaissent pas dans la liste déroulante du formulaire d'affectation
+> - La liste est **incomplète** sans message d'erreur apparent
+>
+> ---
+>
+> ### 2. Causes probables à investiguer
+>
+> | Cause | Détail |
+> |---|---|
+> | **Filtre non voulu** | La requête filtre les matières par classe, semestre ou statut — excluant certaines matières |
+> | **Pagination côté API** | L'endpoint retourne uniquement les X premières matières et tronque la liste |
+> | **Filtre sur matières déjà affectées** | Les matières ayant déjà un enseignant sont exclues — ce qui peut être intentionnel ou non |
+> | **Filtre sur année académique** | Seules les matières de l'année active sont retournées |
+> | **Limit SQL trop bas** | La requête a un `LIMIT` trop restrictif |
+>
+> ---
+>
+> ### 3. Correction de la requête backend
+>
+> ```javascript
+> // GET /api/matieres — pour le formulaire d'affectation
+>
+> // ❌ ACTUEL — Probablement filtré ou limité
+> const matieres = await db('matieres')
+>   .where({ classe_id: quelqueChose }) // ← Filtre trop restrictif
+>   .limit(10);                          // ← Limite trop basse
+>
+> // ✅ CORRIGÉ — Toutes les matières sans restriction
+> const matieres = await db('matieres')
+>   .join('ues', 'matieres.ue_id', 'ues.id')
+>   .join('classes', 'matieres.classe_id', 'classes.id')
+>   .orderBy('classes.nom')
+>   .orderBy('ues.nom')
+>   .orderBy('matieres.nom')
+>   .select(
+>     'matieres.id',
+>     'matieres.nom',
+>     'matieres.coefficient',
+>     'classes.nom as classe_nom',
+>     'ues.nom as ue_nom'
+>   );
+> // Pas de LIMIT — retourner TOUTES les matières
+> ```
+>
+> ---
+>
+> ### 4. Affichage amélioré dans la liste déroulante
+>
+> Pour faciliter la sélection, afficher le contexte de chaque matière :
+>
+> ```
+> ── Licence 3 Decogef ──────────────────
+>   Droit social (UE1 — Coef. 2)
+>   Droit du travail (UE1 — Coef. 2)
+>   Contrôle fiscal (UE2 — Coef. 2)
+>   Impôt sur le revenu BIC (UE2 — Coef. 3)
+> ── Licence 2 Decogef ──────────────────
+>   Comptabilité générale (UE1 — Coef. 4)
+>   ...
+> ```
+>
+> ```javascript
+> // Grouper les matières par classe dans la liste déroulante
+> const matieresGroupees = matieres.reduce((acc, m) => {
+>   if (!acc[m.classe_nom]) acc[m.classe_nom] = [];
+>   acc[m.classe_nom].push(m);
+>   return acc;
+> }, {});
+>
+> // Rendu JSX
+> <select>
+>   {Object.entries(matieresGroupees).map(([classe, items]) => (
+>     <optgroup label={classe} key={classe}>
+>       {items.map(m => (
+>         <option key={m.id} value={m.id}>
+>           {m.nom} — {m.ue_nom} — Coef. {m.coefficient}
+>         </option>
+>       ))}
+>     </optgroup>
+>   ))}
+> </select>
+> ```
+>
+> ---
+>
+> ### 5. Débogage rapide
+>
+> ```javascript
+> // Logger dans la console pour identifier le problème
+> console.log("Total matières en base :", await db('matieres').count());
+> console.log("Total matières retournées par l'API :", matieres.length);
+> // Si les deux chiffres sont différents → le filtre/limit est là
+> ```
+
+---
+
+La cause la plus probable est un **`LIMIT` trop bas** ou un **filtre sur les matières déjà affectées** — la solution est de retourner toutes les matières sans restriction et de les grouper par classe pour une meilleure lisibilité dans la liste déroulante.

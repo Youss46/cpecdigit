@@ -1,0 +1,142 @@
+> Dans **CPEC-Digital**, implémenter un module de **Gestion des Réclamations** permettant aux étudiants de contester une note, avec un circuit de traitement impliquant l'enseignant et l'administration.
+>
+> ---
+>
+> ### 1. Accès et conditions
+> - Une réclamation ne peut être soumise que pendant une **période de réclamation définie** par l'administration après publication des notes
+> - L'administration configure :
+>   - La **date d'ouverture** des réclamations
+>   - La **date limite** de soumission
+>   - Le **délai de réponse** de l'enseignant (ex : 5 jours ouvrables)
+> - Passé le délai, le formulaire est **automatiquement clôturé**
+> - Un étudiant ne peut soumettre qu'**une seule réclamation par matière par semestre**
+>
+> ---
+>
+> ### 2. Soumission par l'étudiant
+>
+> #### Formulaire de réclamation
+> | Champ | Détail |
+> |---|---|
+> | **Matière concernée** | Sélection parmi ses matières du semestre |
+> | **Note contestée** | Affichée automatiquement |
+> | **Type de réclamation** | Erreur de saisie / Copie non corrigée / Barème contesté / Autre |
+> | **Motif détaillé** | Champ texte obligatoire (min 50 caractères) |
+> | **Pièce jointe** | Document optionnel (photo de copie, justificatif) |
+>
+> - Avant soumission, afficher un message : *"Toute réclamation abusive peut entraîner des sanctions disciplinaires"*
+> - Après soumission, l'étudiant reçoit un **numéro de réclamation unique** et une notification de confirmation
+>
+> ---
+>
+> ### 3. Circuit de traitement
+>
+> ```
+> Étudiant soumet réclamation
+>         ↓
+> Enseignant notifié → Examine et répond
+>         ↓
+>    ┌────┴────┐
+>    │         │
+> Acceptée   Rejetée
+>    │         │
+>    ↓         ↓
+> Admin     Admin
+> notifiée  notifiée
+>    │         │
+>    ↓         ↓
+> Note       Décision
+> modifiée   maintenue
+>    │         │
+>    └────┬────┘
+>         ↓
+> Étudiant notifié
+> de la décision finale
+> ```
+>
+> ---
+>
+> ### 4. Traitement par l'enseignant
+> - L'enseignant reçoit une **notification push** dès soumission d'une réclamation
+> - Il accède à la réclamation depuis son espace avec :
+>   - Le motif détaillé de l'étudiant
+>   - La note contestée
+>   - La pièce jointe si fournie
+> - Il dispose de **3 options** :
+>
+> | Option | Action | Délai |
+> |---|---|---|
+> | ✅ **Accepter** | Reconnaître l'erreur et proposer une nouvelle note | Immédiat |
+> | ❌ **Rejeter** | Maintenir la note avec justification obligatoire | Immédiat |
+> | ⏳ **Transmettre à l'admin** | En cas de litige nécessitant arbitrage | Immédiat |
+>
+> - Un champ **"Commentaire de l'enseignant"** est obligatoire quelle que soit la décision
+>
+> ---
+>
+> ### 5. Arbitrage par l'administration
+> - Si l'enseignant **accepte** la modification → l'admin valide ou refuse la nouvelle note
+> - Si l'enseignant **rejette** → l'admin peut passer outre et modifier la note si justifié
+> - Si **transmis à l'admin** → l'admin tranche en dernier recours
+> - La décision de l'administration est **définitive et non contestable**
+>
+> ---
+>
+> ### 6. Statuts de la réclamation
+>
+> | Statut | Description |
+> |---|---|
+> | 🟡 **Soumise** | En attente de traitement par l'enseignant |
+> | 🔵 **En cours** | Examinée par l'enseignant |
+> | 🟠 **En arbitrage** | Transmise à l'administration |
+> | 🟢 **Acceptée** | Note modifiée |
+> | 🔴 **Rejetée** | Note maintenue |
+> | ⚫ **Clôturée** | Délai de réclamation expiré |
+>
+> ---
+>
+> ### 7. Notifications automatiques
+>
+> | Événement | Destinataire | Message |
+> |---|---|---|
+> | Réclamation soumise | Enseignant | *"Nouvelle réclamation de [Nom] sur [Matière]"* |
+> | Réclamation soumise | Admin | *"Une réclamation a été soumise pour [Matière]"* |
+> | Réponse enseignant | Étudiant | *"Votre réclamation a reçu une réponse"* |
+> | Délai enseignant dépassé | Admin | *"Réclamation [N°] sans réponse depuis X jours"* |
+> | Décision finale | Étudiant | *"Décision finale : [Acceptée/Rejetée] — [Motif]"* |
+> | Note modifiée | Étudiant | *"Votre note en [Matière] a été mise à jour : X → Y"* |
+>
+> ---
+>
+> ### 8. Traçabilité complète
+> Chaque réclamation conserve un **historique complet et non modifiable** :
+> - Date et heure de chaque action
+> - Identité de chaque intervenant
+> - Ancienne et nouvelle note si modification
+> - Tous les commentaires échangés
+> - Décision finale et motif
+>
+> ---
+>
+> ### 9. Tableau de bord réclamations (Administration)
+>
+> | Indicateur | Détail |
+> |---|---|
+> | Total réclamations reçues | Par semestre |
+> | Réclamations en attente | Nécessitant une action |
+> | Taux d'acceptation | % de réclamations ayant abouti à une modification |
+> | Matières les plus réclamées | Classement par nombre de réclamations |
+> | Enseignants avec le plus de réclamations | Indicateur de vigilance |
+> | Délai moyen de traitement | En jours ouvrables |
+>
+> ---
+>
+> ### 10. Sécurité côté backend
+> - Vérifier que l'étudiant ne peut réclamer que sur **ses propres notes**
+> - Vérifier que la **période de réclamation est active** avant d'accepter toute soumission
+> - Toute modification de note via réclamation est **tracée séparément** des notes ordinaires avec source *"reclamation"*
+> - Rejeter toute tentative de double soumission avec code `409`
+
+---
+
+Le point le plus critique est la **traçabilité complète et non modifiable** de chaque réclamation — dans un contexte académique officiel, toute modification de note doit être parfaitement documentée avec les raisons, les intervenants et les horodatages pour éviter tout contentieux ultérieur.

@@ -1,0 +1,173 @@
+> Dans **CPEC-Digital**, la fonctionnalité de **déverrouillage biométrique** (Face ID / Empreinte) ne fonctionne pas. Quand l'utilisateur clique sur **"Activer"**, le message *"Activation annulée, vous pouvez activer dans vos paramètres"* s'affiche.
+>
+> ---
+>
+> ### 1. Causes probables
+>
+> | Cause | Détail |
+> |---|---|
+> | **Geste annulé par l'utilisateur** | L'utilisateur n'a pas complété le scan biométrique |
+> | **Timeout dépassé** | Le délai d'attente du scan a expiré |
+> | **WebAuthn mal initialisé** | Les options de création de credential sont incorrectes |
+> | **HTTPS requis** | WebAuthn ne fonctionne qu'en HTTPS — vérifier que c'est bien le cas |
+> | **Mauvais `rpId`** | Le `rpId` (Relying Party ID) ne correspond pas au domaine de l'app |
+> | **`challenge` mal généré** | Le challenge n'est pas un `ArrayBuffer` valide |
+>
+> ---
+>
+> ### 2. Correction — Enregistrement WebAuthn
+>
+> ```javascript
+> const activerBiometrie = async () => {
+>   try {
+>     // Vérifier que WebAuthn est supporté
+>     if (!window.PublicKeyCredential) {
+>       toast.error("La biométrie n'est pas supportée sur cet appareil.");
+>       return;
+>     }
+>
+>     // Vérifier que la plateforme supporte l'authentificateur
+>     const disponible = await PublicKeyCredential
+>       .isUserVerifyingPlatformAuthenticatorAvailable();
+>
+>     if (!disponible) {
+>       toast.error("Aucun capteur biométrique détecté sur cet appareil.");
+>       return;
+>     }
+>
+>     // Récupérer le challenge depuis le backend
+>     const { challenge, userId } = await api.get('/auth/webauthn/challenge');
+>
+>     // Options d'enregistrement
+>     const options = {
+>       challenge: base64ToArrayBuffer(challenge),
+>       rp: {
+>         name: "CPEC-Digital",
+>         id: window.location.hostname // ← Doit correspondre exactement au domaine
+>       },
+>       user: {
+>         id: base64ToArrayBuffer(userId),
+>         name: utilisateur.email,
+>         displayName: utilisateur.nom
+>       },
+>       pubKeyCredParams: [
+>         { alg: -7, type: "public-key" },   // ES256
+>         { alg: -257, type: "public-key" }  // RS256
+>       ],
+>       authenticatorSelection: {
+>         authenticatorAttachment: "platform", // ← Biométrie locale uniquement
+>         userVerification: "required",        // ← Face ID / Empreinte obligatoire
+>         residentKey: "preferred"
+>       },
+>       timeout: 60000 // 60 secondes
+>     };
+>
+>     // Lancer l'enregistrement
+>     const credential = await navigator.credentials.create({
+>       publicKey: options
+>     });
+>
+>     // Envoyer la clé publique au backend
+>     await api.post('/auth/webauthn/register', {
+>       credentialId: arrayBufferToBase64(credential.rawId),
+>       publicKey: arrayBufferToBase64(
+>         credential.response.getPublicKey()
+>       ),
+>       userId: utilisateur.id
+>     });
+>
+>     toast.success("Biométrie activée avec succès !");
+>
+>   } catch (error) {
+>     // Gestion précise des erreurs
+>     switch (error.name) {
+>       case 'NotAllowedError':
+>         toast.warning(
+>           "Activation annulée. Réessayez et complétez le scan biométrique."
+>         );
+>         break;
+>       case 'InvalidStateError':
+>         toast.info("La biométrie est déjà activée sur cet appareil.");
+>         break;
+>       case 'NotSupportedError':
+>         toast.error("La biométrie n'est pas supportée sur ce navigateur.");
+>         break;
+>       case 'SecurityError':
+>         toast.error("Erreur de sécurité. Vérifiez que l'app est bien en HTTPS.");
+>         break;
+>       default:
+>         toast.error(`Erreur : ${error.message}`);
+>     }
+>   }
+> };
+> ```
+>
+> ---
+>
+> ### 3. Correction du message affiché
+>
+> Le message actuel *"Activation annulée, vous pouvez activer dans vos paramètres"* est trop vague. Le remplacer par des messages **contextuels et actionnables** :
+>
+> | Erreur | Message corrigé |
+> |---|---|
+> | `NotAllowedError` | *"Scan annulé. Appuyez sur Activer et placez votre doigt / regardez l'écran"* |
+> | `NotSupportedError` | *"Votre appareil ne supporte pas la biométrie"* |
+> | `SecurityError` | *"Connexion sécurisée requise pour activer la biométrie"* |
+> | `InvalidStateError` | *"Biométrie déjà enregistrée sur cet appareil"* |
+>
+> ---
+>
+> ### 4. Activer depuis les paramètres
+>
+> Puisque le message invite à aller dans les **paramètres**, ajouter cette option :
+>
+> ```
+> Paramètres → Sécurité → Connexion biométrique
+> ─────────────────────────────────────────────
+> ☐ Activer Face ID / Empreinte
+>
+> Appareils enregistrés :
+> ├── iPhone de Youssouf    ✅ Actif    [Révoquer]
+> └── Tablet Samsung        ✅ Actif    [Révoquer]
+>
+> [+ Ajouter un nouvel appareil]
+> ```
+>
+> ---
+>
+> ### 5. Vérifications à effectuer
+>
+> ```
+> Checklist de débogage :
+>
+> ✅ L'app est bien en HTTPS
+>    → cpecdigital.replit.app utilise HTTPS ✅
+>
+> ✅ Le rpId correspond au domaine
+>    → rp.id = "cpecdigital.replit.app" ✅
+>
+> ✅ Le challenge est un ArrayBuffer valide
+>    → Vérifier la conversion base64 → ArrayBuffer
+>
+> ✅ L'utilisateur est bien connecté avant l'activation
+>    → userId doit être non null
+>
+> ✅ Le navigateur supporte WebAuthn
+>    → Chrome Android ✅ / Safari iOS ✅
+> ```
+>
+> ---
+>
+> ### 6. Compatibilité
+>
+> | Appareil | Navigateur | Support |
+> |---|---|---|
+> | Android | Chrome | ✅ Empreinte/Face |
+> | iPhone | Safari | ✅ Face ID/Touch ID |
+> | iPhone | Chrome | ⚠️ Limité sur iOS |
+> | Desktop Windows | Chrome/Edge | ✅ Windows Hello |
+> | Desktop Mac | Chrome/Safari | ✅ Touch ID |
+
+---
+
+La cause la plus probable est le **`NotAllowedError`** — l'utilisateur a annulé le scan ou le délai a expiré avant qu'il complète la biométrie. Le message actuel est trompeur car il suggère d'aller dans les paramètres alors qu'il suffit de **réessayer et compléter le scan**. Corriger le message d'erreur est la première priorité.

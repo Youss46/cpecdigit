@@ -1,0 +1,126 @@
+> Dans **CPEC-Digital**, dans le module **Mes Réclamations**, affiner le formulaire de réclamation pour permettre à l'étudiant de sélectionner **précisément la ou les évaluations** qu'il souhaite contester au sein d'une matière, plutôt que de contester la moyenne globale.
+>
+> ---
+>
+> ### 1. Nouveau flux de sélection
+>
+> ```
+> Étape 1 — Sélectionner la matière
+>         ↓
+> Étape 2 — Sélectionner la ou les évaluations à contester
+>         ↓
+> Étape 3 — Choisir le type et rédiger le motif
+>         ↓
+> Étape 4 — Récapitulatif + Soumettre
+> ```
+>
+> ---
+>
+> ### 2. Affichage des évaluations après sélection de la matière
+>
+> Une fois la matière sélectionnée, afficher la **liste de toutes ses évaluations** avec les notes obtenues :
+>
+> ```
+> Matière : Droit de la concurrence — Moyenne : 12.88/20
+> ─────────────────────────────────────────────────────
+> ☐  Éval 1  →  14/20
+> ☐  Éval 2  →   9/20   ⚠️ Note faible
+> ☐  Éval 3  →  13.5/20
+> ☐  Éval 4  →  15/20
+> ─────────────────────────────────────────────────────
+> Sélectionnez la ou les évaluations à contester
+> ```
+>
+> - Chaque évaluation est une **case à cocher** (checkbox)
+> - L'étudiant peut sélectionner **une ou plusieurs** évaluations
+> - Les évaluations avec une note faible sont signalées visuellement (⚠️)
+> - Au moins **une évaluation doit être sélectionnée** pour continuer
+>
+> ---
+>
+> ### 3. Récapitulatif avant soumission
+>
+> ```
+> Matière contestée   : Droit de la concurrence
+> ─────────────────────────────────────────────
+> Évaluations         : Éval 2 (9/20)
+> contestées
+> ─────────────────────────────────────────────
+> Type                : Erreur de saisie
+> Motif               : "La note saisie ne correspond
+>                       pas à ma copie corrigée..."
+> Pièce jointe        : photo_copie.jpg
+> ```
+>
+> ---
+>
+> ### 4. Données envoyées au backend
+>
+> ```javascript
+> // Structure de la réclamation avec évaluations précises
+> {
+>   matiere_id: 12,
+>   semestre_id: 5,
+>   evaluations_contestees: [
+>     { evaluation_id: 2, note_actuelle: 9, intitule: "Éval 2" },
+>     // Possibilité de contester plusieurs évaluations
+>   ],
+>   type: "erreur_saisie",
+>   motif: "La note saisie ne correspond pas...",
+>   piece_jointe_url: "uploads/photo_copie.jpg"
+> }
+> ```
+>
+> ---
+>
+> ### 5. Affichage côté enseignant
+>
+> L'enseignant voit précisément **quelle(s) évaluation(s)** sont contestées :
+>
+> | Champ | Détail |
+> |---|---|
+> | Matière | Droit de la concurrence |
+> | Évaluation(s) contestée(s) | **Éval 2 — 9/20** |
+> | Motif | Texte rédigé par l'étudiant |
+> | Pièce jointe | Aperçu du fichier |
+>
+> - Si l'enseignant **accepte** → il saisit la **nouvelle note** pour chaque évaluation contestée
+> - La moyenne de la matière est **recalculée automatiquement** après correction
+>
+> ---
+>
+> ### 6. Règles de gestion
+>
+> | Règle | Détail |
+> |---|---|
+> | **Sélection minimum** | Au moins 1 évaluation obligatoire |
+> | **Pas de doublon** | Impossible de contester deux fois la même évaluation |
+> | **Note non saisie** | Une évaluation sans note ne peut pas être contestée |
+> | **Période active** | Impossible de soumettre hors période de réclamation |
+> | **Une réclamation par évaluation** | Si Éval 2 est déjà contestée → grisée avec mention *"En cours"* |
+>
+> ---
+>
+> ### 7. Correction de la moyenne après acceptation
+>
+> ```javascript
+> // Recalculer la moyenne après modification d'une note
+> const recalculerMoyenne = async (etudiantId, matiereId, semestreId) => {
+>   const evaluations = await db('evaluations')
+>     .where({ etudiant_id: etudiantId, matiere_id: matiereId, semestre_id: semestreId });
+>
+>   const moyenne = evaluations.reduce((sum, e) => sum + e.note, 0) / evaluations.length;
+>
+>   // Mettre à jour la moyenne en base
+>   await db('notes_finales')
+>     .where({ etudiant_id: etudiantId, matiere_id: matiereId, semestre_id: semestreId })
+>     .update({ moyenne, source: 'apres_reclamation', modifie_le: new Date() });
+>
+>   // Mettre à jour le bulletin
+>   await recalculerBulletin(etudiantId, semestreId);
+> };
+> ```
+
+---
+
+Le point le plus important est la **granularité de la contestation au niveau de l'évaluation et non de la moyenne** — contester une moyenne globale est flou et difficile à traiter pour l'enseignant, alors que contester précisément *"Éval 2 — 9/20"* lui permet de retrouver immédiatement la copie concernée et de traiter la réclamation de façon efficace et ciblée.

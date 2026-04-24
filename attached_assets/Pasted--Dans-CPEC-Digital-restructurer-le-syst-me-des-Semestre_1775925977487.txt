@@ -1,0 +1,136 @@
+> Dans **CPEC-Digital**, restructurer le système des **Semestres** pour les lier aux classes selon le référentiel **LMD**, afin que le calcul de promotion en classe supérieure soit basé sur la moyenne annuelle correcte de chaque niveau.
+>
+> ---
+>
+> ### 1. Problème actuel
+> - Les semestres sont créés **indépendamment** des classes
+> - Il n'existe aucun lien entre un semestre et le niveau LMD auquel il appartient
+> - La promotion en classe supérieure ne peut pas calculer correctement la **moyenne annuelle**
+>
+> ---
+>
+> ### 2. Structure LMD correcte à implémenter
+>
+> ```
+> Licence 1  →  Semestre 1 + Semestre 2
+> Licence 2  →  Semestre 3 + Semestre 4
+> Licence 3  →  Semestre 5 + Semestre 6
+> Master 1   →  Semestre 7 + Semestre 8
+> Master 2   →  Semestre 9 + Semestre 10
+> ```
+>
+> ---
+>
+> ### 3. Liaison Semestre → Classe à implémenter
+>
+> **Modification de la table semestres en base :**
+> ```sql
+> ALTER TABLE semestres
+>   ADD COLUMN classe_id INTEGER REFERENCES classes(id),
+>   ADD COLUMN numero_semestre INTEGER, -- 1 ou 2 dans l'année
+>   ADD COLUMN niveau_lmd VARCHAR(10);  -- 'L1', 'L2', 'L3', 'M1', 'M2'
+>
+> -- Contrainte : une classe ne peut avoir que 2 semestres par année académique
+> ALTER TABLE semestres
+>   ADD CONSTRAINT unique_semestre_classe
+>   UNIQUE (classe_id, annee_academique_id, numero_semestre);
+> ```
+>
+> **Exemple de données correctes :**
+>
+> | Semestre | Classe | Niveau | N° | Année |
+> |---|---|---|---|---|
+> | Semestre 1 | Licence 1 Decogef | L1 | 1 | 2025-2026 |
+> | Semestre 2 | Licence 1 Decogef | L1 | 2 | 2025-2026 |
+> | Semestre 3 | Licence 2 Decogef | L2 | 1 | 2025-2026 |
+> | Semestre 4 | Licence 2 Decogef | L2 | 2 | 2025-2026 |
+> | Semestre 5 | Licence 3 Decogef | L3 | 1 | 2025-2026 |
+> | Semestre 6 | Licence 3 Decogef | L3 | 2 | 2025-2026 |
+>
+> ---
+>
+> ### 4. Calcul de la moyenne annuelle par classe
+>
+> ```javascript
+> // Calcul moyenne annuelle = moyenne des 2 semestres de la classe
+> const calculerMoyenneAnnuelle = async (etudiantId, classeId, anneeId) => {
+>
+>   // Récupérer les 2 semestres liés à cette classe
+>   const semestres = await db('semestres')
+>     .where({
+>       classe_id: classeId,
+>       annee_academique_id: anneeId
+>     })
+>     .orderBy('numero_semestre');
+>
+>   if (semestres.length !== 2) {
+>     throw new Error(`La classe doit avoir exactement 2 semestres`);
+>   }
+>
+>   // Récupérer les moyennes de chaque semestre
+>   const [moy_s1, moy_s2] = await Promise.all(
+>     semestres.map(s => getMoyenneSemestre(etudiantId, s.id))
+>   );
+>
+>   // Moyenne annuelle = (Moy S1 + Moy S2) / 2
+>   const moyenneAnnuelle = (moy_s1 + moy_s2) / 2;
+>
+>   return {
+>     semestre1: { id: semestres[0].id, moyenne: moy_s1 },
+>     semestre2: { id: semestres[1].id, moyenne: moy_s2 },
+>     moyenneAnnuelle,
+>     admis: moyenneAnnuelle >= 10
+>   };
+> };
+> ```
+>
+> ---
+>
+
+> ### 6. Interface de création de semestre corrigée
+>
+> Lors de la création d'un semestre, les champs doivent inclure :
+>
+> | Champ | Détail |
+> |---|---|
+> | **Nom** | Ex : *Semestre 1*, *Semestre 3* |
+> | **Classe liée** | Sélection obligatoire parmi les classes existantes |
+> | **Numéro dans l'année** | 1er semestre ou 2ème semestre de la classe |
+> | **Niveau LMD** | Calculé automatiquement depuis la classe (L1, L2...) |
+> | **Date début / fin** | Période du semestre |
+> | **Année académique** | Ex : 2025-2026 |
+>
+> - Vérification automatique qu'un **3ème semestre** ne peut pas être créé pour la même classe
+> - Alerte si les **dates se chevauchent** avec un semestre existant de la même classe
+>
+> ---
+>
+> ### 7. Affichage corrigé dans la page Semestres & Publications
+>
+> Au lieu d'afficher tous les semestres indépendamment, les **regrouper par classe** :
+>
+> ```
+> ┌─────────────────────────────────────────┐
+> │  Licence 1 Decogef — 2025-2026          │
+> │  ┌──────────────┬──────────────┐        │
+> │  │  Semestre 1  │  Semestre 2  │        │
+> │  │  En cours    │  À venir     │        │
+> │  │  82% écoulé  │  Non démarré │        │
+> │  └──────────────┴──────────────┘        │
+> │  Moyenne annuelle calculable : NON      │
+> └─────────────────────────────────────────┘
+>
+> ┌─────────────────────────────────────────┐
+> │  Licence 3 Decogef — 2025-2026          │
+> │  ┌──────────────┬──────────────┐        │
+> │  │  Semestre 5  │  Semestre 6  │        │
+> │  │  Terminé     │  En cours    │        │
+> │  │  100% écoulé │  65% écoulé  │        │
+> │  └──────────────┴──────────────┘        │
+> │  Moyenne annuelle calculable : OUI      │
+> └─────────────────────────────────────────┘
+> ```
+
+---
+
+Le point le plus critique est la **contrainte d'unicité** en base `(classe_id, annee_academique_id, numero_semestre)` — sans elle, rien n'empêche de créer 3 ou 4 semestres pour la même classe, ce qui rendrait le calcul de la moyenne annuelle impossible à automatiser.

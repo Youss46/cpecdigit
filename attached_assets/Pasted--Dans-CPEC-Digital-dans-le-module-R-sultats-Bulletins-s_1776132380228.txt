@@ -1,0 +1,128 @@
+> Dans **CPEC-Digital**, dans le module **Résultats & Bulletins**, supprimer l'obligation de sélectionner manuellement un semestre pour afficher les notes soumises. Le système doit **détecter et afficher automatiquement** les données pertinentes dès l'ouverture de la page.
+>
+> ---
+>
+> ### 1. Comportement actuel (problématique)
+> - L'administrateur ouvre l'onglet Résultats & Bulletins
+> - La page est **vide** jusqu'à ce qu'il sélectionne un semestre manuellement
+> - Perte de temps et manque d'intuitivité
+>
+> ---
+>
+> ### 2. Comportement attendu
+>
+> ```
+> Ouverture de la page
+>         ↓
+> Système détecte automatiquement :
+>   1. Le semestre actif en cours
+>   2. Les notes soumises par les enseignants
+>   3. Les classes concernées
+>         ↓
+> Affichage immédiat sans action de l'utilisateur
+> ```
+>
+> ---
+>
+> ### 3. Logique de sélection automatique
+>
+> ```javascript
+> // Au chargement de la page — sélection automatique du semestre
+> useEffect(() => {
+>   const initialiserSemestre = async () => {
+>
+>     const semestres = await api.get('/semestres');
+>
+>     // Priorité 1 — Semestre actuellement EN COURS
+>     const enCours = semestres.find(s => s.statut === 'en_cours');
+>     if (enCours) {
+>       setSemestreSelectionne(enCours);
+>       return;
+>     }
+>
+>     // Priorité 2 — Semestre avec des notes soumises non publiées
+>     const avecNotes = semestres.find(s => s.nb_notes_soumises > 0
+>                                       && !s.resultats_publies);
+>     if (avecNotes) {
+>       setSemestreSelectionne(avecNotes);
+>       return;
+>     }
+>
+>     // Priorité 3 — Semestre le plus récent
+>     const plusRecent = semestres.sort((a, b) =>
+>       new Date(b.date_debut) - new Date(a.date_debut))[0];
+>     setSemestreSelectionne(plusRecent);
+>   };
+>
+>   initialiserSemestre();
+> }, []);
+> ```
+>
+> ---
+>
+> ### 4. Affichage automatique des notes soumises
+>
+> Dès que le semestre est auto-sélectionné, afficher **immédiatement** :
+>
+> ```
+> Résultats & Bulletins — Semestre 5 (2025-2026)  ← Auto-sélectionné
+> ─────────────────────────────────────────────────────────────────
+> Filtre : [Semestre 5 ▼]  [Toutes les classes ▼]  [Tous statuts ▼]
+>
+> ┌─────────────────┬──────────┬────────────┬──────────┬──────────┐
+> │ Classe          │ Matière  │ Enseignant │ Soumises │ Statut   │
+> ├─────────────────┼──────────┼────────────┼──────────┼──────────┤
+> │ Licence 3 Decog │ Droit... │ Kra Joseph │ 5/5      │ ✅ Prêt  │
+> │ Licence 3 Decog │ Contrôle │ Traoré M.  │ 5/5      │ ✅ Prêt  │
+> │ Licence 3 Decog │ Impôt... │ Gra Loyer  │ 3/5      │ ⏳ En cours│
+> └─────────────────┴──────────┴────────────┴──────────┴──────────┘
+> ```
+>
+> ---
+>
+> ### 5. Indicateurs automatiques en haut de page
+>
+> ```
+> ┌──────────────┬──────────────┬──────────────┬──────────────┐
+> │ Notes        │ Classes      │ Prêtes à     │ Déjà         │
+> │ soumises     │ complètes    │ publier      │ publiées     │
+> │ 28 / 35      │ 3 / 5        │ 3            │ 2            │
+> └──────────────┴──────────────┴──────────────┴──────────────┘
+> ```
+>
+> Ces indicateurs se calculent **automatiquement** depuis les données du semestre actif.
+>
+> ---
+>
+> ### 6. Sélecteur de semestre conservé mais non obligatoire
+>
+> - Le sélecteur de semestre reste visible pour permettre de **changer de semestre**
+> - Mais il est **pré-rempli** avec le semestre auto-détecté
+> - L'administrateur peut le modifier pour consulter un autre semestre
+>
+> ```jsx
+> <select value={semestreSelectionne?.id}
+>         onChange={(e) => changerSemestre(e.target.value)}>
+>   {semestres.map(s => (
+>     <option key={s.id} value={s.id}>
+>       {s.nom} — {s.annee}
+>       {s.statut === 'en_cours' ? ' ★ En cours' : ''}
+>     </option>
+>   ))}
+> </select>
+> ```
+>
+> ---
+>
+> ### 7. Cas particuliers
+>
+> | Situation | Comportement |
+> |---|---|
+> | **Aucun semestre créé** | Message : *"Aucun semestre configuré. Créez un semestre d'abord"* |
+> | **Aucune note soumise** | Afficher la liste vide avec message : *"Aucune note soumise pour ce semestre"* |
+> | **Plusieurs semestres en cours** | Sélectionner le plus récent et afficher un avertissement |
+> | **Toutes les notes déjà publiées** | Afficher les résultats publiés avec option de consulter |
+
+---
+
+Le point clé est la **hiérarchie de priorité** dans la sélection automatique — semestre en cours → notes soumises non publiées → plus récent. Cet ordre garantit que l'administrateur voit toujours **ce qui nécessite son attention** dès l'ouverture de la page, sans aucune action manuelle.

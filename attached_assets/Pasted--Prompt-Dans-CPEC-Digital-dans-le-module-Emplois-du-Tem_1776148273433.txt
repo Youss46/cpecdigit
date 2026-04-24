@@ -1,0 +1,139 @@
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le module **Emplois du Temps**, après la création d'un emploi du temps par période, les séances générées **n'apparaissent pas immédiatement** dans le calendrier — un rafraîchissement manuel de la page est nécessaire pour les voir.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - L'administrateur crée une programmation par période
+> - Le système confirme la création sans erreur
+> - Mais le calendrier reste **vide ou inchangé**
+> - Les séances n'apparaissent qu'**après un rechargement manuel** (F5)
+>
+> ---
+>
+> ### 2. Cause racine
+>
+> Après la soumission du formulaire, le frontend **ne recharge pas les données** depuis l'API — il conserve l'ancien état en mémoire :
+>
+> ```javascript
+> // ❌ ACTUEL — Aucun rechargement après création
+> const creerPeriode = async (formData) => {
+>   await api.post('/emplois-du-temps/periode', formData);
+>   setModalVisible(false); // Ferme la modale
+>   // ← RIEN ICI — le calendrier garde l'ancien état
+> };
+> ```
+>
+> ---
+>
+> ### 3. Correction — Rechargement immédiat après création
+>
+> ```javascript
+> // ✅ CORRIGÉ — Rechargement des séances après création
+> const creerPeriode = async (formData) => {
+>   try {
+>     setLoading(true);
+>
+>     // 1. Créer les séances
+>     const response = await api.post('/emplois-du-temps/periode', formData);
+>
+>     // 2. Fermer la modale
+>     setModalVisible(false);
+>
+>     // 3. Recharger IMMÉDIATEMENT les séances depuis l'API
+>     await refetchSeances();
+>
+>     // 4. Confirmer à l'utilisateur
+>     toast.success(
+>       `${response.data.nb_seances} séances créées avec succès !`
+>     );
+>
+>   } catch (error) {
+>     toast.error("Erreur lors de la création des séances.");
+>   } finally {
+>     setLoading(false);
+>   }
+> };
+> ```
+>
+> ---
+>
+> ### 4. Si React Query est utilisé
+>
+> ```javascript
+> // Invalider le cache après création pour forcer le rechargement
+> const queryClient = useQueryClient();
+>
+> const creerPeriode = async (formData) => {
+>   await api.post('/emplois-du-temps/periode', formData);
+>   setModalVisible(false);
+>
+>   // Invalider toutes les queries liées aux séances
+>   await queryClient.invalidateQueries(['seances']);
+>   await queryClient.invalidateQueries(['emploi-du-temps']);
+>   // → React Query recharge automatiquement les données
+> };
+> ```
+>
+> ---
+>
+> ### 5. Si l'état local est utilisé (useState)
+>
+> ```javascript
+> // Option 1 — Ajouter directement les nouvelles séances à l'état
+> const creerPeriode = async (formData) => {
+>   const response = await api.post('/emplois-du-temps/periode', formData);
+>   setModalVisible(false);
+>
+>   // Ajouter les nouvelles séances à l'état local sans refetch
+>   setSeances(prev => [...prev, ...response.data.seances]);
+> };
+>
+> // Option 2 — Refetch complet depuis l'API
+> const creerPeriode = async (formData) => {
+>   await api.post('/emplois-du-temps/periode', formData);
+>   setModalVisible(false);
+>
+>   // Recharger toutes les séances
+>   const seancesUpdated = await api.get(
+>     `/emplois-du-temps?semestre_id=${semestreId}&classe_id=${classeId}`
+>   );
+>   setSeances(seancesUpdated.data);
+> };
+> ```
+>
+> ---
+>
+> ### 6. Indicateur visuel pendant le rechargement
+>
+> ```jsx
+> {/* Afficher un loader pendant la création + rechargement */}
+> {loading && (
+>   <div className="overlay-loader">
+>     <div className="spinner" />
+>     <p>Génération des séances en cours...</p>
+>   </div>
+> )}
+> ```
+>
+> ---
+>
+> ### 7. Appliquer ce principe globalement
+>
+> Ce problème de **non-rafraîchissement** peut exister sur d'autres modules. Appliquer la même correction partout :
+>
+> | Module | Action | Correction |
+> |---|---|---|
+> | Emplois du temps | Créer période | `refetchSeances()` après création |
+> | Utilisateurs | Créer utilisateur | `refetchUsers()` après création |
+> | Chambres | Créer chambre | `refetchChambres()` après création |
+> | Affectations | Créer affectation | `refetchAffectations()` après création |
+> | Matières | Créer matière | `refetchMatieres()` après création |
+> | Notes | Soumettre notes | `refetchNotes()` après soumission |
+
+---
+
+La correction tient en **une ligne** : appeler `refetchSeances()` ou `queryClient.invalidateQueries()` immédiatement après la confirmation de création. C'est un oubli classique dans les applications React — le state ne se met jamais à jour automatiquement après une mutation API sans instruction explicite.

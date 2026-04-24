@@ -1,0 +1,54 @@
+## Prompt révisé — Section 3 · Notifications (version finale)
+
+---
+
+### Philosophie
+
+> Le système accompagne, il n'incommode pas. Chaque message est rédigé comme un service rendu, jamais comme une pression. Un seul canal : la **notification push** (PWA).
+
+---
+
+### Calendrier des rappels
+
+| Moment | Destinataires | Message |
+|---|---|---|
+| **J-7** | Étudiant + Parents | *"😊 Bonjour ! Votre prochaine échéance de [Montant] FCFA est prévue le [Date]. Nous vous en informons à l'avance pour que tout se passe sereinement."* |
+| **J-3** | Étudiant + Parents | *"🌸 Bonjour ! Dans quelques jours, le [Date], une tranche de [Montant] FCFA est prévue. Nous restons disponibles si vous avez la moindre question."* |
+| **Jour J** | Étudiant + Parents | *"☀️ Bonjour et bonne journée ! Votre échéance de [Montant] FCFA est prévue aujourd'hui. Le service de scolarité est à votre disposition."* |
+| **J+7** | Étudiant + Parents | *"🤝 Bonjour. Nous n'avons pas encore reçu votre règlement de [Montant] FCFA du [Date]. Si vous rencontrez une difficulté, l'administration est là pour vous accompagner."* |
+| **J+7** | Administration | *"📋 [Nom étudiant] — [Classe] : règlement de [Montant] FCFA non reçu à ce jour (échéance du [Date])."* |
+| **Confirmation** | Étudiant + Parents | *"🎉 Bonjour ! Votre paiement de [Montant] FCFA a bien été reçu le [Date]. Reçu N°[XXX] disponible dans votre espace. Merci pour votre confiance !"* |
+
+---
+
+### Rappels supprimés
+
+| Rappel | Statut |
+|---|---|
+| J+1 | ❌ Supprimé |
+| J+3 | ❌ Supprimé |
+
+---
+
+### Canal unique
+
+| Canal | Condition |
+|---|---|
+| **Push notification** | Application PWA installée |
+| ~~SMS~~ | ❌ Retiré |
+| ~~Email~~ | ❌ Retiré |
+
+> Si la PWA n'est pas installée ou que la notification push échoue, **aucune notification alternative n'est envoyée**. Le système ne cherche pas à joindre l'utilisateur par d'autres moyens sans son accord explicite.
+
+---
+
+### Récapitulatif des rappels actifs
+
+```
+J-7  →  Push · Étudiant + Parents   (informatif, serein)
+J-3  →  Push · Étudiant + Parents   (doux, disponible)
+J 0  →  Push · Étudiant + Parents   (bienveillant, sans urgence)
+J+7  →  Push · Étudiant + Parents   (invitation au dialogue)
+J+7  →  Push · Administration       (notification interne sobre)
+✅   →  Push · Étudiant + Parents   (confirmation chaleureuse)
+```

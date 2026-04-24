@@ -1,0 +1,97 @@
+Je vois le problème : le champ **"Sélectionner une matière"** s'affiche comme un bouton radio au lieu d'une liste déroulante, et il est non fonctionnel. Voici le prompt :
+
+---
+
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans l'**Espace Étudiant**, module **Mes Réclamations**, le champ de sélection de la matière est **non fonctionnel** — l'étudiant ne peut pas sélectionner de matière pour soumettre sa réclamation.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - Le champ **"Sélectionner une matière"** s'affiche avec un bouton radio au lieu d'une **liste déroulante**
+> - Le composant ne s'ouvre pas au clic
+> - Aucune matière n'est proposée à la sélection
+>
+> ---
+>
+> ### 2. Causes probables
+>
+> | Cause | Détail |
+> |---|---|
+> | **Liste vide** | L'API ne retourne aucune matière pour cet étudiant |
+> | **Mauvais composant** | Un `radio input` a été utilisé à la place d'un `select` |
+> | **Données non chargées** | Les matières ne sont pas récupérées avant l'affichage du formulaire |
+> | **Mauvais filtre** | Les matières ne sont pas filtrées par étudiant et semestre actif |
+>
+> ---
+>
+> ### 3. Correction à apporter
+>
+> **Le champ doit être une liste déroulante** alimentée par les matières de l'étudiant pour le semestre concerné :
+>
+> ```javascript
+> // Au chargement du formulaire, récupérer les matières de l'étudiant
+> useEffect(() => {
+>   const fetchMatieres = async () => {
+>     const data = await fetch(
+>       `/api/students/${etudiantId}/matieres?semestre_id=${semestreActif.id}`
+>     );
+>     const { matieres } = await data.json();
+>     setMatieres(matieres); // Alimenter la liste déroulante
+>   };
+>   fetchMatieres();
+> }, [etudiantId, semestreActif]);
+> ```
+>
+> **Affichage corrigé du champ :**
+> ```jsx
+> <select onChange={(e) => setMatiereSelectionnee(e.target.value)}>
+>   <option value="">-- Sélectionner une matière --</option>
+>   {matieres.map((matiere) => (
+>     <option key={matiere.id} value={matiere.id}>
+>       {matiere.nom} — Note actuelle : {matiere.note ?? "Non saisie"}/20
+>     </option>
+>   ))}
+> </select>
+> ```
+>
+> ---
+>
+> ### 4. Comportement attendu après correction
+>
+> - La liste déroulante affiche **uniquement les matières du semestre concerné** par la réclamation
+> - Chaque matière affiche sa **note actuelle** pour aider l'étudiant à identifier la bonne matière
+> - Une fois la matière sélectionnée, la **note contestée s'affiche automatiquement** en lecture seule :
+>
+> ```
+> Matière sélectionnée : Droit social
+> Note contestée : 08/20  ← affiché automatiquement
+> ```
+>
+> - Si **aucune note n'a été saisie** pour une matière → la matière est **grisée et non sélectionnable** avec la mention *"Aucune note disponible"*
+> - Si l'étudiant a **déjà soumis une réclamation** sur cette matière → matière grisée avec mention *"Réclamation déjà soumise"*
+>
+> ---
+>
+> ### 5. Endpoint backend à vérifier
+> ```javascript
+> // GET /api/students/:id/matieres?semestre_id=X
+> // Doit retourner uniquement les matières avec notes saisies
+> // pour le semestre actif de l'étudiant connecté
+> router.get('/students/:id/matieres', async (req, res) => {
+>   const { id } = req.params;
+>   const { semestre_id } = req.query;
+>   const matieres = await db('notes')
+>     .join('matieres', 'notes.matiere_id', 'matieres.id')
+>     .where({ 'notes.etudiant_id': id, 'notes.semestre_id': semestre_id })
+>     .select('matieres.id', 'matieres.nom', 'notes.note');
+>   res.json({ matieres });
+> });
+> ```
+
+---
+
+La cause la plus probable est que **l'API n'est pas appelée** au chargement du formulaire, donc la liste est vide et le composant ne sait pas quoi afficher. Le `useEffect` au montage du composant avec l'appel à l'endpoint des matières de l'étudiant devrait régler le problème.

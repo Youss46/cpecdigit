@@ -1,0 +1,123 @@
+> Dans **CPEC-Digital**, dans le module **Honoraires**, corriger **deux anomalies** identifiées sur la fiche d'honoraires PDF et ajouter le moyen de paiement.
+>
+> ---
+>
+> ### Problème 1 — Séparateur "/" dans les montants
+>
+> **Constat :** Les montants s'affichent **200/000 FCFA** au lieu de **200 000 FCFA**
+>
+> **Cause :** Le séparateur des milliers utilise `/` au lieu d'un **espace insécable**
+>
+> **Correction :**
+> ```javascript
+> // ❌ ACTUEL — Séparateur incorrect
+> const formaterMontant = (montant) =>
+>   montant.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '/');
+> // → 200/000 FCFA ❌
+>
+> // ✅ CORRIGÉ — Espace insécable conforme FCFA/UEMOA
+> const formaterMontant = (montant) => {
+>   if (!montant && montant !== 0) return '—';
+>   return new Intl.NumberFormat('fr-FR', {
+>     minimumFractionDigits: 0,
+>     maximumFractionDigits: 0
+>   }).format(montant) + ' FCFA';
+> };
+> // → 200 000 FCFA ✅
+> ```
+>
+> - Appliquer cette correction sur **tous les montants** du PDF :
+>   - Montant prévu
+>   - Montant versé
+>   - Montant restant
+>   - Montants dans l'historique des paiements
+>
+> ---
+>
+> ### Problème 2 — Date manquante dans l'historique
+>
+> **Constat :** La colonne **Date** affiche `---` au lieu de la date réelle du paiement
+>
+> **Cause :** Le champ `date_paiement` n'est pas renseigné ou mal formaté lors de l'enregistrement
+>
+> **Correction :**
+> ```javascript
+> // Lors de l'enregistrement d'un paiement honoraire
+> await db('honoraires_paiements').insert({
+>   enseignant_id,
+>   montant,
+>   date_paiement: new Date(), // ← S'assurer que ce champ est toujours renseigné
+>   moyen_paiement,
+>   note
+> });
+>
+> // Affichage dans le PDF
+> const formaterDate = (date) => {
+>   if (!date) return '—';
+>   return new Date(date).toLocaleDateString('fr-FR', {
+>     day: '2-digit',
+>     month: '2-digit',
+>     year: 'numeric'
+>   });
+> };
+> ```
+>
+> ---
+>
+> ### Problème 3 — Ajouter le moyen de paiement
+>
+> **Dans le formulaire d'enregistrement de paiement :**
+>
+> Ajouter un champ **obligatoire** "Moyen de paiement" :
+>
+> | Option | Icône |
+> |---|---|
+> | Espèces | 💵 |
+> | Virement bancaire | 🏦 |
+> | Orange Money | 🟠 |
+> | MTN Mobile Money | 🟡 |
+> | Wave | 🔵 |
+> | Moov Money | 🟣 |
+> | Chèque | 📝 |
+>
+> **Dans l'historique des paiements sur le PDF :**
+>
+> Ajouter la colonne **Moyen de paiement** dans le tableau :
+>
+> ```
+> ┌────────────┬──────────────┬─────────────────┬──────────┐
+> │ Date       │ Montant      │ Moyen paiement  │ Note     │
+> ├────────────┼──────────────┼─────────────────┼──────────┤
+> │ 11/04/2026 │ 100 000 FCFA │ Orange Money    │ Acompte  │
+> └────────────┴──────────────┴─────────────────┴──────────┘
+> ```
+>
+> **Correction technique :**
+> ```javascript
+> // Ajout colonne moyen_paiement en base
+> ALTER TABLE honoraires_paiements
+>   ADD COLUMN moyen_paiement VARCHAR(50)
+>   DEFAULT 'especes';
+>
+> // Affichage dans le PDF
+> const lignesHistorique = paiements.map(p => [
+>   formaterDate(p.date_paiement),
+>   formaterMontant(p.montant),
+>   p.moyen_paiement || '—',  // ← Nouvelle colonne
+>   p.note || '—'
+> ]);
+> ```
+>
+> ---
+>
+> ### Récapitulatif des corrections
+>
+> | # | Problème | Correction |
+> |---|---|---|
+> | 1 | Montants avec `/` parasite | Remplacer par espace insécable via `Intl.NumberFormat` |
+> | 2 | Date affiche `---` | Renseigner `date_paiement` à l'enregistrement |
+> | 3 | Moyen de paiement absent | Ajouter champ dans formulaire + colonne dans PDF |
+
+---
+
+La correction la plus impactante visuellement est le **séparateur des milliers** — un document officiel avec `200/000 FCFA` nuit à la crédibilité institutionnelle de la fiche. `Intl.NumberFormat('fr-FR')` est la solution standard qui gère automatiquement tous les cas.

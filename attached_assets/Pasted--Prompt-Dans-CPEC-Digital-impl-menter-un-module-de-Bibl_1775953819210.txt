@@ -1,0 +1,219 @@
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, implémenter un module de **Bibliothèque Numérique** permettant aux enseignants de partager des supports de cours avec leurs étudiants, organisés par matière, UE et semestre.
+>
+> ---
+>
+> ### 1. Accès par profil
+>
+> | Profil | Droits |
+> |---|---|
+> | **Enseignant** | Ajouter, modifier, supprimer ses propres supports |
+> | **Étudiant** | Consulter et télécharger les supports de ses matières uniquement |
+> | **Administration** | Voir tous les supports, modérer, supprimer si nécessaire |
+> | **Parents** | Accès en lecture seule aux supports de l'enfant |
+>
+> ---
+>
+> ### 2. Types de supports acceptés
+>
+> | Type | Format | Taille max |
+> |---|---|---|
+> | **Document** | PDF, Word, PowerPoint | 20 MB |
+> | **Vidéo YouTube** | Lien URL | — |
+> | **Lien externe** | URL quelconque | — |
+> | **Image** | JPG, PNG | 5 MB |
+> | **Archive** | ZIP, RAR | 50 MB |
+>
+> ---
+>
+> ### 3. Structure d'organisation
+>
+> ```
+> Bibliothèque
+> └── Semestre 5 (2025-2026)
+>     ├── UE1 — Droit des Entreprises
+>     │   ├── Droit social
+>     │   │   ├── 📄 Cours magistral S1 — Chapitre 1.pdf
+>     │   │   ├── 📄 TD N°1 — Exercices corrigés.pdf
+>     │   │   ├── 🎥 Introduction au droit social (YouTube)
+>     │   │   └── 🔗 Code du travail ivoirien (lien externe)
+>     │   └── Droit du travail
+>     │       └── 📄 Résumé de cours.pdf
+>     └── UE2 — Droit Fiscal
+>         └── Contrôle fiscal
+>             └── 📄 Fiche de révision.pdf
+> ```
+>
+> ---
+>
+> ### 4. Formulaire d'ajout de support (Enseignant)
+>
+> | Champ | Détail |
+> |---|---|
+> | **Type** | Document / Vidéo YouTube / Lien externe |
+> | **Titre** | Nom du support obligatoire |
+> | **Matière** | Sélection parmi ses matières affectées |
+> | **UE** | Remplie automatiquement selon la matière |
+> | **Semestre** | Sélection du semestre concerné |
+> | **Classe(s)** | Classe(s) destinataires |
+> | **Description** | Résumé optionnel du contenu |
+> | **Fichier / URL** | Selon le type sélectionné |
+> | **Visible dès** | Date de mise à disposition (optionnel) |
+>
+> ---
+>
+> ### 5. Implémentation technique
+>
+> #### Upload de fichier
+> ```javascript
+> // POST /api/bibliotheque/upload
+> router.post('/bibliotheque/upload',
+>   authMiddleware,
+>   upload.single('fichier'),
+>   async (req, res) => {
+>     try {
+>       const { titre, matiere_id, semestre_id,
+>               classe_ids, description, type } = req.body;
+>
+>       // Vérifier que l'enseignant est bien affecté à la matière
+>       const affectation = await db('affectations')
+>         .where({
+>           enseignant_id: req.user.id,
+>           matiere_id
+>         }).first();
+>
+>       if (!affectation) {
+>         return res.status(403).json({
+>           message: "Vous n'êtes pas autorisé à publier sur cette matière"
+>         });
+>       }
+>
+>       // Sauvegarder le support
+>       const support = await db('bibliotheque').insert({
+>         titre,
+>         type,                          // 'pdf', 'youtube', 'lien'
+>         matiere_id,
+>         semestre_id,
+>         enseignant_id: req.user.id,
+>         classe_ids: JSON.stringify(classe_ids),
+>         description,
+>         fichier_url: req.file?.path || req.body.url,
+>         taille: req.file?.size || null,
+>         cree_le: new Date()
+>       }).returning('*');
+>
+>       // Notifier les étudiants concernés
+>       await notifierNouveauSupport(support[0], classe_ids);
+>
+>       res.json({ success: true, support: support[0] });
+>
+>     } catch (error) {
+>       res.status(500).json({ message: "Erreur lors de l'upload" });
+>     }
+>   }
+> );
+> ```
+>
+> #### Récupération des supports pour un étudiant
+> ```javascript
+> // GET /api/bibliotheque?semestre_id=X
+> router.get('/bibliotheque', authMiddleware, async (req, res) => {
+>   const { semestre_id } = req.query;
+>   const etudiant = await db('students')
+>     .where({ id: req.user.id }).first();
+>
+>   // Récupérer uniquement les supports de sa classe
+>   const supports = await db('bibliotheque')
+>     .join('matieres', 'bibliotheque.matiere_id', 'matieres.id')
+>     .join('ues', 'matieres.ue_id', 'ues.id')
+>     .where({ 'bibliotheque.semestre_id': semestre_id })
+>     .whereRaw('? = ANY(classe_ids)', [etudiant.classe_id])
+>     .select(
+>       'bibliotheque.*',
+>       'matieres.nom as matiere_nom',
+>       'ues.nom as ue_nom'
+>     )
+>     .orderBy('ues.nom', 'matieres.nom', 'bibliotheque.cree_le');
+>
+>   res.json({ supports });
+> });
+> ```
+>
+> ---
+>
+> ### 6. Affichage côté étudiant
+>
+> ```
+> 📚 Bibliothèque — Semestre 5
+> ─────────────────────────────────────────
+> Filtres : [Toutes les UE ▼] [Toutes les matières ▼] [Tous les types ▼]
+> ─────────────────────────────────────────
+>
+> UE1 — Droit des Entreprises
+>   📘 Droit social
+>   ├── 📄 Cours magistral — Chapitre 1     [Télécharger]
+>   ├── 📄 TD N°1 corrigé                   [Télécharger]
+>   └── 🎥 Introduction au droit social     [Voir]
+>
+>   📘 Droit du travail
+>   └── 📄 Résumé de cours                  [Télécharger]
+>
+> UE2 — Droit Fiscal
+>   📘 Contrôle fiscal
+>   └── 📄 Fiche de révision                [Télécharger]
+> ```
+>
+> ---
+>
+> ### 7. Notifications automatiques
+>
+> | Événement | Destinataire | Message |
+> |---|---|---|
+> | Nouveau support ajouté | Étudiants concernés | *"[Nom enseignant] a publié un nouveau support en [Matière] : [Titre]"* |
+> | Support mis à jour | Étudiants concernés | *"Le support [Titre] en [Matière] a été mis à jour"* |
+> | Support supprimé | Aucune notification | — |
+>
+> ---
+>
+> ### 8. Historique et archivage
+>
+> - Les supports restent **accessibles après la fin du semestre**
+> - Organisés dans un onglet **"Archives"** par année académique
+> - Un étudiant peut consulter les supports de ses semestres passés
+> - L'enseignant peut **réutiliser** un support d'un semestre précédent
+>
+> ```javascript
+> // Archivage automatique à la clôture du semestre
+> const archiverSupports = async (semestreId) => {
+>   await db('bibliotheque')
+>     .where({ semestre_id: semestreId })
+>     .update({ archive: true, archive_le: new Date() });
+> };
+> ```
+>
+> ---
+>
+> ### 9. Statistiques pour l'enseignant
+>
+> | Indicateur | Détail |
+> |---|---|
+> | **Nombre de téléchargements** | Par support |
+> | **Supports les plus consultés** | Classement |
+> | **Étudiants n'ayant pas consulté** | Pour relance ciblée |
+> | **Total supports publiés** | Par semestre |
+>
+> ---
+>
+> ### 10. Modération par l'administration
+>
+> - L'administration peut **suspendre** un support inapproprié
+> - Chaque upload est **journalisé** : qui, quand, quelle matière
+> - Taille totale de stockage utilisée visible dans le tableau de bord
+> - Alerte si le stockage dépasse **80% de la capacité** disponible
+
+---
+
+La fonctionnalité la plus stratégique est le **compteur de téléchargements par support** combiné à la **liste des étudiants n'ayant pas consulté** — cela permet à l'enseignant de savoir précisément quels étudiants ne se préparent pas et d'intervenir de façon ciblée avant les examens.

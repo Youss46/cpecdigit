@@ -1,0 +1,190 @@
+Je vois le problème : le document **"CM gestion 1"** est affiché mais sans bouton de téléchargement. Voici le prompt :
+
+---
+
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le module **Bibliothèque Numérique** côté étudiant, les documents sont bien listés mais il n'existe **aucun bouton ni moyen de télécharger** les fichiers affichés.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - Le document **"CM gestion 1 — PDF — 297 Ko"** est visible
+> - Mais aucun bouton **"Télécharger"** ou **"Ouvrir"** n'est présent
+> - L'étudiant ne peut pas accéder au contenu du document
+>
+> ---
+>
+> ### 2. Actions à ajouter sur chaque document
+>
+> | Action | Type fichier | Comportement |
+> |---|---|---|
+> | 📥 **Télécharger** | PDF, Word, ZIP | Téléchargement direct |
+> | 👁️ **Aperçu** | PDF, Image | Ouverture dans une modale |
+> | ▶️ **Voir** | Vidéo YouTube | Ouverture du lecteur vidéo |
+> | 🔗 **Ouvrir** | Lien externe | Ouverture dans nouvel onglet |
+>
+> ---
+>
+> ### 3. Affichage corrigé de chaque document
+>
+> ```
+> ┌─────────────────────────────────────────────────┐
+> │ 📄 CM gestion 1                                 │
+> │ PDF · 297 Ko · Publié par [Nom enseignant]      │
+> │ Ajouté le 12/04/2026                            │
+> │                          [👁️ Aperçu] [📥 Télécharger] │
+> └─────────────────────────────────────────────────┘
+> ```
+>
+> ---
+>
+> ### 4. Correction technique
+>
+> ```javascript
+> // Composant document avec actions
+> const DocumentItem = ({ document }) => {
+>
+>   // Téléchargement direct
+>   const telecharger = async () => {
+>     try {
+>       const response = await fetch(document.fichier_url, {
+>         headers: {
+>           'Authorization': `Bearer ${getToken()}`
+>         }
+>       });
+>
+>       const blob = await response.blob();
+>       const url = URL.createObjectURL(blob);
+>
+>       // Créer lien de téléchargement
+>       const a = document.createElement('a');
+>       a.href = url;
+>       a.download = document.titre; // Nom du fichier
+>       a.click();
+>
+>       // Libérer mémoire
+>       setTimeout(() => URL.revokeObjectURL(url), 5000);
+>
+>       // Incrémenter compteur téléchargements
+>       await api.post(`/bibliotheque/${document.id}/telecharger`);
+>
+>     } catch (error) {
+>       toast.error("Impossible de télécharger ce document.");
+>     }
+>   };
+>
+>   // Aperçu dans modale
+>   const ouvrirApercu = () => {
+>     setDocumentApercu(document);
+>     setModalVisible(true);
+>   };
+>
+>   return (
+>     <div className="document-item">
+>       <div className="document-info">
+>         <span className="document-icone">📄</span>
+>         <div>
+>           <p className="document-titre">{document.titre}</p>
+>           <p className="document-meta">
+>             {document.type.toUpperCase()} · {formaterTaille(document.taille)}
+>           </p>
+>         </div>
+>       </div>
+>
+>       {/* Boutons d'action */}
+>       <div className="document-actions">
+>         {document.type === 'pdf' && (
+>           <button onClick={ouvrirApercu} className="btn-apercu">
+>             👁️ Aperçu
+>           </button>
+>         )}
+>         {document.type === 'youtube' && (
+>           <button onClick={() => window.open(document.fichier_url, '_blank')}
+>             className="btn-voir">
+>             ▶️ Voir
+>           </button>
+>         )}
+>         {document.type === 'lien' && (
+>           <button onClick={() => window.open(document.fichier_url, '_blank')}
+>             className="btn-ouvrir">
+>             🔗 Ouvrir
+>           </button>
+>         )}
+>         {['pdf', 'word', 'zip', 'image'].includes(document.type) && (
+>           <button onClick={telecharger} className="btn-telecharger">
+>             📥 Télécharger
+>           </button>
+>         )}
+>       </div>
+>     </div>
+>   );
+> };
+> ```
+>
+> ---
+>
+> ### 5. Modale d'aperçu PDF
+>
+> ```jsx
+> {modalVisible && documentApercu && (
+>   <div className="modal-overlay">
+>     <div className="modal-bibliotheque">
+>
+>       {/* En-tête modale */}
+>       <div className="modal-header">
+>         <h3>{documentApercu.titre}</h3>
+>         <button onClick={() => setModalVisible(false)}>✕</button>
+>       </div>
+>
+>       {/* Aperçu PDF */}
+>       <iframe
+>         src={documentApercu.fichier_url}
+>         width="100%"
+>         height="500px"
+>         title={documentApercu.titre}
+>       />
+>
+>       {/* Actions dans la modale */}
+>       <div className="modal-footer">
+>         <button onClick={telecharger} className="btn-telecharger">
+>           📥 Télécharger
+>         </button>
+>       </div>
+>
+>     </div>
+>   </div>
+> )}
+> ```
+>
+> ---
+>
+> ### 6. Endpoint backend à vérifier
+>
+> ```javascript
+> // GET /api/bibliotheque/:id/fichier
+> // Doit retourner le fichier avec les bons headers
+> router.get('/bibliotheque/:id/fichier',
+>   authMiddleware,
+>   async (req, res) => {
+>     const support = await db('bibliotheque')
+>       .where({ id: req.params.id }).first();
+>
+>     if (!support) {
+>       return res.status(404).json({ message: "Document introuvable" });
+>     }
+>
+>     // Headers pour forcer le téléchargement
+>     res.setHeader('Content-Disposition',
+>       `attachment; filename="${support.titre}.pdf"`);
+>     res.setHeader('Content-Type', 'application/pdf');
+>     res.sendFile(path.resolve(support.fichier_url));
+>   }
+> );
+> ```
+
+---
+
+La correction principale est l'ajout des **boutons d'action** sur chaque ligne de document — sans ces boutons, le fichier existe en base mais reste inaccessible pour l'étudiant. L'aperçu dans une modale évite également tout problème de déconnexion lié à la navigation vers une URL externe.

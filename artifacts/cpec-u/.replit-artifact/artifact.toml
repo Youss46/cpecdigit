@@ -1,0 +1,33 @@
+kind = "web"
+  previewPath = "/"
+  title = "CPEC-U — Gestion Académique"
+  version = "1.0.0"
+  id = "artifacts/cpec-u"
+  router = "path"
+
+  [[integratedSkills]]
+  name = "react-vite"
+  version = "1.0.0"
+
+  [[services]]
+  localPort = 8081
+  name = "web"
+  paths = ["/"]
+
+  [services.development]
+  run = "PORT=8081 BASE_PATH=/ pnpm --filter @workspace/cpec-u run dev"
+
+  [services.env]
+  PORT = "8081"
+  BASE_PATH = "/"
+  API_PORT = "3001"
+
+  [services.production]
+  build = ["pnpm", "--filter", "@workspace/cpec-u", "run", "build"]
+  publicDir = "artifacts/cpec-u/dist/public"
+  serve = "static"
+
+  [[services.production.rewrites]]
+  from = "/*"
+  to = "/index.html"
+  

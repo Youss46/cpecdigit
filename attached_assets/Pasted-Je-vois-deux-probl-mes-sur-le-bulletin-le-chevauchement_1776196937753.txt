@@ -1,0 +1,127 @@
+Je vois deux problèmes sur le bulletin : le chevauchement de "UE DE SPÉCIALITÉ" avec la section précédente, et la couleur rouge des en-têtes de tableau. Voici le prompt :
+
+---
+
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le **Bulletin de Notes PDF**, corriger deux problèmes visuels identifiés sur le nouveau format une page.
+>
+> ---
+>
+> ### 1. Espacement insuffisant avant "UE DE SPÉCIALITÉ"
+>
+> **Constat :** Le titre **"UE DE SPÉCIALITÉ"** est collé à la section précédente sans espacement suffisant, créant un manque de lisibilité entre les catégories d'UE.
+>
+> **Correction :**
+> ```css
+> /* Ajouter un espacement UNIQUEMENT avant les titres de catégorie */
+> /* (UE DE CULTURE GÉNÉRALE, UE DE CONNAISSANCES FONDAMENTALES, UE DE SPÉCIALITÉ) */
+>
+> .categorie-ue-titre {
+>   margin-top: 8px;      /* ← Espacement suffisant avant chaque catégorie */
+>   margin-bottom: 3px;
+>   font-size: 8.5px;
+>   font-weight: bold;
+>   color: #1B3A6B;
+>   text-transform: uppercase;
+>   letter-spacing: 0.5px;
+> }
+>
+> /* Pas d'espacement supplémentaire avant la première catégorie */
+> .categorie-ue-titre:first-of-type {
+>   margin-top: 4px;
+> }
+> ```
+>
+> ---
+>
+> ### 2. Couleur rouge des en-têtes de tableau à remplacer
+>
+> **Constat :** Les en-têtes des tableaux de matières (ligne "Matière / Coef. / Note /20") sont en **rouge vif** — couleur trop agressive pour un document officiel.
+>
+> **Couleurs recommandées selon le style du bulletin :**
+>
+> | Option | Couleur | Code hex | Rendu |
+> |---|---|---|---|
+> | ✅ **Recommandée** | Bleu foncé (comme l'en-tête) | `#1B3A6B` | Sobre et officiel |
+> | Option 2 | Bleu moyen | `#2563EB` | Moderne |
+> | Option 3 | Bleu ardoise | `#334155` | Neutre et élégant |
+> | Option 4 | Bordeaux | `#7F1D1D` | Institutionnel |
+> | ❌ Actuel | Rouge vif | `#EF4444` | Trop agressif |
+>
+> **Correction :**
+> ```javascript
+> // Dans le générateur PDF — en-têtes des tableaux de matières
+>
+> // ❌ ACTUEL
+> const COULEUR_ENTETE_TABLEAU = '#EF4444'; // Rouge vif
+>
+> // ✅ CORRIGÉ — Bleu foncé cohérent avec l'en-tête du bulletin
+> const COULEUR_ENTETE_TABLEAU = '#1B3A6B'; // Bleu foncé institutionnel
+>
+> // Appliquer sur TOUS les tableaux du bulletin
+> // UE1, UE2, UE3, UE4... doivent tous avoir la même couleur
+> ```
+>
+> ---
+>
+> ### 3. Résultat visuel attendu
+>
+> ```
+> ┌─────────────────────────────────────────────┐
+> │ EN-TÊTE BLEU FONCÉ                          │
+> ├─────────────────────────────────────────────┤
+> │ Infos étudiant                              │
+> ├─────────────────────────────────────────────┤
+> │ UE DE CULTURE GÉNÉRALE                      │
+> │ UE1 — TEF, EPS | Moy: —/20 | Crédits: 2   │
+> │ ┌──────────────────────┬──────┬──────────┐  │
+> │ │ Matière  [BLEU FONCÉ]│ Coef.│ Note /20 │  │
+> │ ├──────────────────────┼──────┼──────────┤  │
+> │ │ TEF                  │  1   │    —     │  │
+> │ │ EPS                  │  1   │    —     │  │
+> │ └──────────────────────┴──────┴──────────┘  │
+> │                                             │
+> │ UE DE CONNAISSANCES FONDAMENTALES           │
+> │ UE1 — FDM DROIT ...                         │
+> │ ┌──────────────────────┬──────┬──────────┐  │
+> │ │ Matière  [BLEU FONCÉ]│ Coef.│ Note /20 │  │
+> │ ...                                         │
+> │                         ← 8px d'espace      │
+> │ UE DE SPÉCIALITÉ                            │
+> │ UE4 — DROIT ...                             │
+> │ ┌──────────────────────┬──────┬──────────┐  │
+> │ │ Matière  [BLEU FONCÉ]│ Coef.│ Note /20 │  │
+> │ ...                                         │
+> ├─────────────────────────────────────────────┤
+> │ RÉCAPITULATIF [BLEU FONCÉ]                  │
+> ├─────────────────────────────────────────────┤
+> │ Signatures                                  │
+> ├─────────────────────────────────────────────┤
+> │ [QR] Pied de page                           │
+> └─────────────────────────────────────────────┘
+> ```
+>
+> ---
+>
+> ### 4. Cohérence des couleurs sur tout le bulletin
+>
+> Uniformiser toutes les couleurs en une **palette cohérente** :
+>
+> | Élément | Couleur | Code hex |
+> |---|---|---|
+> | En-tête bulletin | Bleu foncé | `#1B3A6B` |
+> | En-têtes tableaux matières | Bleu foncé | `#1B3A6B` |
+> | Récapitulatif | Bleu foncé | `#1B3A6B` |
+> | Ligne UE (texte) | Bleu moyen | `#2563EB` |
+> | Titres catégories | Bleu foncé | `#1B3A6B` |
+> | Texte corps | Gris foncé | `#374151` |
+> | Lignes alternées tableau | Gris très clair | `#F9FAFB` |
+> | Bordures | Gris clair | `#E5E7EB` |
+> | Bande dorée décorative | Or | `#F59E0B` |
+
+---
+
+La recommandation principale est le **bleu foncé `#1B3A6B`** pour les en-têtes de tableaux — c'est la même couleur que l'en-tête du bulletin, ce qui crée une cohérence visuelle parfaite et donne au document un aspect **sobre et institutionnel** adapté à un document officiel académique.

@@ -1,0 +1,1605 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 1.0.0
+  description: CPEC-U Academic Management System API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: admin
+    description: Admin operations
+  - name: teacher
+    description: Teacher operations
+  - name: student
+    description: Student operations
+  - name: classes
+    description: Class management
+  - name: subjects
+    description: Subject management
+  - name: grades
+    description: Grade management
+  - name: semesters
+    description: Semester management
+  - name: rooms
+    description: Room management (Planificateur)
+  - name: schedules
+    description: Schedule/timetable management (Planificateur)
+  - name: teaching-units
+    description: Teaching unit (UE) management — LMD system
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout user
+      responses:
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current user info
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Admin: Users ───────────────────────────────────────────────────
+  /admin/users:
+    get:
+      operationId: listUsers
+      tags: [admin]
+      summary: List all users
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [admin, teacher, student]
+      responses:
+        "200":
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [admin]
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /admin/users/{id}:
+    get:
+      operationId: getUser
+      tags: [admin]
+      summary: Get a user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    put:
+      operationId: updateUser
+      tags: [admin]
+      summary: Update a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [admin]
+      summary: Delete a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── Admin: Classes ──────────────────────────────────────────────────
+  /admin/classes:
+    get:
+      operationId: listClasses
+      tags: [classes]
+      summary: List all classes
+      responses:
+        "200":
+          description: Classes list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Class"
+    post:
+      operationId: createClass
+      tags: [classes]
+      summary: Create a new class
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClassRequest"
+      responses:
+        "201":
+          description: Class created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Class"
+
+  /admin/classes/{id}:
+    put:
+      operationId: updateClass
+      tags: [classes]
+      summary: Update a class
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClassRequest"
+      responses:
+        "200":
+          description: Class updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Class"
+    delete:
+      operationId: deleteClass
+      tags: [classes]
+      summary: Delete a class
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Class deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /admin/classes/{id}/students:
+    get:
+      operationId: getClassStudents
+      tags: [classes]
+      summary: Get students in a class
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Students list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  # ─── Admin: Subjects ─────────────────────────────────────────────────
+  /admin/subjects:
+    get:
+      operationId: listSubjects
+      tags: [subjects]
+      summary: List all subjects
+      responses:
+        "200":
+          description: Subjects list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subject"
+    post:
+      operationId: createSubject
+      tags: [subjects]
+      summary: Create a new subject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubjectRequest"
+      responses:
+        "201":
+          description: Subject created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subject"
+
+  /admin/subjects/{id}:
+    put:
+      operationId: updateSubject
+      tags: [subjects]
+      summary: Update a subject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubjectRequest"
+      responses:
+        "200":
+          description: Subject updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subject"
+    delete:
+      operationId: deleteSubject
+      tags: [subjects]
+      summary: Delete a subject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Subject deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── Admin: Teaching Units (UE) ──────────────────────────────────────
+  /admin/teaching-units:
+    get:
+      operationId: listTeachingUnits
+      tags: [teaching-units]
+      summary: List all teaching units (UE)
+      parameters:
+        - name: classId
+          in: query
+          schema:
+            type: integer
+        - name: semesterId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Teaching units list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeachingUnit"
+    post:
+      operationId: createTeachingUnit
+      tags: [teaching-units]
+      summary: Create a new teaching unit (UE)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeachingUnitRequest"
+      responses:
+        "201":
+          description: Teaching unit created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeachingUnit"
+
+  /admin/teaching-units/{id}:
+    put:
+      operationId: updateTeachingUnit
+      tags: [teaching-units]
+      summary: Update a teaching unit (UE)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeachingUnitRequest"
+      responses:
+        "200":
+          description: Teaching unit updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeachingUnit"
+    delete:
+      operationId: deleteTeachingUnit
+      tags: [teaching-units]
+      summary: Delete a teaching unit (UE)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Teaching unit deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── Admin: Semesters ────────────────────────────────────────────────
+  /admin/semesters:
+    get:
+      operationId: listSemesters
+      tags: [semesters]
+      summary: List all semesters
+      responses:
+        "200":
+          description: Semesters list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Semester"
+    post:
+      operationId: createSemester
+      tags: [semesters]
+      summary: Create a new semester
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSemesterRequest"
+      responses:
+        "201":
+          description: Semester created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Semester"
+
+  /admin/semesters/{id}:
+    put:
+      operationId: updateSemester
+      tags: [semesters]
+      summary: Update a semester
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSemesterRequest"
+      responses:
+        "200":
+          description: Semester updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Semester"
+
+  /admin/semesters/{id}/publish:
+    post:
+      operationId: publishSemesterResults
+      tags: [semesters]
+      summary: Toggle publish results for a semester
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishRequest"
+      responses:
+        "200":
+          description: Published status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Semester"
+
+  # ─── Admin: Bulletin PDF ─────────────────────────────────────────────
+  /admin/bulletin/{studentId}/{semesterId}:
+    get:
+      operationId: generateBulletin
+      tags: [admin]
+      summary: Generate student bulletin PDF (admin only)
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: semesterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: PDF bulletin
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  # ─── Admin: Results overview ─────────────────────────────────────────
+  /admin/results/{semesterId}:
+    get:
+      operationId: getSemesterResults
+      tags: [admin]
+      summary: Get all results for a semester
+      parameters:
+        - name: semesterId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: classId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Results list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentResult"
+
+  # ─── Teacher: Grades ─────────────────────────────────────────────────
+  /teacher/assignments:
+    get:
+      operationId: getTeacherAssignments
+      tags: [teacher]
+      summary: Get teacher's subject assignments
+      responses:
+        "200":
+          description: Assignments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeacherAssignment"
+
+  /teacher/grades:
+    get:
+      operationId: getTeacherGrades
+      tags: [teacher]
+      summary: Get grades for teacher's subjects
+      parameters:
+        - name: subjectId
+          in: query
+          schema:
+            type: integer
+        - name: semesterId
+          in: query
+          schema:
+            type: integer
+        - name: classId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Grades list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Grade"
+    post:
+      operationId: submitGrade
+      tags: [teacher]
+      summary: Submit or update a grade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitGradeRequest"
+      responses:
+        "200":
+          description: Grade submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grade"
+
+  /teacher/grades/bulk:
+    post:
+      operationId: submitGradesBulk
+      tags: [teacher]
+      summary: Submit multiple grades at once (offline sync)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkGradeRequest"
+      responses:
+        "200":
+          description: Grades submitted
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Grade"
+
+  # ─── Student: My results ─────────────────────────────────────────────
+  /student/me:
+    get:
+      operationId: getStudentProfile
+      tags: [student]
+      summary: Get student profile
+      responses:
+        "200":
+          description: Student profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentProfile"
+
+  /student/grades:
+    get:
+      operationId: getStudentGrades
+      tags: [student]
+      summary: Get student's own grades (only when published)
+      parameters:
+        - name: semesterId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Student grades
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentGradeResponse"
+
+  /student/results:
+    get:
+      operationId: getStudentResults
+      tags: [student]
+      summary: Get student's results with average and rank
+      parameters:
+        - name: semesterId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Student results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentResult"
+
+  # ─── Admin: Assign teacher to subject/class ──────────────────────────
+  /admin/assignments:
+    get:
+      operationId: listAssignments
+      tags: [admin]
+      summary: List all teacher-subject-class assignments
+      responses:
+        "200":
+          description: Assignments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeacherAssignment"
+    post:
+      operationId: createAssignment
+      tags: [admin]
+      summary: Assign a teacher to a subject in a class
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssignmentRequest"
+      responses:
+        "201":
+          description: Assignment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherAssignment"
+
+  /admin/assignments/{id}:
+    delete:
+      operationId: deleteAssignment
+      tags: [admin]
+      summary: Remove a teacher assignment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Assignment removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── Planificateur: Rooms ────────────────────────────────────────────
+  /admin/rooms:
+    get:
+      operationId: listRooms
+      tags: [rooms]
+      summary: List all rooms
+      responses:
+        "200":
+          description: List of rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+    post:
+      operationId: createRoom
+      tags: [rooms]
+      summary: Create a room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomRequest"
+      responses:
+        "201":
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+
+  /admin/rooms/{roomId}:
+    put:
+      operationId: updateRoom
+      tags: [rooms]
+      summary: Update a room
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomRequest"
+      responses:
+        "200":
+          description: Room updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+    delete:
+      operationId: deleteRoom
+      tags: [rooms]
+      summary: Delete a room
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Room deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── Planificateur: Schedules ─────────────────────────────────────────
+  /admin/schedules:
+    get:
+      operationId: listScheduleEntries
+      tags: [schedules]
+      summary: List schedule entries (optionally filter by semesterId or classId)
+      parameters:
+        - name: semesterId
+          in: query
+          schema:
+            type: integer
+        - name: classId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of schedule entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduleEntry"
+    post:
+      operationId: createScheduleEntry
+      tags: [schedules]
+      summary: Create a schedule entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScheduleEntryRequest"
+      responses:
+        "201":
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleEntry"
+
+  /admin/schedules/{entryId}:
+    delete:
+      operationId: deleteScheduleEntry
+      tags: [schedules]
+      summary: Delete a schedule entry
+      parameters:
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Entry deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── Admin: Assign student to class ─────────────────────────────────
+  /admin/class-enrollments:
+    post:
+      operationId: enrollStudent
+      tags: [admin]
+      summary: Enroll a student in a class
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnrollStudentRequest"
+      responses:
+        "201":
+          description: Student enrolled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+    delete:
+      operationId: unenrollStudent
+      tags: [admin]
+      summary: Remove a student from a class
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnrollStudentRequest"
+      responses:
+        "200":
+          description: Student removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required: [email, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserInfo"
+        message:
+          type: string
+      required: [user, message]
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, teacher, student]
+        adminSubRole:
+          type: string
+          enum: [scolarite, planificateur]
+          nullable: true
+        classId:
+          type: integer
+          nullable: true
+        className:
+          type: string
+          nullable: true
+      required: [id, email, name, role]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, teacher, student]
+        adminSubRole:
+          type: string
+          enum: [scolarite, planificateur]
+          nullable: true
+        classId:
+          type: integer
+          nullable: true
+        className:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, name, role, createdAt]
+
+    CreateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, teacher, student]
+        adminSubRole:
+          type: string
+          enum: [scolarite, planificateur]
+          nullable: true
+        classId:
+          type: integer
+          nullable: true
+      required: [email, name, password, role]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, teacher, student]
+        adminSubRole:
+          type: string
+          enum: [scolarite, planificateur]
+          nullable: true
+        classId:
+          type: integer
+          nullable: true
+
+    Class:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        studentCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, studentCount, createdAt]
+
+    CreateClassRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+      required: [name]
+
+    Subject:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        coefficient:
+          type: number
+          format: float
+        credits:
+          type: number
+          format: float
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        ueId:
+          type: integer
+          nullable: true
+        ueName:
+          type: string
+          nullable: true
+        ueCode:
+          type: string
+          nullable: true
+        classId:
+          type: integer
+          nullable: true
+        className:
+          type: string
+          nullable: true
+        semesterId:
+          type: integer
+          nullable: true
+        semesterName:
+          type: string
+          nullable: true
+        teacherId:
+          type: integer
+          nullable: true
+        teacherName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, coefficient, createdAt]
+
+    CreateSubjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        coefficient:
+          type: number
+          format: float
+        credits:
+          type: number
+          format: float
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        ueId:
+          type: integer
+          nullable: true
+        classId:
+          type: integer
+          nullable: true
+        semesterId:
+          type: integer
+          nullable: true
+      required: [name, coefficient]
+
+    TeachingUnit:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          nullable: true
+          enum: [culture_generale, connaissances_fondamentales, specialite]
+        credits:
+          type: integer
+        coefficient:
+          type: number
+          format: float
+        classId:
+          type: integer
+          nullable: true
+        className:
+          type: string
+          nullable: true
+        semesterId:
+          type: integer
+          nullable: true
+        semesterName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, code, name, credits, coefficient, createdAt]
+
+    CreateTeachingUnitRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          nullable: true
+          enum: [culture_generale, connaissances_fondamentales, specialite]
+        credits:
+          type: integer
+        coefficient:
+          type: number
+          format: float
+        classId:
+          type: integer
+          nullable: true
+        semesterId:
+          type: integer
+          nullable: true
+      required: [code, name, credits, coefficient]
+
+    Semester:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        academicYear:
+          type: string
+        published:
+          type: boolean
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, academicYear, published, createdAt]
+
+    CreateSemesterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        academicYear:
+          type: string
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        endDate:
+          type: string
+          format: date
+          nullable: true
+      required: [name, academicYear]
+
+    UpdateSemesterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        academicYear:
+          type: string
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        endDate:
+          type: string
+          format: date
+          nullable: true
+
+    PublishRequest:
+      type: object
+      properties:
+        published:
+          type: boolean
+      required: [published]
+
+    Grade:
+      type: object
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: integer
+        studentName:
+          type: string
+        subjectId:
+          type: integer
+        subjectName:
+          type: string
+        coefficient:
+          type: number
+        semesterId:
+          type: integer
+        semesterName:
+          type: string
+        value:
+          type: number
+          format: float
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, studentId, studentName, subjectId, subjectName, coefficient, semesterId, semesterName, value, createdAt, updatedAt]
+
+    SubmitGradeRequest:
+      type: object
+      properties:
+        studentId:
+          type: integer
+        subjectId:
+          type: integer
+        semesterId:
+          type: integer
+        value:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 20
+      required: [studentId, subjectId, semesterId, value]
+
+    BulkGradeRequest:
+      type: object
+      properties:
+        grades:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubmitGradeRequest"
+      required: [grades]
+
+    StudentResult:
+      type: object
+      properties:
+        studentId:
+          type: integer
+        studentName:
+          type: string
+        classId:
+          type: integer
+        className:
+          type: string
+        semesterId:
+          type: integer
+        semesterName:
+          type: string
+        average:
+          type: number
+          format: float
+          nullable: true
+        rank:
+          type: integer
+          nullable: true
+        totalStudents:
+          type: integer
+          nullable: true
+        decision:
+          type: string
+          enum: [Admis, Ajourné, En attente]
+        grades:
+          type: array
+          items:
+            $ref: "#/components/schemas/GradeSummary"
+      required: [studentId, studentName, semesterId, semesterName, decision]
+
+    GradeSummary:
+      type: object
+      properties:
+        subjectId:
+          type: integer
+        subjectName:
+          type: string
+        coefficient:
+          type: number
+        value:
+          type: number
+          format: float
+          nullable: true
+      required: [subjectId, subjectName, coefficient]
+
+    StudentGradeResponse:
+      type: object
+      properties:
+        semesterId:
+          type: integer
+        semesterName:
+          type: string
+        published:
+          type: boolean
+        grades:
+          type: array
+          items:
+            $ref: "#/components/schemas/GradeSummary"
+        average:
+          type: number
+          nullable: true
+        decision:
+          type: string
+          enum: [Admis, Ajourné, En attente]
+          nullable: true
+      required: [semesterId, semesterName, published, grades, decision]
+
+    StudentProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        classId:
+          type: integer
+          nullable: true
+        className:
+          type: string
+          nullable: true
+      required: [id, name, email]
+
+    TeacherAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+        teacherId:
+          type: integer
+        teacherName:
+          type: string
+        subjectId:
+          type: integer
+        subjectName:
+          type: string
+        coefficient:
+          type: number
+        classId:
+          type: integer
+        className:
+          type: string
+        semesterId:
+          type: integer
+        semesterName:
+          type: string
+      required: [id, teacherId, teacherName, subjectId, subjectName, coefficient, classId, className, semesterId, semesterName]
+
+    CreateAssignmentRequest:
+      type: object
+      properties:
+        teacherId:
+          type: integer
+        subjectId:
+          type: integer
+        classId:
+          type: integer
+        semesterId:
+          type: integer
+      required: [teacherId, subjectId, classId, semesterId]
+
+    EnrollStudentRequest:
+      type: object
+      properties:
+        studentId:
+          type: integer
+        classId:
+          type: integer
+      required: [studentId, classId]
+
+    Room:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        capacity:
+          type: integer
+        type:
+          type: string
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, capacity, type, createdAt]
+
+    CreateRoomRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        capacity:
+          type: integer
+        type:
+          type: string
+        description:
+          type: string
+          nullable: true
+      required: [name, capacity, type]
+
+    ScheduleEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        teacherId:
+          type: integer
+        teacherName:
+          type: string
+        subjectId:
+          type: integer
+        subjectName:
+          type: string
+        classId:
+          type: integer
+        className:
+          type: string
+        roomId:
+          type: integer
+        roomName:
+          type: string
+        semesterId:
+          type: integer
+        semesterName:
+          type: string
+        dayOfWeek:
+          type: integer
+          description: "1=Lundi, 2=Mardi, 3=Mercredi, 4=Jeudi, 5=Vendredi, 6=Samedi"
+        startTime:
+          type: string
+          description: "HH:MM format"
+        endTime:
+          type: string
+          description: "HH:MM format"
+        teamsLink:
+          type: string
+          nullable: true
+          description: "Lien Microsoft Teams pour rejoindre le cours en ligne"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, teacherId, teacherName, subjectId, subjectName, classId, className, roomId, roomName, semesterId, semesterName, dayOfWeek, startTime, endTime, createdAt]
+
+    CreateScheduleEntryRequest:
+      type: object
+      properties:
+        teacherId:
+          type: integer
+        subjectId:
+          type: integer
+        classId:
+          type: integer
+        roomId:
+          type: integer
+        semesterId:
+          type: integer
+        dayOfWeek:
+          type: integer
+          minimum: 1
+          maximum: 6
+        startTime:
+          type: string
+        endTime:
+          type: string
+        teamsLink:
+          type: string
+          nullable: true
+          description: "Lien Microsoft Teams (optionnel)"
+      required: [teacherId, subjectId, classId, roomId, semesterId, dayOfWeek, startTime, endTime]

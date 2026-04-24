@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPEC-Digital — Guide Utilisateur</title>
+<style>
+  :root {
+    --navy: #1e3870;
+    --navy-light: #2d5299;
+    --green: #10b981;
+    --green-dark: #059669;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-600: #475569;
+    --gray-800: #1e293b;
+    --white: #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--gray-800);
+    background: #fff;
+  }
+
+  /* ── Cover Page ── */
+  .cover {
+    background: linear-gradient(135deg, #1e3870 0%, #2d5299 50%, #1e6090 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -80px; left: -80px;
+    width: 300px; height: 300px;
+    background: rgba(16,185,129,0.15);
+    border-radius: 50%;
+  }
+  .cover-logo {
+    width: 120px;
+    height: 120px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 32px;
+    border: 3px solid rgba(255,255,255,0.3);
+    position: relative; z-index: 1;
+  }
+  .cover-logo svg { width: 60px; height: 60px; }
+  .cover h1 {
+    font-family: Georgia, serif;
+    font-size: 48px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+    position: relative; z-index: 1;
+  }
+  .cover h1 span { color: #10b981; }
+  .cover .subtitle {
+    font-size: 18px;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 48px;
+    position: relative; z-index: 1;
+  }
+  .cover-title-doc {
+    font-family: Georgia, serif;
+    font-size: 32px;
+    color: #fff;
+    margin-bottom: 12px;
+    font-weight: 300;
+    position: relative; z-index: 1;
+  }
+  .cover-desc {
+    font-size: 15px;
+    color: rgba(255,255,255,0.65);
+    max-width: 500px;
+    line-height: 1.8;
+    position: relative; z-index: 1;
+  }
+  .cover-badges {
+    display: flex; gap: 12px;
+    margin-top: 48px;
+    position: relative; z-index: 1;
+  }
+  .cover-badge {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 1px;
+  }
+  .cover-version {
+    color: rgba(255,255,255,0.45); font-size: 12px;
+    margin-top: 12px;
+    z-index: 1;
+  }
+  .cover-dev {
+    margin-top: 8px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.75);
+    z-index: 1;
+  }
+  .cover-dev strong { color: rgba(255,255,255,0.95); }
+
+  /* ── TOC ── */
+  .toc-page {
+    padding: 64px 80px;
+  }
+  .toc-page h2 {
+    font-family: Georgia, serif;
+    font-size: 28px;
+    color: var(--navy);
+    margin-bottom: 32px;
+    padding-bottom: 12px;
+    border-bottom: 3px solid var(--green);
+  }
+  .toc-list { list-style: none; }
+  .toc-list > li {
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .toc-list > li a {
+    color: var(--gray-800);
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .toc-list > li a:hover { color: var(--navy); }
+  .toc-sub { list-style: none; margin-left: 24px; }
+  .toc-sub li {
+    padding: 4px 0;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px dashed var(--gray-100);
+  }
+  .toc-sub li a {
+    color: var(--gray-600);
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .toc-page-num {
+    color: var(--gray-400);
+    font-size: 13px;
+    white-space: nowrap;
+    margin-left: 8px;
+  }
+  .toc-section-num {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    background: var(--navy);
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 28px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+
+  /* ── Main content ── */
+  .page {
+    padding: 56px 80px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* ── Section headers ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--gray-200);
+  }
+  .section-num {
+    width: 44px; height: 44px;
+    background: var(--navy);
+    color: white;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-family: Georgia, serif;
+    font-size: 26px;
+    color: var(--navy);
+    line-height: 1.2;
+  }
+  .section-header .section-icon {
+    font-size: 28px;
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-family: Georgia, serif;
+    font-size: 18px;
+    color: var(--navy-light);
+    margin: 28px 0 12px;
+    padding-left: 12px;
+    border-left: 3px solid var(--green);
+  }
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin: 16px 0 8px;
+  }
+
+  p { margin-bottom: 12px; color: var(--gray-600); }
+  strong { color: var(--gray-800); }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .callout-info { background: #eff6ff; border-left: 4px solid #3b82f6; }
+  .callout-success { background: #f0fdf4; border-left: 4px solid var(--green); }
+  .callout-warning { background: #fffbeb; border-left: 4px solid var(--amber); }
+  .callout-danger { background: #fef2f2; border-left: 4px solid var(--red); }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+  .callout p { margin: 0; font-size: 13px; }
+  .callout strong { display: block; margin-bottom: 4px; font-size: 13px; }
+
+  /* ── Feature list ── */
+  .feature-list { list-style: none; margin: 12px 0; }
+  .feature-list li {
+    padding: 6px 0 6px 24px;
+    position: relative;
+    color: var(--gray-600);
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 13.5px;
+  }
+  .feature-list li::before {
+    content: '✓';
+    position: absolute; left: 0;
+    color: var(--green);
+    font-weight: 700;
+  }
+  .feature-list li strong { color: var(--gray-800); }
+
+  /* ── Role badge ── */
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+  .role-directeur { background: #ede9fe; color: #6d28d9; }
+  .role-scolarite { background: #e0f2fe; color: #0369a1; }
+  .role-planificateur { background: #f0fdf4; color: #065f46; }
+  .role-hebergement { background: #fff7ed; color: #c2410c; }
+  .role-enseignant { background: #fef9c3; color: #92400e; }
+  .role-etudiant { background: #fce7f3; color: #9d174d; }
+
+  /* ── UI Mockup ── */
+  .mockup {
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 20px 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  .mockup-bar {
+    background: var(--navy);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mockup-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .mockup-url {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    margin: 0 8px;
+  }
+  .mockup-body {
+    display: flex;
+    min-height: 320px;
+    background: var(--gray-50);
+  }
+  .mockup-sidebar {
+    width: 200px;
+    background: var(--navy);
+    padding: 16px 0;
+    flex-shrink: 0;
+  }
+  .mockup-sidebar-logo {
+    padding: 0 16px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 12px;
+  }
+  .mockup-sidebar-logo .logo-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+  }
+  .mockup-sidebar-logo .logo-sub {
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+  }
+  .mockup-nav-item {
+    padding: 8px 16px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    border-radius: 0;
+  }
+  .mockup-nav-item.active {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border-radius: 8px;
+    margin: 0 8px;
+    padding: 8px 8px;
+  }
+  .mockup-nav-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .mockup-content {
+    flex: 1;
+    padding: 20px;
+    overflow: hidden;
+  }
+  .mockup-page-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .mockup-page-sub {
+    font-size: 11px;
+    color: var(--gray-400);
+    margin-bottom: 16px;
+  }
+
+  /* Stats row */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid var(--gray-200);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .stat-card .stat-val { font-size: 22px; font-weight: 800; color: var(--navy); }
+  .stat-card .stat-label { font-size: 10px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .stat-icon { font-size: 18px; float: right; margin-top: -4px; }
+
+  /* Table mockup */
+  .mockup-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .mockup-table th { background: var(--gray-100); padding: 6px 8px; text-align: left; color: var(--gray-600); font-weight: 600; font-size: 10px; text-transform: uppercase; }
+  .mockup-table td { padding: 7px 8px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); }
+  .mockup-table tr:hover td { background: var(--gray-50); }
+
+  /* Pill */
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .pill-green { background: #dcfce7; color: #166534; }
+  .pill-blue { background: #dbeafe; color: #1e40af; }
+  .pill-amber { background: #fef3c7; color: #92400e; }
+  .pill-red { background: #fee2e2; color: #991b1b; }
+  .pill-gray { background: #f1f5f9; color: #475569; }
+  .pill-purple { background: #ede9fe; color: #6d28d9; }
+
+  /* Schedule grid */
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: 60px repeat(5, 1fr);
+    gap: 4px;
+    font-size: 10px;
+  }
+  .schedule-header { background: var(--navy); color: white; padding: 6px; border-radius: 4px; text-align: center; font-weight: 600; font-size: 10px; }
+  .schedule-time { background: var(--gray-100); padding: 6px; border-radius: 4px; text-align: center; color: var(--gray-500); font-weight: 500; }
+  .schedule-slot {
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 9px;
+    line-height: 1.3;
+  }
+  .schedule-slot-empty { background: var(--gray-100); }
+  .schedule-slot-filled { background: #dbeafe; border-left: 3px solid #3b82f6; }
+  .schedule-slot-green { background: #dcfce7; border-left: 3px solid var(--green); }
+  .schedule-slot-amber { background: #fef3c7; border-left: 3px solid var(--amber); }
+
+  /* Progress bar */
+  .progress-bar-wrap { background: var(--gray-200); border-radius: 4px; height: 8px; margin: 6px 0; }
+  .progress-bar { height: 8px; border-radius: 4px; }
+  .progress-green { background: var(--green); }
+  .progress-amber { background: var(--amber); }
+  .progress-red { background: var(--red); }
+
+  /* Screenshot embed */
+  .screenshot {
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 20px 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    max-width: 100%;
+  }
+  .screenshot img { width: 100%; display: block; }
+  .screenshot-caption {
+    background: var(--gray-50);
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--gray-500);
+    text-align: center;
+    border-top: 1px solid var(--gray-200);
+    font-style: italic;
+  }
+
+  /* Info grid */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .info-card {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .info-card h4 { color: var(--navy); margin-top: 0; }
+  .info-card p { font-size: 13px; margin-bottom: 0; }
+
+  /* Step guide */
+  .steps { counter-reset: step; margin: 16px 0; }
+  .step {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 28px; height: 28px;
+    background: var(--navy);
+    color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; color: var(--gray-800); margin-bottom: 2px; font-size: 13.5px; }
+  .step-content p { font-size: 12.5px; margin: 0; color: var(--gray-600); }
+
+  /* Roles table */
+  .roles-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  .roles-table th {
+    background: var(--navy);
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 13px;
+  }
+  .roles-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-200);
+    font-size: 13px;
+    vertical-align: top;
+  }
+  .roles-table tr:nth-child(even) td { background: var(--gray-50); }
+
+  /* Kbd */
+  kbd {
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--gray-700);
+  }
+
+  /* Page break */
+  .page-break { padding-top: 0; }
+
+  /* En-tête de section (infos développeur) */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0 16px 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--gray-200);
+    font-size: 11px;
+    color: var(--gray-400);
+    gap: 16px;
+  }
+  .page-header-left { font-weight: 600; color: var(--navy); opacity: 0.7; }
+  .page-header-right { text-align: right; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--gray-400);
+    font-size: 11px;
+    border-top: 1px solid var(--gray-200);
+    margin-top: 48px;
+  }
+
+  /* Notification visual */
+  .notification-popup {
+    background: var(--navy);
+    border-radius: 12px;
+    padding: 14px 18px;
+    color: white;
+    max-width: 340px;
+    margin: 16px auto;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  }
+  .notification-popup .notif-icon {
+    width: 36px; height: 36px;
+    background: var(--green);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .notification-popup .notif-title { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+  .notification-popup .notif-body { font-size: 12px; color: rgba(255,255,255,0.75); }
+
+  /* Search palette */
+  .search-palette {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 14px;
+    overflow: hidden;
+    max-width: 540px;
+    margin: 16px auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+  .search-input-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gray-200);
+    gap: 10px;
+  }
+  .search-input-row input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    color: var(--gray-800);
+  }
+  .search-results { padding: 8px; }
+  .search-group-label { font-size: 10px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 1px; padding: 6px 8px 2px; font-weight: 600; }
+  .search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--gray-700);
+  }
+  .search-result-item:hover, .search-result-item.selected { background: var(--gray-100); }
+  .search-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: white;
+    flex-shrink: 0;
+  }
+
+  /* Print */
+  @media print {
+    .pdf-btn-bar { display: none !important; }
+    .cover { page-break-after: always; min-height: 250mm; }
+    .toc-page { page-break-after: always; }
+    .page { page-break-before: always; }
+    body { font-size: 11px; }
+    h3 { font-size: 15px; }
+    .mockup { box-shadow: none; border: 1px solid #ccc; }
+    a { color: inherit; text-decoration: none; }
+  }
+
+  /* PDF download button bar */
+  .pdf-btn-bar {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .pdf-btn {
+    background: #1e3870;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    transition: background 0.15s;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  .pdf-btn:hover { background: #2d5299; }
+  .pdf-tip {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #475569;
+    max-width: 260px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    line-height: 1.5;
+    display: none;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  .pdf-tip.visible { display: block; }
+  .pdf-tip strong { color: #1e3870; display: block; margin-bottom: 4px; }
+  .pdf-tip ol { margin: 6px 0 0 16px; padding: 0; }
+  .pdf-tip li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── Bouton téléchargement PDF ── -->
+<div class="pdf-btn-bar" id="pdfBar">
+  <button class="pdf-btn" id="pdfBtn" onclick="downloadPDF()" title="Télécharger en PDF">
+    📄 Télécharger PDF
+  </button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+async function downloadPDF() {
+  const btn = document.getElementById('pdfBtn');
+  btn.textContent = '⏳ Génération…';
+  btn.disabled = true;
+
+  const element = document.body;
+  const opt = {
+    margin: [10, 10, 10, 10],
+    filename: 'CPEC-Digital-Guide-Utilisateur.pdf',
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: 'avoid-all', avoid: ['.section-header', '.stat-card', '.callout', '.step', '.info-card', '.mockup'] }
+  };
+
+  try {
+    await html2pdf().set(opt).from(element).save();
+  } catch(e) {
+    alert('Erreur lors de la génération du PDF. Veuillez réessayer.');
+  }
+
+  btn.textContent = '📄 Télécharger PDF';
+  btn.disabled = false;
+}
+
+// Injection de l'en-tête développeur dans chaque section
+document.addEventListener('DOMContentLoaded', () => {
+  const pages = document.querySelectorAll('.page.page-break');
+  pages.forEach(page => {
+    const header = document.createElement('div');
+    header.className = 'page-header';
+    header.innerHTML = `
+      <span class="page-header-left">CPEC-Digital — Guide Utilisateur v2.0</span>
+      <span class="page-header-right">
+        Youssouf Sawadogo &nbsp;·&nbsp; contacteyouss@gmail.com &nbsp;·&nbsp; 07 14 17 40 82
+      </span>
+    `;
+    page.insertBefore(header, page.firstChild);
+  });
+});
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     COVER PAGE
+═══════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">
+    <svg viewBox="0 0 60 60" fill="none">
+      <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+      <rect x="14" y="22" width="32" height="22" rx="3" fill="rgba(255,255,255,0.9)"/>
+      <rect x="18" y="26" width="18" height="2" rx="1" fill="#1e3870"/>
+      <rect x="18" y="31" width="12" height="2" rx="1" fill="#1e3870"/>
+      <rect x="18" y="36" width="20" height="2" rx="1" fill="#1e3870"/>
+      <circle cx="40" cy="38" r="8" fill="#10b981"/>
+      <path d="M36 38l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="20" y="14" width="6" height="12" rx="2" fill="rgba(255,255,255,0.6)"/>
+      <rect x="28" y="16" width="6" height="10" rx="2" fill="rgba(255,255,255,0.4)"/>
+      <rect x="36" y="12" width="6" height="14" rx="2" fill="rgba(255,255,255,0.7)"/>
+    </svg>
+  </div>
+
+  <h1>CPEC-<span>Digital</span></h1>
+  <p class="subtitle">Gestion Académique</p>
+
+  <p class="cover-title-doc">Guide Utilisateur Complet</p>
+  <p class="cover-desc">
+    Documentation officielle du Système de Gestion Académique du Centre Préparatoire à l'Expertise Comptable – UEMOA. Ce guide décrit l'ensemble des fonctionnalités pour tous les profils d'utilisateurs.
+  </p>
+
+  <div class="cover-badges">
+    <span class="cover-badge">👨‍💼 Directeur</span>
+    <span class="cover-badge">📋 Scolarité</span>
+    <span class="cover-badge">📅 Planificateur</span>
+    <span class="cover-badge">🏠 Hébergement</span>
+    <span class="cover-badge">👨‍🏫 Enseignant</span>
+    <span class="cover-badge">🎓 Étudiant</span>
+  </div>
+
+  <div class="cover-version">Version 2.0 · Mars 2026</div>
+  <div class="cover-dev">
+    Développé par <strong>Youssouf Sawadogo</strong> &nbsp;·&nbsp;
+    <a href="mailto:contacteyouss@gmail.com" style="color:rgba(255,255,255,0.85);">contacteyouss@gmail.com</a>
+    &nbsp;·&nbsp; 07 14 17 40 82
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TABLE DES MATIÈRES
+═══════════════════════════════════════════════════════════ -->
+<div class="toc-page">
+  <h2>Table des Matières</h2>
+  <ol class="toc-list">
+    <li>
+      <a href="#section-intro"><span class="toc-section-num">1</span> Introduction &amp; Connexion</a>
+      <span class="toc-page-num">3</span>
+    </li>
+    <li>
+      <a href="#section-roles"><span class="toc-section-num">2</span> Rôles et Niveaux d'Accès</a>
+      <span class="toc-page-num">4</span>
+    </li>
+    <li>
+      <a href="#section-directeur"><span class="toc-section-num">3</span> Directeur du Centre</a>
+      <span class="toc-page-num">5</span>
+      <ol class="toc-sub">
+        <li><a href="#dir-dashboard">Tableau de bord</a><span class="toc-page-num">5</span></li>
+        <li><a href="#dir-comptes">Gestion des comptes</a><span class="toc-page-num">5</span></li>
+        <li><a href="#dir-kpis">Indicateurs pédagogiques &amp; financiers</a><span class="toc-page-num">6</span></li>
+      </ol>
+    </li>
+    <li>
+      <a href="#section-scolarite"><span class="toc-section-num">4</span> Responsable de Scolarité</a>
+      <span class="toc-page-num">7</span>
+      <ol class="toc-sub">
+        <li><a href="#scol-etudiants">Gestion des étudiants</a><span class="toc-page-num">7</span></li>
+        <li><a href="#scol-classes">Classes, matières et UE</a><span class="toc-page-num">8</span></li>
+        <li><a href="#scol-notes">Notes, résultats et bulletins</a><span class="toc-page-num">9</span></li>
+        <li><a href="#scol-absences">Bilan des absences</a><span class="toc-page-num">10</span></li>
+        <li><a href="#scol-promotion">Promotion des étudiants</a><span class="toc-page-num">10</span></li>
+      </ol>
+    </li>
+    <li>
+      <a href="#section-planificateur"><span class="toc-section-num">5</span> Responsable Pédagogique (Planificateur)</a>
+      <span class="toc-page-num">11</span>
+      <ol class="toc-sub">
+        <li><a href="#plan-salles">Gestion des salles</a><span class="toc-page-num">11</span></li>
+        <li><a href="#plan-affectation">Affectation des enseignants</a><span class="toc-page-num">11</span></li>
+        <li><a href="#plan-emploi">Emploi du temps</a><span class="toc-page-num">12</span></li>
+        <li><a href="#plan-suivi">Suivi des heures</a><span class="toc-page-num">12</span></li>
+      </ol>
+    </li>
+    <li>
+      <a href="#section-hebergement"><span class="toc-section-num">6</span> Service Hébergement</a>
+      <span class="toc-page-num">13</span>
+    </li>
+    <li>
+      <a href="#section-enseignant"><span class="toc-section-num">7</span> Espace Enseignant</a>
+      <span class="toc-page-num">14</span>
+      <ol class="toc-sub">
+        <li><a href="#ens-dashboard">Tableau de bord</a><span class="toc-page-num">14</span></li>
+        <li><a href="#ens-notes">Saisie des notes</a><span class="toc-page-num">15</span></li>
+        <li><a href="#ens-cahier">Cahier de texte</a><span class="toc-page-num">15</span></li>
+        <li><a href="#ens-presence">Feuilles de présence</a><span class="toc-page-num">16</span></li>
+        <li><a href="#ens-planning">Mon planning</a><span class="toc-page-num">16</span></li>
+      </ol>
+    </li>
+    <li>
+      <a href="#section-etudiant"><span class="toc-section-num">8</span> Espace Étudiant</a>
+      <span class="toc-page-num">17</span>
+    </li>
+    <li>
+      <a href="#section-transversal"><span class="toc-section-num">9</span> Fonctionnalités Transversales</a>
+      <span class="toc-page-num">19</span>
+      <ol class="toc-sub">
+        <li><a href="#trans-search">Recherche globale (Cmd+K)</a><span class="toc-page-num">19</span></li>
+        <li><a href="#trans-print">Impression du planning</a><span class="toc-page-num">19</span></li>
+        <li><a href="#trans-push">Notifications push</a><span class="toc-page-num">20</span></li>
+        <li><a href="#trans-offline">Mode hors-ligne</a><span class="toc-page-num">20</span></li>
+        <li><a href="#trans-messages">Messagerie</a><span class="toc-page-num">21</span></li>
+      </ol>
+    </li>
+    <li>
+      <a href="#section-annexes"><span class="toc-section-num">10</span> Annexes</a>
+      <span class="toc-page-num">22</span>
+    </li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 1 — INTRODUCTION & CONNEXION
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="section-intro">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <h2>Introduction &amp; Connexion</h2>
+  </div>
+
+  <p>
+    <strong>CPEC-Digital</strong> est l'application de gestion académique du Centre Préparatoire à l'Expertise Comptable – UEMOA. Elle centralise en une seule plateforme numérique toutes les opérations liées à la vie académique : gestion des étudiants, emplois du temps, saisie des notes, suivi des absences, hébergement et bien plus.
+  </p>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">💡</span>
+    <div>
+      <strong>Application Web Progressive (PWA)</strong>
+      <p>CPEC-Digital s'installe comme une application native sur votre téléphone ou votre ordinateur. Elle fonctionne aussi en mode hors-ligne pour certaines fonctionnalités.</p>
+    </div>
+  </div>
+
+  <h3>Comment se connecter</h3>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <strong>Ouvrez l'application</strong>
+        <p>Accédez à l'URL de l'application depuis votre navigateur (Chrome, Firefox, Safari). L'écran de chargement apparaît.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <strong>Saisissez vos identifiants</strong>
+        <p>Entrez votre <strong>adresse e-mail</strong> et votre <strong>mot de passe</strong> dans le formulaire de connexion.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <strong>Cliquez sur "Se connecter"</strong>
+        <p>L'application vous redirige automatiquement vers votre espace selon votre rôle (Directeur, Enseignant, Étudiant…).</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="screenshot">
+    <img src="./login-screenshot.png" alt="Page de connexion CPEC-Digital" style="max-width:420px;width:100%;display:block;margin:0 auto;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.12);">
+    <div class="screenshot-caption">Écran de connexion CPEC-Digital</div>
+  </div>
+
+  <div class="callout callout-warning">
+    <span class="callout-icon">⚠️</span>
+    <div>
+      <strong>Identifiants oubliés</strong>
+      <p>En cas d'oubli de mot de passe, contactez votre responsable de scolarité ou le Directeur du Centre qui peut réinitialiser votre accès.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 2 — RÔLES
+═══════════════════════════════════════════════════════════ -->
+<div class="page page-break" id="section-roles">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <h2>Rôles et Niveaux d'Accès</h2>
+  </div>
+
+  <p>CPEC-Digital dispose d'un système de contrôle d'accès basé sur les rôles (RBAC). Chaque utilisateur dispose d'un profil adapté à ses responsabilités.</p>
+
+  <table class="roles-table">
+    <thead>
+      <tr>
+        <th>Rôle</th>
+        <th>Profil</th>
+        <th>Accès</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="role-badge role-directeur">👨‍💼 Directeur</span></td>
+        <td>Directeur du Centre</td>
+        <td>Accès total — crée les comptes admins, voit tous les indicateurs, toutes les fonctionnalités</td>
+      </tr>
+      <tr>
+        <td><span class="role-badge role-scolarite">📋 Scolarité</span></td>
+        <td>Responsable de Scolarité</td>
+        <td>Gestion étudiants, notes, résultats, absences, bulletins, paiements</td>
+      </tr>
+      <tr>
+        <td><span class="role-badge role-planificateur">📅 Planificateur</span></td>
+        <td>Responsable Pédagogique</td>
+        <td>Emplois du temps, salles, affectation des enseignants, suivi des heures</td>
+      </tr>
+      <tr>
+        <td><span class="role-badge role-hebergement">🏠 Hébergement</span></td>
+        <td>Service Hébergement</td>
+        <td>Gestion des résidents, chambres et logements du campus</td>
+      </tr>
+      <tr>
+        <td><span class="role-badge role-enseignant">👨‍🏫 Enseignant</span></td>
+        <td>Enseignant / Formateur</td>
+        <td>Saisie notes, cahier de texte, présences, planning personnel</td>
+      </tr>
+      <tr>
+        <td><span class="role-badge role-etudiant">🎓 Étudiant</span></td>
+        <td>Étudiant inscrit</td>
+        <td>Consultation notes, emploi du temps, absences, bulletins</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-success">
+    <span class="callout-icon">🔒</span>
+    <div>
+      <strong>Cloisonnement des données</strong>
+      <p>Chaque utilisateur ne voit que les données auxquelles son rôle lui donne accès. Un étudiant ne peut consulter que ses propres notes ; un enseignant ne voit que ses matières et classes assignées.</p>
+    </div>
+  </div>
+
+  <!-- Role diagram mockup -->
+  <div style="background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 12px; padding: 24px; margin-top: 20px;">
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: center;">
+      <div style="background: #ede9fe; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 24px; margin-bottom: 4px;">👨‍💼</div>
+        <div style="font-weight: 700; color: #6d28d9; font-size: 12px;">DIRECTEUR</div>
+        <div style="font-size: 10px; color: #8b5cf6; margin-top: 4px;">Super-Admin</div>
+      </div>
+      <div style="background: #e0f2fe; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 24px; margin-bottom: 4px;">📋</div>
+        <div style="font-weight: 700; color: #0369a1; font-size: 12px;">SCOLARITÉ</div>
+        <div style="font-size: 10px; color: #0284c7; margin-top: 4px;">Gestion académique</div>
+      </div>
+      <div style="background: #f0fdf4; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 24px; margin-bottom: 4px;">📅</div>
+        <div style="font-weight: 700; color: #065f46; font-size: 12px;">PLANIFICATEUR</div>
+        <div style="font-size: 10px; color: #059669; margin-top: 4px;">Emplois du temps</div>
+      </div>
+      <div style="background: #fff7ed; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 24px; margin-bottom: 4px;">🏠</div>
+        <div style="font-weight: 700; color: #c2410c; font-size: 12px;">HÉBERGEMENT</div>
+        <div style="font-size: 10px; color: #ea580c; margin-top: 4px;">Logement campus</div>
+      </div>
+      <div style="background: #fef9c3; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 24px; margin-bottom: 4px;">👨‍🏫</div>
+        <div style="font-weight: 700; color: #92400e; font-size: 12px;">ENSEIGNANT</div>
+        <div style="font-size: 10px; color: #b45309; margin-top: 4px;">Saisie &amp; présences</div>
+      </div>
+      <div style="background: #fce7f3; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 24px; margin-bottom: 4px;">🎓</div>
+        <div style="font-weight: 700; color: #9d174d; font-size: 12px;">ÉTUDIANT</div>
+        <div style="font-size: 10px; color: #be185d; margin-top: 4px;">Consultation</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 3 — DIRECTEUR
+═══════════════════════════════════════════════════════════ -->
+<div class="page page-break" id="section-directeur">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <h2>Directeur du Centre</h2>
+  </div>
+  <span class="role-badge role-directeur">👨‍💼 Directeur</span>
+
+  <p>Le Directeur dispose d'un accès total au système. Il est le seul à pouvoir créer ou supprimer des comptes administrateurs (Scolarité, Planificateur). Son tableau de bord offre une vue synthétique de l'ensemble de l'établissement.</p>
+
+  <h3 id="dir-dashboard">3.1 Tableau de bord</h3>
+
+  <!-- Admin dashboard mockup -->
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="mockup-dot" style="background:#ff5f57"></div>
+      <div class="mockup-dot" style="background:#febc2e"></div>
+      <div class="mockup-dot" style="background:#28c840"></div>
+      <div class="mockup-url">cpec-digital.ci/admin</div>
+    </div>
+    <div class="mockup-body">
+      <div class="mockup-sidebar">
+        <div class="mockup-sidebar-logo">
+          <div class="logo-text">CPEC-Digital</div>
+          <div class="logo-sub">Menu Direction</div>
+        </div>
+        <div class="mockup-nav-item active"><span class="mockup-nav-dot"></span> Tableau de bord</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Utilisateurs</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Étudiants</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Résultats</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Emploi du Temps</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Absences</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Hébergement</div>
+      </div>
+      <div class="mockup-content">
+        <div class="mockup-page-title">Tableau de bord — Direction</div>
+        <div class="mockup-page-sub">Vue synthétique de l'établissement</div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-icon">🎓</div>
+            <div class="stat-val">248</div>
+            <div class="stat-label">Étudiants</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">👨‍🏫</div>
+            <div class="stat-val">34</div>
+            <div class="stat-label">Enseignants</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📚</div>
+            <div class="stat-val">12</div>
+            <div class="stat-label">Classes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📖</div>
+            <div class="stat-val">87</div>
+            <div class="stat-label">Matières</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+          <div style="background:white; border-radius:8px; padding:12px; border:1px solid var(--gray-200);">
+            <div style="font-size:11px; font-weight:700; color:var(--navy); margin-bottom:8px;">📊 Progression pédagogique</div>
+            <div style="font-size:10px; color:var(--gray-600); margin-bottom:4px;">BTS Informatique <strong style="float:right;color:var(--green)">72%</strong></div>
+            <div class="progress-bar-wrap"><div class="progress-bar progress-green" style="width:72%"></div></div>
+            <div style="font-size:10px; color:var(--gray-600); margin-bottom:4px; margin-top:6px;">Licence Gestion <strong style="float:right;color:var(--amber)">45%</strong></div>
+            <div class="progress-bar-wrap"><div class="progress-bar progress-amber" style="width:45%"></div></div>
+            <div style="font-size:10px; color:var(--gray-600); margin-bottom:4px; margin-top:6px;">DUT Réseaux <strong style="float:right;color:var(--green)">88%</strong></div>
+            <div class="progress-bar-wrap"><div class="progress-bar progress-green" style="width:88%"></div></div>
+          </div>
+          <div style="background:white; border-radius:8px; padding:12px; border:1px solid var(--gray-200);">
+            <div style="font-size:11px; font-weight:700; color:var(--navy); margin-bottom:8px;">💰 Recouvrement financier</div>
+            <div style="font-size:10px; color:var(--gray-600); margin-bottom:4px;">BTS Informatique <strong style="float:right;color:var(--green)">81%</strong></div>
+            <div class="progress-bar-wrap"><div class="progress-bar progress-green" style="width:81%"></div></div>
+            <div style="font-size:10px; color:var(--gray-600); margin-bottom:4px; margin-top:6px;">Licence Gestion <strong style="float:right;color:var(--red)">38%</strong></div>
+            <div class="progress-bar-wrap"><div class="progress-bar progress-red" style="width:38%"></div></div>
+            <div style="font-size:10px; color:var(--gray-600); margin-bottom:4px; margin-top:6px;">DUT Réseaux <strong style="float:right;color:var(--amber)">60%</strong></div>
+            <div class="progress-bar-wrap"><div class="progress-bar progress-amber" style="width:60%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 id="dir-kpis">3.2 Indicateurs pédagogiques et financiers</h3>
+
+  <ul class="feature-list">
+    <li><strong>Taux de progression pédagogique par classe</strong> — barre de progression colorée (vert/ambre/rouge) indiquant le ratio séances saisies / séances planifiées pour chaque classe.</li>
+    <li><strong>Recouvrement financier par classe</strong> — montant des frais de scolarité payés vs. montant total dû, avec code couleur.</li>
+    <li><strong>Statistiques globales</strong> — nombre d'étudiants, enseignants, classes, matières en un coup d'œil.</li>
+  </ul>
+
+  <h3 id="dir-comptes">3.3 Gestion des comptes administrateurs</h3>
+
+  <p>Le Directeur est le <strong>seul utilisateur autorisé</strong> à créer, modifier et supprimer des comptes administrateurs (Scolarité, Planificateur, Hébergement).</p>
+
+  <ul class="feature-list">
+    <li><strong>Créer un compte admin</strong> — via le menu "Utilisateurs" → bouton "Nouvel administrateur"</li>
+    <li><strong>Attribuer un sous-rôle</strong> — Scolarité, Planificateur ou Hébergement</li>
+    <li><strong>Désactiver / supprimer</strong> — retrait immédiat de l'accès au système</li>
+    <li><strong>Réinitialiser un mot de passe</strong> — pour tout utilisateur du système</li>
+  </ul>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">ℹ️</span>
+    <div>
+      <strong>Badge violet Directeur</strong>
+      <p>Dans la barre latérale, le Directeur est identifié par un badge violet "Direction". Il accède à tous les menus du système : Utilisateurs, Résultats, Emploi du Temps, Absences, Hébergement, Journal d'activité.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 4 — SCOLARITÉ
+═══════════════════════════════════════════════════════════ -->
+<div class="page page-break" id="section-scolarite">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <h2>Responsable de Scolarité</h2>
+  </div>
+  <span class="role-badge role-scolarite">📋 Scolarité</span>
+
+  <h3 id="scol-etudiants">4.1 Gestion des étudiants</h3>
+
+  <p>La scolarité gère l'ensemble du cycle de vie administratif des étudiants : de l'inscription jusqu'aux résultats finaux.</p>
+
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="mockup-dot" style="background:#ff5f57"></div>
+      <div class="mockup-dot" style="background:#febc2e"></div>
+      <div class="mockup-dot" style="background:#28c840"></div>
+      <div class="mockup-url">cpec-digital.ci/admin/students</div>
+    </div>
+    <div class="mockup-body">
+      <div class="mockup-sidebar">
+        <div class="mockup-sidebar-logo">
+          <div class="logo-text">CPEC-Digital</div>
+          <div class="logo-sub">Menu Scolarité</div>
+        </div>
+        <div class="mockup-nav-item active"><span class="mockup-nav-dot"></span> Étudiants</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Classes</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Matières</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Résultats et Notes</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Feuilles de Présence</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Bilan des Absences <span style="background:red;color:white;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:4px;">3</span></div>
+      </div>
+      <div class="mockup-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div class="mockup-page-title" style="margin-bottom:0">Liste des étudiants</div>
+          <div style="display:flex;gap:8px;">
+            <div style="background:var(--gray-100);border-radius:6px;padding:5px 10px;font-size:10px;color:var(--gray-500);">🔍 Rechercher...</div>
+            <div style="background:var(--navy);color:white;border-radius:6px;padding:5px 10px;font-size:10px;cursor:pointer;">+ Ajouter</div>
+          </div>
+        </div>
+        <table class="mockup-table">
+          <thead><tr><th>Nom complet</th><th>Classe</th><th>Téléphone</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr><td>KOUAMÉ Jean-Baptiste</td><td>BTS Info L2</td><td>07 00 11 22</td><td><span class="pill pill-green">Actif</span></td><td style="color:var(--navy-light)">✏️ 👁️</td></tr>
+            <tr><td>DIALLO Fatoumata</td><td>Licence Gestion</td><td>05 23 45 67</td><td><span class="pill pill-green">Actif</span></td><td style="color:var(--navy-light)">✏️ 👁️</td></tr>
+            <tr><td>N'GUESSAN Ange</td><td>DUT Réseaux</td><td>01 34 56 78</td><td><span class="pill pill-amber">Suspendu</span></td><td style="color:var(--navy-light)">✏️ 👁️</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <ul class="feature-list">
+    <li><strong>Créer un profil étudiant</strong> — nom, prénom, e-mail, téléphone, adresse, contact parent, photo de profil</li>
+    <li><strong>Inscrire dans une classe</strong> — affectation d'un étudiant à une classe pour un semestre donné</li>
+    <li><strong>Fiche étudiant détaillée</strong> — historique des notes, absences, paiements, photo</li>
+    <li><strong>Gestion des frais de scolarité</strong> — montant dû, paiements enregistrés, solde restant</li>
+    <li><strong>Export et recherche</strong> — filtrage par classe, statut, recherche par nom</li>
+  </ul>
+
+  <h3 id="scol-classes">4.2 Classes, matières et Unités d'Enseignement (UE)</h3>
+
+  <ul class="feature-list">
+    <li><strong>Gestion des classes</strong> — création, modification, liste des étudiants inscrits</li>
+    <li><strong>Gestion des semestres</strong> — activation, publication, période académique</li>
+    <li><strong>Matières (EC)</strong> — code, intitulé, coefficient, crédits ECTS, matière optionnelle</li>
+    <li><strong>Unités d'Enseignement (UE)</strong> — regroupement LMD des matières, code UE, crédits totaux</li>
+    <li><strong>Affectation matière → classe → semestre</strong></li>
+  </ul>
+
+  <h3 id="scol-notes">4.3 Notes, résultats et bulletins PDF</h3>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h4>📝 Saisie des notes</h4>
+      <p>La scolarité peut saisir ou corriger les notes de tous les enseignants pour n'importe quelle matière et semestre.</p>
+    </div>
+    <div class="info-card">
+      <h4>📊 Calcul automatique</h4>
+      <p>Les moyennes pondérées par coefficient et les décisions (Admis / Ajourné) sont calculées automatiquement.</p>
+    </div>
+    <div class="info-card">
+      <h4>✅ Publication des résultats</h4>
+      <p>Un bouton bascule permet de publier/dépublier les résultats d'un semestre. Les étudiants ne voient leurs notes qu'après publication.</p>
+    </div>
+    <div class="info-card">
+      <h4>📄 Bulletins PDF</h4>
+      <p>Génération d'un bulletin officiel par étudiant ou en lot pour toute une classe. Contient les UE, matières, notes et décisions.</p>
+    </div>
+  </div>
+
+  <h3 id="scol-absences">4.4 Bilan des absences et alertes</h3>
+
+  <p>Un <strong>badge rouge</strong> apparaît automatiquement sur l'icône "Bilan des Absences" dans la barre latérale dès qu'un étudiant atteint ou dépasse <strong>3 absences</strong> dans le semestre actif.</p>
+
+  <ul class="feature-list">
+    <li><strong>Tableau de bilan</strong> — filtre par classe et semestre, compte des absences, des retards et des heures manquées</li>
+    <li><strong>Justifications</strong> — validation ou rejet des demandes de justification soumises par les étudiants</li>
+    <li><strong>Envoi d'alertes</strong> — bouton pour notifier les étudiants ayant trop d'absences</li>
+  </ul>
+
+  <h3 id="scol-promotion">4.5 Promotion et passage en année supérieure</h3>
+
+  <ul class="feature-list">
+    <li><strong>Calcul de progression</strong> — vérification automatique des conditions de passage (moyenne ≥ 10)</li>
+    <li><strong>Promotion individuelle ou en lot</strong> — marquer un étudiant comme promu ou ajourné</li>
+    <li><strong>Historique de promotion</strong> — traçabilité des décisions par semestre</li>
+    <li><strong>Archives académiques</strong> — conservation des données par année académique</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 5 — PLANIFICATEUR
+═══════════════════════════════════════════════════════════ -->
+<div class="page page-break" id="section-planificateur">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <h2>Responsable Pédagogique (Planificateur)</h2>
+  </div>
+  <span class="role-badge role-planificateur">📅 Planificateur</span>
+
+  <p>Le Responsable Pédagogique est en charge de l'organisation des enseignements : il planifie les cours, gère les salles et suit le volume horaire des enseignants.</p>
+
+  <h3 id="plan-salles">5.1 Gestion des salles</h3>
+
+  <ul class="feature-list">
+    <li><strong>Ajout de salles</strong> — nom, type (salle, amphithéâtre, laboratoire, salle informatique), capacité</li>
+    <li><strong>Modification et suppression</strong> — mise à jour des caractéristiques de chaque espace</li>
+    <li><strong>Disponibilité</strong> — visualisation des créneaux déjà occupés pour une salle donnée</li>
+  </ul>
+
+  <h3 id="plan-affectation">5.2 Affectation des enseignants aux matières</h3>
+
+  <ul class="feature-list">
+    <li><strong>Associer un enseignant</strong> à une matière, une classe et un semestre</li>
+    <li><strong>Heures planifiées</strong> — volume horaire prévu par affectation</li>
+    <li><strong>Validation croisée</strong> — vérification qu'un enseignant n'est pas affecté en double</li>
+  </ul>
+
+  <h3 id="plan-emploi">5.3 Emploi du temps</h3>
+
+  <div class="mockup" style="margin-bottom:16px;">
+    <div class="mockup-bar">
+      <div class="mockup-dot" style="background:#ff5f57"></div>
+      <div class="mockup-dot" style="background:#febc2e"></div>
+      <div class="mockup-dot" style="background:#28c840"></div>
+      <div class="mockup-url">cpec-digital.ci/admin/schedules</div>
+    </div>
+    <div class="mockup-body" style="min-height:200px;">
+      <div class="mockup-content" style="padding:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:700;color:var(--navy);">Emploi du Temps — BTS Informatique S1</div>
+          <div style="display:flex;gap:6px;">
+            <div style="background:var(--navy);color:white;border-radius:5px;padding:4px 8px;font-size:9px;">+ Nouveau Créneau</div>
+            <div style="background:var(--green);color:white;border-radius:5px;padding:4px 8px;font-size:9px;">✔ Publier</div>
+          </div>
+        </div>
+        <div class="schedule-grid">
+          <div class="schedule-header"></div>
+          <div class="schedule-header">Lundi</div>
+          <div class="schedule-header">Mardi</div>
+          <div class="schedule-header">Mercredi</div>
+          <div class="schedule-header">Jeudi</div>
+          <div class="schedule-header">Vendredi</div>
+          <div class="schedule-time">08:00</div>
+          <div class="schedule-slot schedule-slot-filled"><strong>Algorithmique</strong><br>Salle A101<br>Prof. Kouamé</div>
+          <div class="schedule-slot schedule-slot-empty"></div>
+          <div class="schedule-slot schedule-slot-green"><strong>Réseaux</strong><br>Labo Info<br>Prof. Diallo</div>
+          <div class="schedule-slot schedule-slot-empty"></div>
+          <div class="schedule-slot schedule-slot-amber"><strong>Maths</strong><br>Salle B204<br>Prof. Yao</div>
+          <div class="schedule-time">10:00</div>
+          <div class="schedule-slot schedule-slot-empty"></div>
+          <div class="schedule-slot schedule-slot-green"><strong>Base de données</strong><br>Salle Info<br>Prof. Kouamé</div>
+          <div class="schedule-slot schedule-slot-empty"></div>
+          <div class="schedule-slot schedule-slot-filled"><strong>Systèmes</strong><br>Amphi A<br>Prof. Bah</div>
+          <div class="schedule-slot schedule-slot-empty"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="feature-list">
+    <li><strong>Création de créneaux</strong> — choix de l'enseignant, matière, classe, salle, date, heure début/fin</li>
+    <li><strong>Détection de conflits</strong> — alerte si un enseignant ou une salle est déjà réservé(e)</li>
+    <li><strong>Publication par période</strong> — rendre l'emploi du temps visible aux étudiants et enseignants pour aujourd'hui, 1 semaine, 2 semaines ou 1 mois</li>
+    <li><strong>Lien Teams</strong> — ajout d'un lien visioconférence optionnel par créneau</li>
+    <li><strong>Modification et suppression</strong> — mise à jour en temps réel avec notification automatique à l'enseignant</li>
+    <li><strong>Jours fériés / fermetures</strong> — blocage de jours pour éviter les planifications incorrectes</li>
+  </ul>
+
+  <h3 id="plan-suivi">5.4 Suivi des heures enseignants</h3>
+
+  <ul class="feature-list">
+    <li><strong>Tableau récapitulatif</strong> — heures planifiées vs. heures effectivement saisies dans le cahier de texte</li>
+    <li><strong>Calcul des honoraires</strong> — base de calcul pour la rémunération des intervenants</li>
+    <li><strong>Filtrage par semestre et classe</strong></li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 6 — HÉBERGEMENT
+═══════════════════════════════════════════════════════════ -->
+<div class="page page-break" id="section-hebergement">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <h2>Service Hébergement</h2>
+  </div>
+  <span class="role-badge role-hebergement">🏠 Hébergement</span>
+
+  <p>Le Service Hébergement gère les logements du campus : chambres, résidents, affectations et suivi du séjour des étudiants logés sur place.</p>
+
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="mockup-dot" style="background:#ff5f57"></div>
+      <div class="mockup-dot" style="background:#febc2e"></div>
+      <div class="mockup-dot" style="background:#28c840"></div>
+      <div class="mockup-url">cpec-digital.ci/admin/housing</div>
+    </div>
+    <div class="mockup-body" style="min-height:220px;">
+      <div class="mockup-sidebar">
+        <div class="mockup-sidebar-logo">
+          <div class="logo-text">CPEC-Digital</div>
+          <div class="logo-sub">Menu Hébergement</div>
+        </div>
+        <div class="mockup-nav-item active"><span class="mockup-nav-dot"></span> Logements</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Résidents</div>
+      </div>
+      <div class="mockup-content">
+        <div class="mockup-page-title">Gestion des Logements</div>
+        <div class="mockup-page-sub">Occupation des chambres du campus</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
+          <div style="background:#dcfce7;border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:#166534;">42</div>
+            <div style="font-size:9px;color:#15803d;">Chambres libres</div>
+          </div>
+          <div style="background:#fee2e2;border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:#991b1b;">28</div>
+            <div style="font-size:9px;color:#dc2626;">Chambres occupées</div>
+          </div>
+          <div style="background:#dbeafe;border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:#1e40af;">86</div>
+            <div style="font-size:9px;color:#2563eb;">Total résidents</div>
+          </div>
+          <div style="background:#fef9c3;border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:#92400e;">4</div>
+            <div style="font-size:9px;color:#b45309;">En attente</div>
+          </div>
+        </div>
+        <table class="mockup-table">
+          <thead><tr><th>Chambre</th><th>Type</th><th>Capacité</th><th>Occupants</th><th>Statut</th></tr></thead>
+          <tbody>
+            <tr><td>Ch. 101</td><td>Simple</td><td>1</td><td>KOUAMÉ J.</td><td><span class="pill pill-red">Occupée</span></td></tr>
+            <tr><td>Ch. 102</td><td>Double</td><td>2</td><td>—</td><td><span class="pill pill-green">Libre</span></td></tr>
+            <tr><td>Ch. 205</td><td>Simple</td><td>1</td><td>DIALLO F.</td><td><span class="pill pill-red">Occupée</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <ul class="feature-list">
+    <li><strong>Gestion des chambres</strong> — type (simple, double, dortoir), capacité, numéro de chambre</li>
+    <li><strong>Affectation des résidents</strong> — lier un étudiant à une chambre avec date d'entrée et de sortie prévue</li>
+    <li><strong>Suivi des occupations</strong> — liste des résidents actifs, chambres libres et chambres occupées</li>
+    <li><strong>Statistiques d'hébergement</strong> — taux d'occupation, nombre de résidents par période</li>
+    <li><strong>Historique</strong> — traçabilité des anciens résidents par chambre</li>
+  </ul>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">ℹ️</span>
+    <div>
+      <strong>Accès restreint</strong>
+      <p>Le compte Hébergement n'a accès qu'aux fonctionnalités de logement. Il ne voit pas les notes, les emplois du temps ni les absences.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 7 — ENSEIGNANT
+═══════════════════════════════════════════════════════════ -->
+<div class="page page-break" id="section-enseignant">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <h2>Espace Enseignant</h2>
+  </div>
+  <span class="role-badge role-enseignant">👨‍🏫 Enseignant</span>
+
+  <h3 id="ens-dashboard">7.1 Tableau de bord</h3>
+
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="mockup-dot" style="background:#ff5f57"></div>
+      <div class="mockup-dot" style="background:#febc2e"></div>
+      <div class="mockup-dot" style="background:#28c840"></div>
+      <div class="mockup-url">cpec-digital.ci/teacher</div>
+    </div>
+    <div class="mockup-body" style="min-height:250px;">
+      <div class="mockup-sidebar">
+        <div class="mockup-sidebar-logo">
+          <div class="logo-text">CPEC-Digital</div>
+          <div class="logo-sub">Menu Enseignant</div>
+        </div>
+        <div class="mockup-nav-item active"><span class="mockup-nav-dot"></span> Tableau de bord</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Mon Planning</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Saisir les Notes</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Cahier de Texte</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Présences</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Mon Profil</div>
+      </div>
+      <div class="mockup-content">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+          <div>
+            <div class="mockup-page-title">Espace Enseignant</div>
+            <div style="font-size:10px;color:var(--gray-400);">Prof. Kouamé Konan</div>
+          </div>
+          <div style="background:white;border:1px solid #10b981;color:#10b981;border-radius:6px;padding:5px 10px;font-size:10px;display:flex;align-items:center;gap:4px;">
+            🔔 Notifications actives
+          </div>
+        </div>
+        <div style="background:white;border-radius:8px;padding:12px;border:1px solid var(--gray-200);margin-bottom:10px;">
+          <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:8px;">📅 Cours du jour — Mercredi 27 mars</div>
+          <div style="background:var(--gray-50);border-radius:6px;padding:10px;border-left:3px solid #3b82f6;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:11px;font-weight:700;">Algorithmique et Structures de Données</div>
+              <div style="font-size:10px;color:var(--gray-500);">BTS Informatique L2 · Salle A101 · 08:00 – 10:00</div>
+            </div>
+            <div style="background:var(--navy);color:white;border-radius:5px;padding:4px 8px;font-size:9px;display:flex;align-items:center;gap:4px;cursor:pointer;">
+              📝 Saisir le cours
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+          <div style="background:white;border-radius:6px;padding:10px;border:1px solid var(--gray-200);text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:var(--navy);">3</div>
+            <div style="font-size:9px;color:var(--gray-400);">CLASSES</div>
+          </div>
+          <div style="background:white;border-radius:6px;padding:10px;border:1px solid var(--gray-200);text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:var(--navy);">7</div>
+            <div style="font-size:9px;color:var(--gray-400);">MATIÈRES</div>
+          </div>
+          <div style="background:white;border-radius:6px;padding:10px;border:1px solid var(--gray-200);text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:var(--navy);">24h</div>
+            <div style="font-size:9px;color:var(--gray-400);">HEURES/SEM.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="feature-list">
+    <li><strong>Cours du jour</strong> — liste des séances programmées pour la journée avec heure, salle et classe</li>
+    <li><strong>Raccourci "Saisir le cours"</strong> — bouton direct sur chaque cours du jour → ouvre le Cahier de texte pré-rempli</li>
+    <li><strong>Statistiques personnelles</strong> — nombre de classes, matières, heures hebdomadaires</li>
+    <li><strong>Progression par matière</strong> — barre de progression des séances réalisées vs. planifiées</li>
+    <li><strong>Bouton notifications</strong> — activation / désactivation des notifications push</li>
+  </ul>
+
+  <h3 id="ens-notes">7.2 Saisie des notes</h3>
+
+  <ul class="feature-list">
+    <li><strong>Sélection par matière et semestre</strong> — filtres pour afficher uniquement ses étudiants</li>
+    <li><strong>Saisie en ligne</strong> — tableau interactif avec sauvegarde immédiate</li>
+    <li><strong>Mode hors-ligne</strong> — saisie sans connexion Internet, synchronisation automatique au retour en ligne</li>
+    <li><strong>Soumission pour validation</strong> — les notes soumises sont transmises à la scolarité</li>
+    <li><strong>Notification aux étudiants</strong> — envoi d'une notification aux étudiants après validation des notes</li>
+  </ul>
+
+  <div class="callout callout-success">
+    <span class="callout-icon">📶</span>
+    <div>
+      <strong>Mode hors-ligne (PWA)</strong>
+      <p>Même sans connexion Internet, l'enseignant peut saisir les notes. Elles sont stockées localement et synchronisées automatiquement dès que la connexion est rétablie. Le badge "Notes en attente de synchro" indique le nombre de notes en attente.</p>
+    </div>
+  </div>
+
+  <h3 id="ens-cahier">7.3 Cahier de texte</h3>
+
+  <ul class="feature-list">
+    <li><strong>Enregistrer une séance</strong> — date, matière, classe, contenu du cours, activités réalisées, devoirs donnés</li>
+    <li><strong>Pré-remplissage automatique</strong> — depuis le bouton "Saisir le cours" du tableau de bord, le formulaire est déjà rempli avec la matière et la date du cours</li>
+    <li><strong>Historique complet</strong> — liste de toutes les séances saisies avec les détails</li>
+    <li><strong>Consultation par les étudiants</strong> — les étudiants peuvent voir le contenu des cours de leur classe</li>
+  </ul>
+
+  <h3 id="ens-presence">7.4 Feuilles de présence</h3>
+
+  <ul class="feature-list">
+    <li><strong>Créer une feuille de présence</strong> — pour une séance donnée (matière + classe + date)</li>
+    <li><strong>Marquer la présence</strong> — Présent, Absent, Retard pour chaque étudiant</li>
+    <li><strong>Historique des feuilles</strong> — consultation des séances précédentes</li>
+    <li><strong>Statistiques</strong> — taux de présence par étudiant ou par séance</li>
+  </ul>
+
+  <h3 id="ens-planning">7.5 Mon Planning</h3>
+
+  <ul class="feature-list">
+    <li><strong>Vue hebdomadaire</strong> — grille des cours de la semaine avec horaires, salles et classes</li>
+    <li><strong>Filtre par semestre</strong> — navigation entre les semestres académiques</li>
+    <li><strong>Bouton Imprimer</strong> — génération d'une version imprimable propre (sidebar et contrôles masqués)</li>
+    <li><strong>Lien Teams</strong> — accès direct à la réunion en ligne depuis le planning si un lien a été ajouté</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 8 — ÉTUDIANT
+═══════════════════════════════════════════════════════════ -->
+<div class="page page-break" id="section-etudiant">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <h2>Espace Étudiant</h2>
+  </div>
+  <span class="role-badge role-etudiant">🎓 Étudiant</span>
+
+  <div class="mockup">
+    <div class="mockup-bar">
+      <div class="mockup-dot" style="background:#ff5f57"></div>
+      <div class="mockup-dot" style="background:#febc2e"></div>
+      <div class="mockup-dot" style="background:#28c840"></div>
+      <div class="mockup-url">cpec-digital.ci/student</div>
+    </div>
+    <div class="mockup-body" style="min-height:260px;">
+      <div class="mockup-sidebar">
+        <div class="mockup-sidebar-logo">
+          <div class="logo-text">CPEC-Digital</div>
+          <div class="logo-sub">Menu Étudiant</div>
+        </div>
+        <div class="mockup-nav-item active"><span class="mockup-nav-dot"></span> Tableau de bord</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Mon Emploi du Temps</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Mes Notes</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Mes Absences</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Cours (Cahier de texte)</div>
+        <div class="mockup-nav-item"><span class="mockup-nav-dot"></span> Mon Profil</div>
+      </div>
+      <div class="mockup-content">
+        <div class="mockup-page-title">Bonjour, Kouamé Jean-Baptiste 👋</div>
+        <div class="mockup-page-sub">BTS Informatique L2 · Semestre 3 · Matricule CPEC-2024-0042</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
+          <div style="background:#dbeafe;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#1e40af;">13,4</div>
+            <div style="font-size:9px;color:#3b82f6;text-transform:uppercase;">Moyenne générale</div>
+          </div>
+          <div style="background:#dcfce7;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#166534;">Admis</div>
+            <div style="font-size:9px;color:#16a34a;text-transform:uppercase;">Décision S3</div>
+          </div>
+          <div style="background:#fef3c7;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#92400e;">2</div>
+            <div style="font-size:9px;color:#b45309;text-transform:uppercase;">Absences</div>
+          </div>
+        </div>
+        <div style="background:white;border-radius:8px;padding:12px;border:1px solid var(--gray-200);">
+          <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:8px;">📅 Prochain cours</div>
+          <div style="border-left:3px solid #10b981;padding:8px 10px;background:var(--gray-50);border-radius:4px;">
+            <div style="font-size:11px;font-weight:600;">Bases de données relationnelles</div>
+            <div style="font-size:10px;color:var(--gray-500);">Demain · 10:00 – 12:00 · Salle Info B2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>8.1 Tableau de bord étudiant</h3>
+  <ul class="feature-list">
+    <li><strong>Résumé académique</strong> — moyenne générale du semestre, décision (Admis / Ajourné), rang dans la classe</li>
+    <li><strong>Prochain cours</strong> — affichage du prochain créneau de l'emploi du temps</li>
+    <li><strong>Compteur d'absences</strong> — nombre d'absences dans le semestre actif</li>
+    <li><strong>Résultats récents</strong> — aperçu des dernières notes disponibles</li>
+  </ul>
+
+  <h3>8.2 Emploi du temps</h3>
+  <ul class="feature-list">
+    <li><strong>Vue hebdomadaire</strong> — planning complet avec horaires, matières, salles et enseignants</li>
+    <li><strong>Filtre par semestre</strong> — navigation entre les périodes académiques</li>
+    <li><strong>Lien Teams</strong> — rejoindre directement un cours en ligne si disponible</li>
+    <li><strong>Bouton Imprimer</strong> — version imprimable propre sans les éléments de navigation</li>
+    <li><strong>Visible uniquement si publié</strong> — l'emploi du temps n'est visible qu'après publication par le planificateur</li>
+  </ul>
+
+  <h3>8.3 Mes Notes et résultats</h3>
+  <ul class="feature-list">
+    <li><strong>Notes par matière</strong> — consultation de toutes les notes du semestre sélectionné</li>
+    <li><strong>Moyennes et coefficients</strong> — calcul pondéré avec ECTS et coefficients</li>
+    <li><strong>Moyennes par UE</strong> — regroupement LMD (Unités d'Enseignement)</li>
+    <li><strong>Rang et décision</strong> — position dans la classe et décision (Admis / Ajourné)</li>
+    <li><strong>Télécharger le bulletin</strong> — bulletin PDF officiel de l'étudiant (si publié)</li>
+    <li><strong>Visible uniquement si publiés</strong> — les résultats s'affichent uniquement après validation par la scolarité</li>
+  </ul>
+
+  <h3>8.4 Suivi des absences</h3>
+  <ul class="feature-list">
+    <li><strong>Historique des absences</strong> — liste de toutes les séances manquées avec date, matière, statut</li>
+    <li><strong>Heures totales manquées</strong> — cumul des absences justifiées et non justifiées</li>
+    <li><strong>Soumettre une justification</strong> — formulaire de demande de justification pour chaque absence</li>
+    <li><strong>Suivi des justifications</strong> — statut En attente / Approuvée / Refusée avec note du responsable</li>
+    <li><strong>Notification de décision</strong> — l'étudiant est notifié lorsque sa justification est traitée</li>
+  </ul>
+
+  <h3>8.5 Cahier de texte (Cours)</h3>
+  <ul class="feature-list">
+    <li><strong>Contenu des cours</strong> — consultation du programme effectué par chaque enseignant</li>
+    <li><strong>Devoirs et activités</strong> — liste des travaux à faire donnés en cours</li>
+    <li><strong>Filtres par matière et date</strong></li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 9 — FONCTIONNALITÉS TRANSVERSALES
+═══════════════════════════════════════════════════════════ -->
+<div class="page page-break" id="section-transversal">
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <h2>Fonctionnalités Transversales</h2>
+  </div>
+
+  <p>Ces fonctionnalités sont disponibles pour plusieurs rôles et enrichissent l'expérience globale du système.</p>
+
+  <h3 id="trans-search">9.1 Recherche globale (Cmd+K)</h3>
+
+  <p>Une palette de recherche instantanée est disponible dans la barre latérale de tous les comptes administrateurs (sauf Hébergement).</p>
+
+  <div class="search-palette">
+    <div class="search-input-row">
+      <span style="font-size:16px;color:var(--gray-400);">🔍</span>
+      <input type="text" placeholder="Rechercher un étudiant, enseignant..." readonly style="background:transparent;">
+      <kbd>⌘K</kbd>
+    </div>
+    <div class="search-results">
+      <div class="search-group-label">Étudiants</div>
+      <div class="search-result-item selected">
+        <div class="search-avatar" style="background:#1e3870;">KJ</div>
+        <div>
+          <div style="font-weight:600;">KOUAMÉ Jean-Baptiste</div>
+          <div style="font-size:11px;color:var(--gray-400);">BTS Informatique L2</div>
+        </div>
+        <span class="pill pill-blue" style="margin-left:auto;">Étudiant</span>
+      </div>
+      <div class="search-result-item">
+        <div class="search-avatar" style="background:#059669;">KA</div>
+        <div>
+          <div style="font-weight:600;">KOFFI Amara</div>
+          <div style="font-size:11px;color:var(--gray-400);">Licence Gestion</div>
+        </div>
+        <span class="pill pill-blue" style="margin-left:auto;">Étudiant</span>
+      </div>
+      <div class="search-group-label" style="margin-top:8px;">Enseignants</div>
+      <div class="search-result-item">
+        <div class="search-avatar" style="background:#9d174d;">KO</div>
+        <div>
+          <div style="font-weight:600;">Prof. Kouamé Konan</div>
+          <div style="font-size:11px;color:var(--gray-400);">Informatique</div>
+        </div>
+        <span class="pill pill-amber" style="margin-left:auto;">Enseignant</span>
+      </div>
+    </div>
+  </div>
+
+  <ul class="feature-list">
+    <li><strong>Raccourci clavier</strong> — <kbd>Cmd+K</kbd> (Mac) ou <kbd>Ctrl+K</kbd> (Windows/Linux)</li>
+    <li><strong>Recherche instantanée</strong> — résultats au fur et à mesure de la frappe (délai de 300 ms)</li>
+    <li><strong>Groupes de résultats</strong> — étudiants et enseignants séparés clairement</li>
+    <li><strong>Navigation directe</strong> — clic sur un résultat → redirection vers la fiche de l'utilisateur</li>
+    <li><strong>Fermeture rapide</strong> — touche Échap pour fermer la palette</li>
+  </ul>
+
+  <h3 id="trans-print">9.2 Impression du planning</h3>
+
+  <p>Les pages d'emploi du temps (enseignant et étudiant) disposent d'un bouton <strong>"Imprimer"</strong> en haut de page.</p>
+
+  <ul class="feature-list">
+    <li><strong>Mise en page optimisée</strong> — à l'impression, la barre latérale, les boutons de navigation et les filtres disparaissent automatiquement</li>
+    <li><strong>Format A4</strong> — le planning s'imprime sur une seule page en mode paysage</li>
+    <li><strong>Enregistrement PDF</strong> — depuis la boîte de dialogue d'impression du navigateur, choisissez "Enregistrer en PDF"</li>
+  </ul>
+
+  <h3 id="trans-push">9.3 Notifications push</h3>
+
+  <p>CPEC-Digital envoie des notifications instantanées sur l'appareil (téléphone ou ordinateur) des utilisateurs concernés, même lorsque l'application n'est pas ouverte.</p>
+
+  <div class="notification-popup">
+    <div class="notif-icon">📅</div>
+    <div>
+      <div class="notif-title">Nouveau cours programmé</div>
+      <div class="notif-body">Algorithmique · BTS Informatique L2<br>Mercredi 3 avril de 08:00 – 10:00</div>
+    </div>
+  </div>
+
+  <ul class="feature-list">
+    <li><strong>Enseignant — nouveau créneau</strong> — notification dès que le planificateur programme un cours pour cet enseignant</li>
+    <li><strong>Enseignant — modification de créneau</strong> — alerte si la date, l'heure ou la salle d'un cours est modifiée</li>
+    <li><strong>Étudiant — emploi du temps publié</strong> — notification quand le planning d'une classe est rendu visible</li>
+    <li><strong>Étudiant — justification traitée</strong> — notification quand une demande de justification est approuvée ou refusée</li>
+    <li><strong>Étudiant — alerte absences</strong> — notification quand le seuil d'absences est dépassé</li>
+  </ul>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">🔔</span>
+    <div>
+      <strong>Activation des notifications (Enseignant)</strong>
+      <p>Dans le tableau de bord enseignant, cliquez sur <strong>"Activer les notifications"</strong> (icône cloche, en haut à droite). Le navigateur demande votre permission. Après acceptation, vous recevrez les alertes en temps réel. Vous pouvez désactiver à tout moment en cliquant sur "Notifications actives".</p>
+    </div>
+  </div>
+
+  <h3 id="trans-offline">9.4 Mode hors-ligne (PWA)</h3>
+
+  <ul class="feature-list">
+    <li><strong>Saisie hors-ligne</strong> — les enseignants peuvent saisir des notes sans connexion Internet</li>
+    <li><strong>Stockage local</strong> — les données sont conservées dans le navigateur jusqu'à la reconnexion</li>
+    <li><strong>Synchronisation automatique</strong> — dès que la connexion est rétablie, les notes sont envoyées au serveur</li>
+    <li><strong>Badge indicateur</strong> — "Mode Hors Ligne" s'affiche en rouge dans le tableau de bord enseignant</li>
+    <li><strong>Compteur de synchro</strong> — le nombre de notes en attente d'envoi s'affiche en temps réel</li>
+    <li><strong>Installation sur l'écran d'accueil</strong> — l'application peut être installée comme une app native (Android, iOS, Windows, macOS)</li>
+  </ul>
+
+  <h3 id="trans-messages">9.5 Messagerie interne</h3>
+
+  <ul class="feature-list">
+    <li><strong>Messages entre utilisateurs</strong> — envoi de messages texte entre admin, enseignants et étudiants</li>
+    <li><strong>Historique des conversations</strong> — fil de messages par interlocuteur</li>
+    <li><strong>Notifications de nouveaux messages</strong> — badge indicateur dans l'interface</li>
+  </ul>
+
+  <h3>9.6 Journal d'activité (Directeur)</h3>
+
+  <ul class="feature-list">
+    <li><strong>Traçabilité complète</strong> — enregistrement de toutes les actions importantes du système</li>
+    <li><strong>Filtrage par date et type d'action</strong></li>
+    <li><strong>Identité de l'auteur</strong> — qui a fait quoi et quand</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION 10 — ANNEXES
+═══════════════════════════════════════════════════════════ -->
+<div class="page page-break" id="section-annexes">
+  <div class="section-header">
+    <div class="section-num">10</div>
+    <h2>Annexes</h2>
+  </div>
+
+  <h3>10.1 Comptes de démonstration</h3>
+
+  <p>Les comptes suivants sont disponibles pour découvrir le système. Tous utilisent le mot de passe <strong>password123</strong>.</p>
+
+  <table class="roles-table">
+    <thead>
+      <tr>
+        <th>Rôle</th>
+        <th>Adresse e-mail</th>
+        <th>Mot de passe</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="role-badge role-directeur" style="margin:0;">👨‍💼 Directeur</span></td>
+        <td><code>directeur@cpec.ci</code></td>
+        <td><code>password123</code></td>
+      </tr>
+      <tr>
+        <td><span class="role-badge role-scolarite" style="margin:0;">📋 Scolarité</span></td>
+        <td><code>scolarite@cpec.ci</code></td>
+        <td><code>password123</code></td>
+      </tr>
+      <tr>
+        <td><span class="role-badge role-planificateur" style="margin:0;">📅 Planificateur</span></td>
+        <td><code>planificateur@cpec.ci</code></td>
+        <td><code>password123</code></td>
+      </tr>
+      <tr>
+        <td><span class="role-badge role-enseignant" style="margin:0;">👨‍🏫 Enseignant</span></td>
+        <td><code>enseignant@cpec.ci</code></td>
+        <td><code>password123</code></td>
+      </tr>
+      <tr>
+        <td><span class="role-badge role-etudiant" style="margin:0;">🎓 Étudiant</span></td>
+        <td><code>etudiant@cpec.ci</code></td>
+        <td><code>password123</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>10.2 Questions fréquentes (FAQ)</h3>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h4>❓ Je ne vois pas mes notes</h4>
+      <p>Les notes ne sont visibles qu'après publication par la Scolarité. Si le semestre est "Non publié", patientez ou contactez la Scolarité.</p>
+    </div>
+    <div class="info-card">
+      <h4>❓ Je ne vois pas l'emploi du temps</h4>
+      <p>L'emploi du temps doit être publié par le Planificateur pour être visible. Vérifiez qu'une période de publication est active.</p>
+    </div>
+    <div class="info-card">
+      <h4>❓ Les notifications ne fonctionnent pas</h4>
+      <p>Vérifiez que vous avez cliqué "Activer les notifications" et accepté la permission du navigateur. Sur iOS, l'app doit être installée sur l'écran d'accueil.</p>
+    </div>
+    <div class="info-card">
+      <h4>❓ J'ai oublié mon mot de passe</h4>
+      <p>Contactez votre Responsable de Scolarité ou le Directeur du Centre. Ils peuvent réinitialiser votre accès depuis l'interface d'administration.</p>
+    </div>
+    <div class="info-card">
+      <h4>❓ Comment imprimer mon planning ?</h4>
+      <p>Sur votre page "Emploi du temps", cliquez sur le bouton "Imprimer" (icône imprimante). Dans la fenêtre d'impression, choisissez "PDF" comme destination pour enregistrer en fichier.</p>
+    </div>
+    <div class="info-card">
+      <h4>❓ Je suis hors ligne, puis-je saisir des notes ?</h4>
+      <p>Oui ! En tant qu'enseignant, la saisie des notes fonctionne hors connexion. Un badge "Mode Hors Ligne" s'affiche. Les notes sont synchronisées automatiquement dès la reconnexion.</p>
+    </div>
+  </div>
+
+  <h3>10.3 Récapitulatif de toutes les fonctionnalités</h3>
+
+  <table class="roles-table" style="font-size:12px;">
+    <thead>
+      <tr>
+        <th>Fonctionnalité</th>
+        <th>Dir.</th>
+        <th>Scol.</th>
+        <th>Plan.</th>
+        <th>Héb.</th>
+        <th>Ens.</th>
+        <th>Étud.</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Tableau de bord personnalisé</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Gestion des comptes utilisateurs</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>KPIs pédagogiques et financiers</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Gestion des étudiants (CRUD)</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Gestion des classes</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Gestion des matières et UE</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Gestion des semestres</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Saisie et validation des notes</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>✅</td><td>—</td></tr>
+      <tr><td>Publication des résultats</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Génération bulletins PDF</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>✅ (lecture)</td></tr>
+      <tr><td>Promotion des étudiants</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Bilan et alertes absences</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Justifications d'absences</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>✅ (soumettre)</td></tr>
+      <tr><td>Feuilles de présence</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>✅</td><td>—</td></tr>
+      <tr><td>Gestion des salles</td><td>✅</td><td>—</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Emploi du temps (création)</td><td>✅</td><td>—</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Emploi du temps (lecture)</td><td>✅</td><td>✅</td><td>✅</td><td>—</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Impression du planning</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Affectation enseignants</td><td>✅</td><td>—</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Suivi des heures (honoraires)</td><td>✅</td><td>—</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Cahier de texte (saisie)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅</td><td>—</td></tr>
+      <tr><td>Cahier de texte (consultation)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅</td></tr>
+      <tr><td>Gestion de l'hébergement</td><td>✅</td><td>—</td><td>—</td><td>✅</td><td>—</td><td>—</td></tr>
+      <tr><td>Recherche globale (Cmd+K)</td><td>✅</td><td>✅</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Notifications push</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Saisie hors-ligne (notes)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅</td><td>—</td></tr>
+      <tr><td>Messagerie interne</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Journal d'activité</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <p>CPEC-Digital — Guide Utilisateur v2.0 · Mars 2026</p>
+    <p>Centre Préparatoire à l'Expertise Comptable – UEMOA (CPEC) · Système de Gestion Académique</p>
+    <p style="margin-top:8px;font-size:11px;color:#475569;">
+      Développé par <strong>Youssouf Sawadogo</strong> &nbsp;·&nbsp;
+      <a href="mailto:contacteyouss@gmail.com">contacteyouss@gmail.com</a>
+      &nbsp;·&nbsp; 07 14 17 40 82
+    </p>
+    <p style="margin-top:4px;font-size:10px;">Ce document est confidentiel et destiné aux utilisateurs autorisés du système CPEC-Digital.</p>
+  </div>
+</div>
+
+</body>
+</html>

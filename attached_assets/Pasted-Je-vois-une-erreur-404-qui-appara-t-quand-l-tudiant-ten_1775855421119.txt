@@ -1,0 +1,85 @@
+Je vois une erreur **404** qui apparaît quand l'étudiant tente d'ajouter une photo de profil depuis sa carte étudiante. Voici le prompt :
+
+---
+
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans l'**Espace Étudiant**, lorsqu'un étudiant clique sur **"Ajouter une photo de profil"** depuis sa carte étudiante, une erreur **404 — Page introuvable** s'affiche au lieu d'ouvrir le formulaire d'upload de photo.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - Le bouton d'ajout de photo redirige vers une **route inexistante** côté frontend ou backend
+> - L'URL appelée au clic n'est pas définie ou a été **mal configurée**
+>
+> ---
+>
+> ### 2. Causes probables
+>
+> | Cause | Détail |
+> |---|---|
+> | **Route frontend manquante** | La page d'upload de photo n'a pas de route définie dans le router React |
+> | **Endpoint backend inexistant** | La route API `/api/students/:id/photo` n'existe pas ou est mal orthographiée |
+> | **Lien cassé** | Le bouton pointe vers une URL en dur incorrecte |
+> | **Mauvais ID transmis** | L'ID étudiant n'est pas correctement passé dans l'URL |
+>
+> ---
+>
+> ### 3. Correction à apporter
+>
+> **L'upload de photo ne doit PAS rediriger vers une nouvelle page** — il doit s'ouvrir dans une **modale directement sur la carte étudiante** :
+>
+> ```javascript
+> // Au clic sur "Ajouter une photo"
+> // Ouvrir une modale avec un input file — pas de redirection
+> const handleAjouterPhoto = () => {
+>   setModalPhotoVisible(true); // Ouvre la modale
+> };
+>
+> // Modale contenant
+> <input
+>   type="file"
+>   accept="image/jpeg, image/png"
+>   onChange={handlePhotoChange}
+> />
+> ```
+>
+> **Endpoint backend à créer si inexistant :**
+> ```javascript
+> // POST /api/students/:id/photo
+> router.post('/students/:id/photo', upload.single('photo'), async (req, res) => {
+>   const { id } = req.params;
+>   // Sauvegarder la photo et mettre à jour le profil étudiant
+>   await db('students').where({ id }).update({ photo_url: req.file.path });
+>   res.json({ success: true, photo_url: req.file.path });
+> });
+> ```
+>
+> ---
+>
+> ### 4. Comportement attendu après correction
+>
+> | Étape | Action |
+> |---|---|
+> | 1 | L'étudiant clique sur **"Ajouter une photo"** |
+> | 2 | Une **modale s'ouvre** sur la même page |
+> | 3 | L'étudiant sélectionne une image depuis son téléphone |
+> | 4 | **Aperçu** de la photo affiché avant confirmation |
+> | 5 | L'étudiant confirme → photo **uploadée et sauvegardée** |
+> | 6 | La carte étudiante affiche **immédiatement** la nouvelle photo |
+> | 7 | Message de succès : *"Photo de profil mise à jour avec succès"* |
+>
+> ---
+>
+> ### 5. Contraintes sur la photo
+> - Formats acceptés : **JPG, PNG uniquement**
+> - Taille maximale : **2 MB**
+> - Dimensions minimales : **200x200 pixels**
+> - Recadrage automatique en **format carré** avant sauvegarde
+> - Si photo non conforme → message d'erreur explicite sans redirection
+
+---
+
+La solution clé est de **remplacer la redirection par une modale** — l'upload de photo est une action simple qui ne justifie pas de changer de page, surtout sur mobile où chaque navigation est coûteuse en expérience utilisateur.

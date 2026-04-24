@@ -1,0 +1,112 @@
+> Dans **CPEC-Digital**, implémenter un module de **Suivi Académique Individualisé** permettant à l'administration de suivre la progression de chaque étudiant sur l'ensemble de son parcours, de détecter les difficultés et d'agir avant les délibérations.
+>
+> ---
+>
+> ### 1. Accès au module
+> - Accessible depuis la **fiche individuelle de l'étudiant** pour tous les profils admin
+> - L'**étudiant** accède à son propre suivi depuis son espace
+> - Les **parents** voient le suivi de leur enfant en lecture seule
+> - L'**enseignant** voit le suivi des étudiants de ses classes
+>
+> ---
+>
+> ### 2. Courbe de progression
+> - Graphique linéaire affichant l'évolution de la **moyenne générale** semestre après semestre depuis l'inscription
+> - Affichage par **matière** pour voir l'évolution dans chaque discipline
+> - Indicateurs visuels :
+>
+> | Zone | Couleur | Signification |
+> |---|---|---|
+> | Moyenne >= 14 | 🟢 Vert | Très bien |
+> | Moyenne 10-13 | 🔵 Bleu | Satisfaisant |
+> | Moyenne 8-9 | 🟡 Orange | En difficulté |
+> | Moyenne < 8 | 🔴 Rouge | En danger |
+>
+> - La courbe affiche également :
+>   - Le **seuil de validation** (ligne pointillée à 10)
+>   - La **moyenne de la promotion** pour comparaison
+>   - Les **sessions de rattrapage** et leurs impacts
+>
+> ---
+>
+> ### 3. Détection automatique des étudiants en difficulté
+> Le système identifie automatiquement un étudiant en difficulté selon ces critères :
+>
+> | Critère | Seuil d'alerte |
+> |---|---|
+> | Moyenne générale | < 8/20 |
+> | Note éliminatoire | <= 6 dans une matière |
+> | Taux d'absence | > 20% dans une matière |
+> | UE non validées | 2 UE ou plus en échec |
+> | Tendance | Baisse de moyenne sur 2 semestres consécutifs |
+>
+> - Ces étudiants apparaissent dans un **tableau de bord dédié** accessible à l'administration
+> - Classement par **niveau de risque** : Critique / Élevé / Modéré
+> - Filtres par classe, filière, semestre et critère de difficulté
+>
+> ---
+>
+> ### 4. Système d'alertes préventives
+>
+> **Avant les délibérations**, le système génère automatiquement des alertes :
+>
+> #### Alertes à destination de l'administration
+> - Liste des étudiants **potentiellement ajournés** avant la fin du semestre
+> - Liste des étudiants **éligibles au jury spécial** anticipée
+> - Matières avec **taux d'échec anormalement élevé**
+> - Enseignants dont les notes font apparaître un taux d'échec > 50%
+>
+> #### Alertes à destination de l'étudiant
+> - *"Votre moyenne actuelle est de X/20. Vous devez obtenir au moins Y/20 à l'examen final pour valider le semestre"*
+> - *"Vous avez une note éliminatoire en [Matière]. Cette UE sera non validée même avec une bonne moyenne"*
+> - *"Votre taux d'absence en [Matière] est de X%. Attention au seuil critique"*
+>
+> #### Alertes à destination des parents
+> - Notification push si l'enfant est détecté en difficulté
+> - Résumé hebdomadaire de la situation académique si activé
+>
+> ---
+>
+> ### 5. Historique académique complet
+> Depuis la première inscription, l'étudiant dispose d'un **dossier académique complet** :
+>
+> | Section | Contenu |
+> |---|---|
+> | **Identité** | Nom, matricule, date d'inscription, filière |
+> | **Parcours** | Toutes les années et classes fréquentées |
+> | **Résultats** | Notes, moyennes, crédits acquis semestre par semestre |
+> | **Absences** | Historique complet par matière et par année |
+> | **Délibérations** | Décisions de jury, rattrapages, mentions jury spécial |
+> | **Paiements** | Historique des versements et situation financière |
+> | **Documents** | Tous les bulletins et attestations générés |
+>
+> - Ce dossier est consultable par l'administration à tout moment
+> - Il est **non modifiable** sauf par action tracée de l'administration
+> - Il est exportable en **PDF complet** sous forme de *"Dossier Académique"*
+>
+> ---
+>
+> ### 6. Indicateurs clés par étudiant
+> Sur la fiche de suivi, afficher en temps réel :
+>
+> | Indicateur | Calcul |
+> |---|---|
+> | **Crédits acquis** | Total ECTS validés depuis l'inscription |
+> | **Crédits restants** | Pour obtenir le diplôme visé |
+> | **Taux de réussite** | % d'UE validées sur total des UE suivies |
+> | **Taux de présence** | % global et par matière |
+> | **Rang actuel** | Position dans la classe |
+> | **Progression** | Hausse ou baisse vs semestre précédent |
+>
+> ---
+>
+> ### 7. Implémentation technique
+> - Calculs effectués **côté backend** via requêtes SQL agrégées sur l'historique
+> - Graphiques générés avec **Recharts** ou **Chart.js**
+> - Données de progression mises à jour à chaque **saisie ou validation de notes**
+> - Alertes générées par un **job automatique** tournant quotidiennement
+> - Seuils d'alerte **configurables** par l'administration selon le règlement intérieur
+
+---
+
+Le point le plus stratégique est le **calcul anticipé des étudiants potentiellement ajournés** — permettre à l'administration d'agir **avant** les délibérations plutôt qu'après est la fonctionnalité qui apporte le plus de valeur pédagogique réelle.

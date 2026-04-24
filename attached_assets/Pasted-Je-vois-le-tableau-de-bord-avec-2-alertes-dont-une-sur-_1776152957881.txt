@@ -1,0 +1,145 @@
+Je vois le tableau de bord avec **2 alertes** dont une sur les honoraires impayés. Voici le prompt :
+
+---
+
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le **Tableau de Bord** de l'espace Administration, corriger **deux comportements** du Centre de Notifications & Alertes.
+>
+> ---
+>
+> ### 1. Supprimer l'alerte "Honoraires impayés" du tableau de bord
+>
+> **Constat :** Le widget affiche *"Enseignants avec honoraires impayés"* comme alerte — ce n'est pas une alerte urgente nécessitant une action immédiate sur le tableau de bord.
+>
+> **Correction :**
+> - Retirer complètement la catégorie **honoraires impayés** des alertes du tableau de bord
+> - Les honoraires sont consultables dans le module dédié **Honoraires** sans alerte push
+> - Cette information relève du **suivi financier** et non d'une action urgente
+>
+> ```javascript
+> // ❌ ACTUEL — Honoraires inclus dans les alertes
+> const alertes = [
+>   { type: 'honoraires_impayes', count: data.honoraires_dus }, // ← SUPPRIMER
+>   { type: 'notes_soumises', count: data.notes_en_attente },
+>   { type: 'absences', count: data.etudiants_seuil_critique },
+>   // ...
+> ];
+>
+> // ✅ CORRIGÉ — Honoraires exclus
+> const alertes = [
+>   { type: 'notes_soumises', count: data.notes_en_attente },
+>   { type: 'paiements_retard', count: data.paiements_en_retard },
+>   { type: 'absences', count: data.etudiants_seuil_critique },
+>   { type: 'reclamations', count: data.reclamations_admin },
+>   { type: 'feuilles', count: data.feuilles_soumises },
+>   { type: 'messages', count: data.messages_non_lus },
+> ];
+> ```
+>
+> ---
+>
+> ### 2. Décrémenter le compteur d'alertes après résolution
+>
+> **Constat :** Quand on clique sur une alerte et qu'on résout une situation, le **badge numérique** et le **compteur** ne se mettent pas à jour — ils affichent toujours l'ancien nombre.
+>
+> **Correction — Mise à jour en temps réel après action :**
+>
+> ```javascript
+> // Principe : après toute action de résolution → refetch immédiat
+>
+> // Exemple 1 — Valider les notes d'une matière
+> const validerNotes = async (matiereId) => {
+>   await api.post(`/notes/${matiereId}/valider`);
+>
+>   // Refetch immédiat du résumé des alertes
+>   await queryClient.invalidateQueries(['alertes-dashboard']);
+>   // → Le compteur passe de 5 à 4 automatiquement
+> };
+>
+> // Exemple 2 — Traiter une réclamation
+> const traiterReclamation = async (reclamationId, decision) => {
+>   await api.post(`/reclamations/${reclamationId}/decider`, { decision });
+>
+>   // Refetch immédiat
+>   await queryClient.invalidateQueries(['alertes-dashboard']);
+>   // → Le compteur passe de 2 à 1 automatiquement
+> };
+>
+> // Exemple 3 — Marquer un message comme lu
+> const marquerLu = async (messageId) => {
+>   await api.patch(`/messages/${messageId}/lu`);
+>
+>   // Refetch immédiat
+>   await queryClient.invalidateQueries(['alertes-dashboard']);
+> };
+> ```
+>
+> ---
+>
+> ### 3. Logique de calcul du badge principal
+>
+> ```javascript
+> // Le badge "X alertes en attente" = somme de toutes les alertes actives
+> const calculerTotalAlertes = (alertes) => {
+>   return alertes
+>     .filter(a => a.count > 0)       // Ignorer les alertes à 0
+>     .reduce((sum, a) => sum + a.count, 0);
+> };
+>
+> // Exemples :
+> // notes=5, absences=3, reclamations=2 → badge affiche "10"
+> // Après résolution 1 note → notes=4 → badge affiche "9"
+> // Après résolution toutes → badge disparaît complètement
+>
+> {totalAlertes > 0 && (
+>   <span className="badge-alerte">{totalAlertes}</span>
+> )}
+> // Si totalAlertes = 0 → badge invisible
+> ```
+>
+> ---
+>
+> ### 4. Animation de décrémentation
+>
+> ```jsx
+> // Afficher une animation quand le compteur diminue
+> const BadgeAlerte = ({ count }) => {
+>   const [prevCount, setPrevCount] = useState(count);
+>   const [animate, setAnimate] = useState(false);
+>
+>   useEffect(() => {
+>     if (count < prevCount) {
+>       setAnimate(true); // Déclencher animation ↓
+>       setTimeout(() => setAnimate(false), 500);
+>     }
+>     setPrevCount(count);
+>   }, [count]);
+>
+>   return (
+>     <span className={`badge ${animate ? 'badge-decrement' : ''}`}>
+>       {count}
+>     </span>
+>   );
+> };
+> ```
+>
+> ---
+>
+> ### 5. Règle globale — Quand décrémenter
+>
+> | Action résolue | Alerte décrémentée |
+> |---|---|
+> | Note validée par admin | Notes soumises : -1 |
+> | Réclamation traitée | Réclamations : -1 |
+> | Message lu | Messages non lus : -1 |
+> | Paiement enregistré | Paiements en retard : -1 |
+> | Feuille traitée | Feuilles non traitées : -1 |
+> | Étudiant régularisé | Absences critiques : -1 |
+> | Toutes alertes résolues | Badge principal disparaît |
+
+---
+
+Les deux corrections clés sont **supprimer les honoraires** de la liste des alertes et appeler `queryClient.invalidateQueries(['alertes-dashboard'])` après chaque action de résolution — c'est ce qui garantit que le compteur se met à jour **immédiatement** sans attendre le prochain polling de 30 secondes.

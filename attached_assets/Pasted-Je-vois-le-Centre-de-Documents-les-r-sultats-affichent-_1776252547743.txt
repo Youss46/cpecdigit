@@ -1,0 +1,197 @@
+Je vois le Centre de Documents — les résultats affichent **Semestre 8** pour Licence 1, 2 et 3 alors que chaque classe devrait afficher ses semestres propres. Voici le prompt :
+
+---
+
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le module **Centre de Documents**, corriger le filtrage des documents selon les liaisons **Classe ↔ Semestre** et ajouter l'option d'**impression** sur tous les documents.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - Tous les documents affichent **Semestre 8** quelle que soit la classe
+> - Licence 1 devrait afficher **Semestre 1 et 2** uniquement
+> - Licence 2 devrait afficher **Semestre 3 et 4** uniquement
+> - Licence 3 devrait afficher **Semestre 5 et 6** uniquement
+> - Master 1 devrait afficher **Semestre 7 et 8** uniquement
+>
+> ---
+>
+> ### 2. Correspondance Classe → Semestres (LMD)
+>
+> ```javascript
+> const semestresParClasse = {
+>   'Licence 1': [1, 2],
+>   'Licence 2': [3, 4],
+>   'Licence 3': [5, 6],
+>   'Master 1':  [7, 8],
+>   'Master 2':  [9, 10],
+> };
+> ```
+>
+> ---
+>
+> ### 3. Correction — Génération dynamique des documents
+>
+> ```javascript
+> // Générer les documents par classe avec ses semestres rattachés
+> const genererDocumentsClasse = async () => {
+>
+>   const classes = await db('classes')
+>     .join('semestres', 'semestres.classe_id', 'classes.id')
+>     .select(
+>       'classes.id as classe_id',
+>       'classes.nom as classe_nom',
+>       'semestres.id as semestre_id',
+>       'semestres.nom as semestre_nom',
+>       'semestres.numero_semestre'
+>     )
+>     .orderBy('classes.niveau', 'semestres.numero_semestre');
+>
+>   // Grouper par classe
+>   const documentsGroupes = classes.reduce((acc, row) => {
+>     if (!acc[row.classe_id]) {
+>       acc[row.classe_id] = {
+>         classe: row.classe_nom,
+>         semestres: []
+>       };
+>     }
+>     acc[row.classe_id].semestres.push({
+>       id: row.semestre_id,
+>       nom: row.semestre_nom
+>     });
+>     return acc;
+>   }, {});
+>
+>   return documentsGroupes;
+> };
+> ```
+>
+> ---
+>
+> ### 4. Affichage corrigé dans le Centre de Documents
+>
+> **Section Résultats & Bulletins :**
+>
+> ```
+> 📊 Résultats & Bulletins
+> ─────────────────────────────────────────────────────
+> Licence 1 — Comptabilité et Gestion Financière
+>   ├── Résultats S1    [Classe] [📥 PDF] [🖨️ Imprimer]
+>   └── Résultats S2    [Classe] [📥 PDF] [🖨️ Imprimer]
+>
+> Licence 2 — Comptabilité et Gestion Financière
+>   ├── Résultats S3    [Classe] [📥 PDF] [🖨️ Imprimer]
+>   └── Résultats S4    [Classe] [📥 PDF] [🖨️ Imprimer]
+>
+> Licence 3 — Comptabilité et Gestion Financière
+>   ├── Résultats S5    [Classe] [📥 PDF] [🖨️ Imprimer]
+>   └── Résultats S6    [Classe] [📥 PDF] [🖨️ Imprimer]
+>
+> Master 1 — Comptabilité et Gestion Financière
+>   ├── Résultats S7    [Classe] [📥 PDF] [🖨️ Imprimer]
+>   └── Résultats S8    [Classe] [📥 PDF] [🖨️ Imprimer]
+> ```
+>
+> ---
+>
+> ### 5. Ajouter le bouton Imprimer sur tous les documents
+>
+> ```jsx
+> // Composant document avec PDF + Impression
+> const DocumentItem = ({ titre, semestre, classeId, semestreId, type }) => {
+>
+>   // Télécharger PDF
+>   const telecharger = async () => {
+>     const blob = await api.get(
+>       `/documents/${type}/pdf?classe_id=${classeId}&semestre_id=${semestreId}`,
+>       { responseType: 'blob' }
+>     );
+>     const url = URL.createObjectURL(blob);
+>     const a = document.createElement('a');
+>     a.href = url;
+>     a.download = `${titre}_${semestre}.pdf`;
+>     a.click();
+>   };
+>
+>   // Imprimer directement
+>   const imprimer = async () => {
+>     const blob = await api.get(
+>       `/documents/${type}/pdf?classe_id=${classeId}&semestre_id=${semestreId}`,
+>       { responseType: 'blob' }
+>     );
+>     const url = URL.createObjectURL(blob);
+>
+>     // Ouvrir dans un iframe caché et lancer l'impression
+>     const iframe = document.createElement('iframe');
+>     iframe.style.display = 'none';
+>     iframe.src = url;
+>     document.body.appendChild(iframe);
+>     iframe.onload = () => {
+>       iframe.contentWindow.print();
+>       // Nettoyer après impression
+>       setTimeout(() => {
+>         document.body.removeChild(iframe);
+>         URL.revokeObjectURL(url);
+>       }, 5000);
+>     };
+>   };
+>
+>   return (
+>     <div className="document-item">
+>       <div className="document-info">
+>         <p className="document-titre">{titre}</p>
+>         <p className="document-semestre">{semestre}</p>
+>       </div>
+>       <div className="document-actions">
+>         <button onClick={telecharger} className="btn-pdf">
+>           📥 PDF
+>         </button>
+>         <button onClick={imprimer} className="btn-imprimer">
+>           🖨️ Imprimer
+>         </button>
+>       </div>
+>     </div>
+>   );
+> };
+> ```
+>
+> ---
+>
+> ### 6. Tableau complet des documents avec semestres rattachés
+>
+> | Section | Document | Semestres affichés |
+> |---|---|---|
+> | **Résultats & Bulletins** | Résultats — Licence 1 | S1, S2 uniquement |
+> | | Résultats — Licence 2 | S3, S4 uniquement |
+> | | Résultats — Licence 3 | S5, S6 uniquement |
+> | | Résultats — Master 1 | S7, S8 uniquement |
+> | **Emplois du Temps** | EDT — Licence 1 | S1, S2 uniquement |
+> | | EDT — Licence 2 | S3, S4 uniquement |
+> | | EDT — Licence 3 | S5, S6 uniquement |
+> | **Feuilles de Présence** | Absences — Licence 1 | S1, S2 uniquement |
+> | | Absences — Licence 2 | S3, S4 uniquement |
+> | | Absences — Licence 3 | S5, S6 uniquement |
+>
+> ---
+>
+> ### 7. Bouton impression globale par section
+>
+> Ajouter un bouton **"Tout imprimer"** en haut de chaque section :
+>
+> ```jsx
+> <div className="section-header">
+>   <h3>📊 Résultats & Bulletins</h3>
+>   <div className="section-actions">
+>     <button onClick={imprimerTousSemestres}>
+>       🖨️ Tout imprimer
+>     </button>
+>   </div>
+> </div>
+> ```
+
+---
+
+Le point critique est la **jointure `semestres.classe_id`** — sans cette liaison en base, le système ne peut pas savoir quels semestres appartiennent à quelle classe et affiche tous les semestres pour toutes les classes. Une fois la liaison correctement établie, tous les filtres du Centre de Documents se corrigent automatiquement.

@@ -1,0 +1,99 @@
+> Dans **CPEC-Digital**, dans l'**Espace Étudiant**, après qu'un étudiant a ajouté sa photo de profil, le système continue d'afficher le message **"Ajouter une photo de profil"** au lieu de passer à l'étape de génération de la carte étudiante, comme si la photo n'avait pas été enregistrée.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - L'étudiant uploade sa photo avec succès
+> - Mais le composant carte étudiante **ne détecte pas** que la photo est désormais disponible
+> - Il continue d'afficher l'étape **"Ajouter une photo"** au lieu de passer à **"Générer la carte"**
+>
+> ---
+>
+> ### 2. Causes probables
+>
+> | Cause | Détail |
+> |---|---|
+> | **État local non mis à jour** | Après upload, le state `photo_url` n'est pas rafraîchi |
+> | **Données non rechargées** | Le profil étudiant n'est pas refetché après sauvegarde de la photo |
+> | **Condition mal écrite** | La vérification `if (!photo)` lit l'ancienne valeur en cache |
+> | **URL non retournée** | Le backend ne retourne pas la `photo_url` dans la réponse après upload |
+>
+> ---
+>
+> ### 3. Logique des étapes à corriger
+>
+> ```javascript
+> // Logique d'affichage des étapes de la carte étudiante
+>
+> const etapeCarteEtudiante = () => {
+>   if (!etudiant.photo_url) {
+>     return "ETAPE_1_AJOUTER_PHOTO";       // Photo manquante
+>   }
+>   if (!carte.generee) {
+>     return "ETAPE_2_GENERER_CARTE";        // Photo OK → générer
+>   }
+>   return "ETAPE_3_CARTE_DISPONIBLE";       // Carte prête → télécharger
+> };
+> ```
+>
+> ---
+>
+> ### 4. Correction après upload de la photo
+>
+> Après un upload réussi, **mettre à jour immédiatement** l'état local et recharger le profil :
+>
+> ```javascript
+> const handlePhotoUpload = async (file) => {
+>   const formData = new FormData();
+>   formData.append('photo', file);
+>
+>   const response = await fetch(`/api/students/${etudiantId}/photo`, {
+>     method: 'POST',
+>     body: formData
+>   });
+>
+>   const { photo_url } = await response.json();
+>
+>   // Mettre à jour immédiatement l'état local
+>   setEtudiant(prev => ({ ...prev, photo_url }));
+>
+>   // Fermer la modale
+>   setModalPhotoVisible(false);
+>
+>   // Message de succès
+>   toast.success("Photo ajoutée avec succès !");
+>
+>   // Le composant recalcule automatiquement l'étape → passe à ETAPE_2
+> };
+> ```
+>
+> ---
+>
+> ### 5. Affichage des étapes corrigé
+>
+> | Étape | Condition | Affichage |
+> |---|---|---|
+> | **Étape 1** | `photo_url === null` | 📷 *"Ajouter une photo de profil"* |
+> | **Étape 2** | `photo_url !== null` ET `carte non générée` | 🪪 *"Générer ma carte étudiante"* |
+> | **Étape 3** | `carte générée` | ✅ *"Télécharger ma carte"* + aperçu |
+>
+> - La transition entre étapes doit être **immédiate** sans rechargement de page
+> - Un **indicateur de progression** visuel (1 → 2 → 3) aide l'étudiant à comprendre où il en est
+>
+> ---
+>
+> ### 6. Vérification côté backend
+> - L'endpoint `POST /api/students/:id/photo` doit **obligatoirement retourner** la `photo_url` dans sa réponse :
+>
+> ```javascript
+> res.json({
+>   success: true,
+>   photo_url: `/uploads/photos/${filename}` // URL accessible publiquement
+> });
+> ```
+>
+> - Si le backend retourne `success: true` sans `photo_url`, le frontend ne peut pas mettre à jour l'état et reste bloqué à l'étape 1
+
+---
+
+La correction clé est le `setEtudiant(prev => ({ ...prev, photo_url }))` immédiatement après l'upload — sans cette mise à jour de l'état local, React continue d'afficher l'ancienne valeur `null` pour `photo_url` et reste bloqué à l'étape 1 même si la photo est bien enregistrée en base.

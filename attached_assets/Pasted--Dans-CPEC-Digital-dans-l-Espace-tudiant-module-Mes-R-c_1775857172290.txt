@@ -1,0 +1,86 @@
+> Dans **CPEC-Digital**, dans l'**Espace Étudiant**, module **Mes Réclamations**, toutes les matières affichent **"Aucune note disponible"** et sont donc non sélectionnables, alors que les notes existent bien en base et sont visibles dans les notifications.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - Les notes sont **bien enregistrées** en base (confirmé par la notification : Droit de la concurrence — Moyenne 12.88/20)
+> - Mais la requête qui alimente la liste des matières dans le formulaire de réclamation **ne trouve pas ces notes**
+> - Toutes les matières affichent *"Aucune note disponible"* → toutes grisées → réclamation impossible
+>
+> ---
+>
+> ### 2. Cause racine probable
+>
+> La requête backend qui récupère les matières pour les réclamations filtre sur une **mauvaise table ou un mauvais champ** :
+>
+> | Problème | Détail |
+> |---|---|
+> | **Mauvaise table interrogée** | La requête cherche dans `notes_finales` alors que les notes sont dans `evaluations` ou `notes_detaillees` |
+> | **Mauvais statut filtré** | La requête filtre `WHERE statut = 'publie'` mais les notes sont en statut `'soumis'` ou `'valide'` |
+> | **Mauvais semestre_id** | Le semestre_id transmis ne correspond pas à celui des notes enregistrées |
+> | **Calcul de moyenne absent** | La requête cherche une colonne `note` unique alors que les notes sont en plusieurs évaluations (Éval1, Éval2, Éval3, Éval4) |
+>
+> ---
+>
+> ### 3. Correction de la requête backend
+>
+> La requête doit chercher les matières pour lesquelles **au moins une évaluation existe** pour l'étudiant, et calculer la moyenne :
+>
+> ```javascript
+> // GET /api/students/:id/matieres-reclamables?semestre_id=X
+>
+> router.get('/students/:id/matieres-reclamables', async (req, res) => {
+>   const { id } = req.params;
+>   const { semestre_id } = req.query;
+>
+>   const matieres = await db('evaluations')  // ← vérifier le bon nom de table
+>     .join('matieres', 'evaluations.matiere_id', 'matieres.id')
+>     .where({
+>       'evaluations.etudiant_id': id,
+>       'evaluations.semestre_id': semestre_id
+>     })
+>     .groupBy('matieres.id', 'matieres.nom')
+>     .select(
+>       'matieres.id',
+>       'matieres.nom',
+>       db.raw('AVG(evaluations.note) as moyenne'),
+>       db.raw('COUNT(evaluations.id) as nb_evaluations')
+>     );
+>
+>   res.json({ matieres });
+> });
+> ```
+>
+> ---
+>
+> ### 4. Affichage corrigé dans la liste
+>
+> | Situation | Affichage | Sélectionnable |
+> |---|---|---|
+> | Note(s) disponible(s) | Nom matière — Moyenne : **12.88/20** | ✅ Oui |
+> | Aucune note saisie | Nom matière — *Aucune note disponible* | ❌ Non (grisée) |
+> | Réclamation déjà soumise | Nom matière — *Réclamation en cours* | ❌ Non (grisée) |
+>
+> ---
+>
+> ### 5. Débogage rapide à effectuer
+>
+> Vérifier en console les points suivants :
+>
+> ```javascript
+> // 1. Quel semestre_id est transmis à la requête ?
+> console.log("semestre_id transmis :", semestreActif?.id);
+>
+> // 2. Quelle table contient réellement les notes ?
+> // Vérifier si c'est : notes, evaluations, notes_detaillees, grades...
+>
+> // 3. Quel est le statut des notes en base ?
+> // publie / soumis / valide / draft ?
+>
+> // 4. Logger la réponse de l'API
+> console.log("Matieres recues :", matieres);
+> ```
+
+---
+
+La cause est très probablement un **nom de table incorrect** dans la requête de réclamation — la requête cherche dans `notes` (note unique par matière) alors que les notes sont stockées dans une table `evaluations` avec plusieurs lignes par matière (Éval1, Éval2, Éval3, Éval4). Un simple `GROUP BY` avec `AVG()` sur la bonne table résout le problème.

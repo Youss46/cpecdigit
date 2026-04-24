@@ -1,0 +1,162 @@
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le module **Réclamations**, implémenter un système de **notifications push automatiques** envoyées à l'étudiant à chaque étape du traitement de sa réclamation, de la soumission jusqu'à la décision finale.
+>
+> ---
+>
+> ### 1. Tableau complet des notifications
+>
+> | Étape | Déclencheur | Destinataire | Message push |
+> |---|---|---|---|
+> | **Soumission** | Étudiant soumet | Étudiant | *"Votre réclamation sur [Éval X] en [Matière] a été soumise avec succès. Numéro : #[XXX]"* |
+> | **Réception enseignant** | Enseignant ouvre la réclamation | Étudiant | *"Votre réclamation #[XXX] est en cours d'examen par [Nom enseignant]"* |
+> | **Acceptée par enseignant** | Enseignant accepte | Étudiant | *"Bonne nouvelle ! Votre réclamation #[XXX] a été acceptée. Nouvelle note : [X]/20 → [Y]/20"* |
+> | **Rejetée par enseignant** | Enseignant rejette | Étudiant | *"Votre réclamation #[XXX] a été rejetée par [Nom enseignant]. Motif : [Motif]"* |
+> | **Transmise à l'admin** | Enseignant transmet | Étudiant | *"Votre réclamation #[XXX] a été transmise à l'administration pour arbitrage"* |
+> | **Prise en charge admin** | Admin ouvre la réclamation | Étudiant | *"L'administration examine votre réclamation #[XXX]"* |
+> | **Validée par admin** | Admin valide | Étudiant | *"L'administration a validé la modification. Nouvelle note : [X]/20 → [Y]/20"* |
+> | **Rejetée par admin** | Admin rejette | Étudiant | *"L'administration a maintenu la décision. Votre note reste [X]/20. Motif : [Motif]"* |
+> | **Bulletin mis à jour** | Après correction de note | Étudiant | *"Votre bulletin a été mis à jour suite à votre réclamation #[XXX]. Nouvelle moyenne : [X]/20"* |
+> | **Délai dépassé** | Aucune réponse enseignant après X jours | Étudiant | *"Votre réclamation #[XXX] est en attente de réponse. L'administration a été notifiée"* |
+>
+> ---
+>
+> ### 2. Notifications vers l'enseignant et l'administration
+>
+> | Étape | Destinataire | Message push |
+> |---|---|---|
+> | Nouvelle réclamation soumise | Enseignant | *"Nouvelle réclamation de [Nom étudiant] sur [Éval X] — [Matière]. À traiter avant le [Date limite]"* |
+> | Délai enseignant dépassé | Administration | *"Réclamation #[XXX] sans réponse depuis [X] jours. Intervention requise"* |
+> | Réclamation transmise | Administration | *"[Nom enseignant] a transmis la réclamation #[XXX] pour arbitrage"* |
+>
+> ---
+>
+> ### 3. Implémentation technique
+>
+> ```javascript
+> // Service de notification centralisé pour les réclamations
+> const notifierReclamation = async (etape, reclamation) => {
+>
+>   const messages = {
+>     SOUMISE: {
+>       destinataire: reclamation.etudiant_id,
+>       titre: "Réclamation soumise",
+>       corps: `Votre réclamation #${reclamation.id} sur ${reclamation.evaluation} a été soumise.`
+>     },
+>     EN_EXAMEN: {
+>       destinataire: reclamation.etudiant_id,
+>       titre: "Réclamation en cours d'examen",
+>       corps: `Votre réclamation #${reclamation.id} est examinée par ${reclamation.enseignant}.`
+>     },
+>     ACCEPTEE_ENSEIGNANT: {
+>       destinataire: reclamation.etudiant_id,
+>       titre: "✅ Réclamation acceptée",
+>       corps: `Réclamation #${reclamation.id} acceptée. Note : ${reclamation.ancienne_note} → ${reclamation.nouvelle_note}/20`
+>     },
+>     REJETEE_ENSEIGNANT: {
+>       destinataire: reclamation.etudiant_id,
+>       titre: "❌ Réclamation rejetée",
+>       corps: `Réclamation #${reclamation.id} rejetée. Motif : ${reclamation.motif_rejet}`
+>     },
+>     TRANSMISE_ADMIN: {
+>       destinataire: reclamation.etudiant_id,
+>       titre: "Réclamation transmise à l'administration",
+>       corps: `Votre réclamation #${reclamation.id} est en arbitrage administratif.`
+>     },
+>     VALIDEE_ADMIN: {
+>       destinataire: reclamation.etudiant_id,
+>       titre: "✅ Décision administrative",
+>       corps: `L'administration a validé la modification. Note : ${reclamation.ancienne_note} → ${reclamation.nouvelle_note}/20`
+>     },
+>     REJETEE_ADMIN: {
+>       destinataire: reclamation.etudiant_id,
+>       titre: "❌ Décision administrative finale",
+>       corps: `L'administration maintient la note de ${reclamation.ancienne_note}/20. Motif : ${reclamation.motif_rejet}`
+>     },
+>     BULLETIN_MIS_A_JOUR: {
+>       destinataire: reclamation.etudiant_id,
+>       titre: "📄 Bulletin mis à jour",
+>       corps: `Votre bulletin a été mis à jour. Nouvelle moyenne en ${reclamation.matiere} : ${reclamation.nouvelle_moyenne}/20`
+>     }
+>   };
+>
+>   const message = messages[etape];
+>   if (!message) return;
+>
+>   // Envoyer la notification push
+>   await envoyerPush({
+>     userId: message.destinataire,
+>     titre: message.titre,
+>     corps: message.corps,
+>     url: `/reclamations/${reclamation.id}`, // Lien vers la réclamation au clic
+>     icone: '/icons/reclamation.png'
+>   });
+>
+>   // Sauvegarder dans l'historique des notifications
+>   await db('notifications').insert({
+>     user_id: message.destinataire,
+>     titre: message.titre,
+>     corps: message.corps,
+>     type: 'reclamation',
+>     reclamation_id: reclamation.id,
+>     lu: false,
+>     cree_le: new Date()
+>   });
+> };
+> ```
+>
+> ---
+>
+> ### 4. Déclenchement à chaque action
+>
+> ```javascript
+> // Côté enseignant — accepter une réclamation
+> const accepterReclamation = async (reclamationId, nouvelleNote) => {
+>   await db('reclamations')
+>     .where({ id: reclamationId })
+>     .update({ statut: 'acceptee_enseignant', nouvelle_note: nouvelleNote });
+>
+>   // 🔔 Notifier l'étudiant immédiatement
+>   await notifierReclamation('ACCEPTEE_ENSEIGNANT', {
+>     ...reclamation,
+>     nouvelle_note: nouvelleNote
+>   });
+> };
+>
+> // Côté enseignant — rejeter une réclamation
+> const rejeterReclamation = async (reclamationId, motifRejet) => {
+>   await db('reclamations')
+>     .where({ id: reclamationId })
+>     .update({ statut: 'rejetee_enseignant', motif_rejet: motifRejet });
+>
+>   // 🔔 Notifier l'étudiant immédiatement
+>   await notifierReclamation('REJETEE_ENSEIGNANT', {
+>     ...reclamation,
+>     motif_rejet: motifRejet
+>   });
+> };
+> ```
+>
+> ---
+>
+> ### 5. Suivi des notifications côté étudiant
+>
+> Dans l'espace étudiant, la réclamation affiche un **historique chronologique** de toutes les notifications reçues :
+>
+> ```
+> Réclamation #XXX — Droit de la concurrence — Éval 2
+> ────────────────────────────────────────────────────
+> ✅ 10/04/2026 21h25 — Réclamation soumise
+> 👁️ 10/04/2026 21h30 — En cours d'examen par Kra Joseph
+> ✅ 11/04/2026 08h15 — Acceptée — Note : 9/20 → 13/20
+> 📄 11/04/2026 08h20 — Bulletin mis à jour
+>                        Nouvelle moyenne : 13.47/20
+> ────────────────────────────────────────────────────
+> Décision finale : ✅ Acceptée
+> ```
+
+---
+
+Le point le plus important est le **lien URL dans la notification push** — au clic sur la notification, l'étudiant doit être redirigé directement vers **sa réclamation concernée** et non vers la page d'accueil, ce qui lui permet de voir immédiatement le détail de la décision sans chercher dans l'application.

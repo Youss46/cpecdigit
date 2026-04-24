@@ -1,0 +1,70 @@
+> Dans **CPEC-Digital**, une fois l'application installée en tant que **PWA**, la barre de navigation du navigateur (barre d'adresse, boutons précédent/suivant) reste visible en haut de l'écran au lieu de disparaître. L'application doit occuper **la totalité de l'écran** comme une application native.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - La barre de navigation du navigateur s'affiche en **violet** en haut de l'écran
+> - L'application ne s'affiche pas en plein écran malgré l'installation PWA
+> - L'expérience utilisateur ressemble à un **site web** et non à une application native
+>
+> ---
+>
+> ### 2. Cause probable
+> Le champ `display` dans le fichier **`manifest.json`** n'est pas correctement configuré ou le fichier manifest n'est pas correctement référencé dans le HTML.
+>
+> ---
+>
+> ### 3. Corrections à apporter
+>
+> **Fichier `manifest.json` :**
+> ```json
+> {
+>   "name": "CPEC-Digital",
+>   "short_name": "CPEC",
+>   "start_url": "/",
+>   "display": "standalone",
+>   "orientation": "portrait",
+>   "background_color": "#1B3A6B",
+>   "theme_color": "#1B3A6B",
+>   "icons": [
+>     { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+>     { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" },
+>     { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+>   ]
+> }
+> ```
+>
+> **Valeurs possibles pour `display` :**
+>
+> | Valeur | Effet |
+> |---|---|
+> | `standalone` | Barre navigateur masquée ✅ Recommandé |
+> | `fullscreen` | Écran entier, même barre système masquée |
+> | `minimal-ui` | Barre réduite avec quelques boutons |
+> | `browser` | Barre complète visible ❌ Situation actuelle |
+>
+> **Dans le `index.html` :**
+> ```html
+> <head>
+>   <!-- Manifest correctement lié -->
+>   <link rel="manifest" href="/manifest.json" />
+>
+>   <!-- Theme color pour Android -->
+>   <meta name="theme-color" content="#1B3A6B" />
+>
+>   <!-- Pour iOS (Safari) -->
+>   <meta name="apple-mobile-web-app-capable" content="yes" />
+>   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+>   <meta name="apple-mobile-web-app-title" content="CPEC-Digital" />
+> </head>
+> ```
+>
+> ---
+>
+> ### 4. Cas particulier iOS (iPhone/iPad)
+> Safari sur iOS **ignore** le champ `display` du manifest. Il faut obligatoirement ajouter les balises `apple-mobile-web-app-capable` dans le HTML pour forcer le mode plein écran sur iPhone.
+>
+> ---
+>
+> 
+La cause est quasi certaine : le `display` est actuellement sur `"browser"` ou absent du manifest. Passer à `"standalone"` suffit à résoudre le problème sur Android et desktop. Pour iOS, les balises meta `apple-mobile-web-app-capable` sont indispensables en complément.

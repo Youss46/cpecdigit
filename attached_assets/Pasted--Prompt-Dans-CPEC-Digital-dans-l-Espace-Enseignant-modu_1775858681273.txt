@@ -1,0 +1,144 @@
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans l'**Espace Enseignant**, module **Réclamations**, la pièce jointe s'affiche correctement mais l'application se **déconnecte immédiatement après** l'affichage.
+>
+> ---
+>
+> ### 1. Diagnostic précis
+>
+> | Étape | Statut |
+> |---|---|
+> | Clic sur "Voir la pièce jointe" | ✅ Fonctionne |
+> | Chargement de la pièce jointe | ✅ Fonctionne |
+> | Affichage de la pièce jointe | ✅ Fonctionne |
+> | Retour dans l'application | ❌ Déconnexion |
+>
+> **La déconnexion n'est donc pas liée au chargement du fichier mais à ce qui se passe APRÈS l'affichage**
+>
+> ---
+>
+> ### 2. Causes probables
+>
+> | Cause | Détail |
+> |---|---|
+> | **Navigation vers URL externe** | `window.open()` ou redirection vers l'URL du fichier fait quitter l'app PWA et détruit la session |
+> | **Remplacement de l'onglet actif** | Le fichier s'ouvre dans le **même onglet** au lieu d'un nouvel onglet, remplaçant l'app |
+> | **Event listener mal placé** | Un écouteur `visibilitychange` ou `blur` déclenche une déconnexion quand l'app perd le focus |
+> | **Token détruit au retour** | Quand l'app revient au premier plan, elle recharge et perd le token en mémoire |
+> | **Session storage vidé** | Si le token est dans `sessionStorage`, il est perdu quand l'onglet change |
+>
+> ---
+>
+> ### 3. Correction principale — Ouverture dans un nouvel onglet
+>
+> ```javascript
+> const voirPieceJointe = async (pieceJointeUrl) => {
+>   try {
+>     const response = await fetch(pieceJointeUrl, {
+>       headers: {
+>         'Authorization': `Bearer ${getToken()}`
+>       }
+>     });
+>
+>     const blob = await response.blob();
+>     const url = URL.createObjectURL(blob);
+>
+>     // ✅ TOUJOURS ouvrir dans un NOUVEL onglet
+>     // Ne jamais utiliser window.location.href = url
+>     const newTab = window.open(url, '_blank', 'noopener,noreferrer');
+>
+>     if (!newTab) {
+>       // Si le navigateur bloque les popups → télécharger directement
+>       const a = document.createElement('a');
+>       a.href = url;
+>       a.download = 'piece_jointe';
+>       a.click();
+>     }
+>
+>     // Libérer la mémoire
+>     setTimeout(() => URL.revokeObjectURL(url), 10000);
+>
+>   } catch (error) {
+>     toast.error("Impossible d'afficher la pièce jointe.");
+>   }
+> };
+> ```
+>
+> ---
+>
+> ### 4. Correction — Supprimer les listeners de déconnexion au changement de focus
+>
+> ```javascript
+> // ❌ PROBLÈME : déconnexion quand l'app perd le focus
+> document.addEventListener('visibilitychange', () => {
+>   if (document.hidden) {
+>     deconnecterUtilisateur(); // ← SUPPRIMER CE COMPORTEMENT
+>   }
+> });
+>
+> // ❌ PROBLÈME : déconnexion quand la fenêtre perd le focus
+> window.addEventListener('blur', () => {
+>   deconnecterUtilisateur(); // ← SUPPRIMER CE COMPORTEMENT
+> });
+>
+> // ✅ Ces événements ne doivent JAMAIS déclencher une déconnexion
+> // La déconnexion automatique doit uniquement se faire
+> // après une INACTIVITÉ prolongée (ex: 30 minutes sans action)
+> ```
+>
+> ---
+>
+> ### 5. Correction — Persistance du token
+>
+> Le token doit survivre aux changements d'onglet :
+>
+> ```javascript
+> // ❌ sessionStorage est détruit au changement d'onglet
+> sessionStorage.setItem('token', token);
+>
+> // ✅ localStorage persiste entre les onglets et rechargements
+> localStorage.setItem('token', token);
+>
+> // ✅ Vérifier au retour dans l'app que le token est toujours valide
+> document.addEventListener('visibilitychange', () => {
+>   if (!document.hidden) {
+>     // App revenue au premier plan
+>     const token = localStorage.getItem('token');
+>     if (!token) {
+>       deconnecterUtilisateur(); // Déconnecter seulement si token absent
+>     }
+>     // Sinon → NE RIEN FAIRE, laisser l'utilisateur connecté
+>   }
+> });
+> ```
+>
+> ---
+>
+> ### 6. Solution alternative — Afficher dans une modale
+>
+> Pour éviter tout problème de navigation, afficher la pièce jointe **directement dans l'application** sans changer d'onglet :
+>
+> ```jsx
+> {/* Modale d'affichage de la pièce jointe */}
+> {modalVisible && (
+>   <div className="modal-overlay">
+>     <div className="modal-content">
+>       <button onClick={() => setModalVisible(false)}>✕ Fermer</button>
+>       {mimeType.startsWith('image/') ? (
+>         <img src={previewUrl} alt="Pièce jointe" style={{ maxWidth: '100%' }} />
+>       ) : (
+>         <iframe src={previewUrl} width="100%" height="500px" />
+>       )}
+>       <button onClick={() => telecharger(previewUrl)}>
+>         📥 Télécharger
+>       </button>
+>     </div>
+>   </div>
+> )}
+> ```
+
+---
+
+La cause la plus probable est un **listener `visibilitychange` ou `blur`** qui déclenche une déconnexion quand l'app perd le focus au moment où le fichier s'ouvre. La **solution modale** est la plus robuste car elle affiche la pièce jointe sans jamais quitter l'application — zéro risque de déconnexion.

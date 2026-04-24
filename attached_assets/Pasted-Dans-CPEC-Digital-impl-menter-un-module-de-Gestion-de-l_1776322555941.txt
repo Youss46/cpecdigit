@@ -1,0 +1,62 @@
+Dans CPEC-Digital, implémenter un module de Gestion de la Transition Annuelle permettant à l'administration de clôturer une année académique et d'initialiser la suivante en toute sécurité.
+1. Bouton "Clôturer l'année académique"
+Accessible uniquement au Directeur du Centre depuis le module Promotion Annuelle & Archives :
+⚠️ CLÔTURE DE L'ANNÉE ACADÉMIQUE 2025-2026
+─────────────────────────────────────────────
+Avant de continuer, vérifiez :
+✅ Tous les résultats sont publiés
+✅ Le jury spécial est clôturé
+✅ Les bulletins finaux sont générés
+✅ Les honoraires sont réglés
+
+Cette action est IRRÉVERSIBLE.
+Tapez "CLOTURER 2025-2026" pour confirmer.
+
+[Annuler]        [Confirmer la clôture →]
+2. Processus automatique à la clôture
+const cloturerAnnee = async (anneeId) => {
+  await db.transaction(async (trx) => {
+
+    // 1. Archiver l'année
+    await trx('annees_academiques')
+      .where({ id: anneeId })
+      .update({ statut: 'archivee', cloturee_le: new Date() });
+
+    // 2. Promouvoir les étudiants admis
+    const admis = await trx('resultats_annuels')
+      .where({ annee_id: anneeId, decision: 'admis' });
+
+    for (const etudiant of admis) {
+      const classeSuperieure = await getClasseSuperieure(etudiant.classe_id);
+      await trx('students')
+        .where({ id: etudiant.etudiant_id })
+        .update({ classe_id: classeSuperieure.id });
+    }
+
+    // 3. Désactiver les étudiants diplômés
+    await trx('students')
+      .whereIn('id', etudiantsDiplomes)
+      .update({ statut: 'diplome' });
+
+    // 4. Créer la nouvelle année académique
+    const nouvelleAnnee = await trx('annees_academiques').insert({
+      nom: '2026-2027',
+      statut: 'en_cours',
+      date_debut: '2025-09-01'
+    }).returning('*');
+
+    // 5. Dupliquer la structure (classes, matières, UE)
+    // sans les données (notes, absences, paiements)
+    await dupliquerStructure(anneeId, nouvelleAnnee[0].id, trx);
+  });
+};
+3. Tableau de bord de transition
+TRANSITION ANNUELLE — 2025-2026→ 2026-2027
+─────────────────────────────────────────────
+✅ 42 étudiants promus vers la classe supérieure
+✅ 8 étudiants maintenus dans la même classe
+✅ 5 étudiants diplômés → espace Diplômés
+✅ 2 étudiants exclus → comptes désactivés
+─────────────────────────────────────────────
+Nouvelle année 2026-2027 initialisée ✅
+Nouvelles cartes étudiantes générées ✅

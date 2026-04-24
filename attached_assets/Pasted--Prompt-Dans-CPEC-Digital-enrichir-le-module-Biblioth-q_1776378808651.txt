@@ -1,0 +1,307 @@
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, enrichir le module **Bibliothèque Numérique** avec des fonctionnalités avancées d'apprentissage interactif : quiz, suivi du temps et recommandations de révision.
+>
+> ---
+>
+> ### 1. Structure enrichie du module
+>
+> ```
+> Bibliothèque Numérique
+> ├── 📚 Supports de cours
+> ├── 🎯 Quiz interactifs
+> ├── ⏱️ Mon suivi d'apprentissage
+> └── 💡 Recommandations de révision
+> ```
+>
+> ---
+>
+> ### 2. Quiz interactifs associés aux cours
+>
+> #### Création du quiz par l'enseignant
+>
+> Après avoir uploadé un support, l'enseignant peut créer un quiz associé :
+>
+> ```
+> ➕ Ajouter un quiz à ce support
+> ─────────────────────────────────────────────
+> Titre du quiz : "Quiz Chapitre 1 — Droit social"
+> Durée limite  : 15 minutes (optionnel)
+> Note minimale : 10/20 (optionnel)
+> Tentatives    : 2 (nombre de passages autorisés)
+>
+> Questions :
+> ┌─────────────────────────────────────────────┐
+> │ Question 1 / 5                              │
+> │                                             │
+> │ Quelle est la durée légale du travail       │
+> │ hebdomadaire en Côte d'Ivoire ?             │
+> │                                             │
+> │ ○ 35 heures                                 │
+> │ ● 40 heures  ← Bonne réponse               │
+> │ ○ 45 heures                                 │
+> │ ○ 48 heures                                 │
+> │                                             │
+> │ Explication : Le Code du travail ivoirien   │
+> │ fixe la durée à 40h par semaine...          │
+> └─────────────────────────────────────────────┘
+> [+ Ajouter une question]
+> ```
+>
+> #### Types de questions supportés
+>
+> | Type | Description |
+> |---|---|
+> | **QCM** | 1 bonne réponse parmi 4 |
+> | **QCM multiple** | Plusieurs bonnes réponses possibles |
+> | **Vrai / Faux** | Réponse binaire |
+> | **Texte libre** | Réponse courte corrigée manuellement |
+> | **Mise en ordre** | Classer des éléments dans le bon ordre |
+>
+> #### Structure en base
+> ```sql
+> CREATE TABLE quiz (
+>   id SERIAL PRIMARY KEY,
+>   support_id INTEGER REFERENCES bibliotheque(id),
+>   titre VARCHAR(200),
+>   duree_minutes INTEGER,
+>   note_minimale DECIMAL(4,2),
+>   nb_tentatives INTEGER DEFAULT 1,
+>   actif BOOLEAN DEFAULT true,
+>   cree_par INTEGER REFERENCES users(id),
+>   cree_le TIMESTAMP DEFAULT NOW()
+> );
+>
+> CREATE TABLE quiz_questions (
+>   id SERIAL PRIMARY KEY,
+>   quiz_id INTEGER REFERENCES quiz(id),
+>   texte TEXT NOT NULL,
+>   type VARCHAR(20), -- 'qcm', 'vrai_faux', 'libre', 'ordre'
+>   explication TEXT, -- Explication après réponse
+>   points INTEGER DEFAULT 1,
+>   ordre INTEGER
+> );
+>
+> CREATE TABLE quiz_reponses (
+>   id SERIAL PRIMARY KEY,
+>   question_id INTEGER REFERENCES quiz_questions(id),
+>   texte VARCHAR(500),
+>   est_correcte BOOLEAN DEFAULT false,
+>   ordre INTEGER
+> );
+>
+> CREATE TABLE quiz_resultats (
+>   id SERIAL PRIMARY KEY,
+>   quiz_id INTEGER REFERENCES quiz(id),
+>   etudiant_id INTEGER REFERENCES students(id),
+>   score DECIMAL(4,2),
+>   duree_secondes INTEGER,
+>   tentative INTEGER DEFAULT 1,
+>   termine_le TIMESTAMP DEFAULT NOW()
+> );
+> ```
+>
+> ---
+>
+> ### 3. Expérience étudiant — Passer un quiz
+>
+> ```
+> 🎯 Quiz — Chapitre 1 Droit social
+> ─────────────────────────────────────────────
+> ⏱️ Temps restant : 12:34
+> Question 3 / 5        ████████░░  60%
+>
+> Quelle est la durée légale du travail
+> hebdomadaire en Côte d'Ivoire ?
+>
+> ○ 35 heures
+> ○ 40 heures
+> ○ 45 heures
+> ○ 48 heures
+>
+>         [← Précédent]  [Suivant →]
+> ```
+>
+> **Résultat après soumission :**
+> ```
+> ✅ Quiz terminé !
+> ─────────────────────────────────────────────
+> Score : 16/20 — Très bien
+> Durée : 8 minutes 32 secondes
+> Bonnes réponses : 4/5
+>
+> Question 3 — Incorrecte
+> Votre réponse : 35 heures
+> Bonne réponse : 40 heures
+> Explication   : Le Code du travail ivoirien
+>                 fixe la durée à 40h/semaine
+>
+> [Revoir le support]  [Retenter le quiz]
+> ```
+>
+> ---
+>
+> ### 4. Suivi du temps passé sur chaque support
+>
+> #### Tracking automatique
+>
+> ```javascript
+> // Démarrer le chronomètre à l'ouverture d'un support
+> const trackerTemps = {
+>   debut: null,
+>   supportId: null,
+>
+>   demarrer: (supportId) => {
+>     trackerTemps.debut = Date.now();
+>     trackerTemps.supportId = supportId;
+>
+>     // Enregistrer si l'étudiant quitte la page
+>     window.addEventListener('beforeunload', trackerTemps.enregistrer);
+>     document.addEventListener('visibilitychange', () => {
+>       if (document.hidden) trackerTemps.enregistrer();
+>       else trackerTemps.debut = Date.now(); // Reprendre au retour
+>     });
+>   },
+>
+>   enregistrer: async () => {
+>     if (!trackerTemps.debut) return;
+>     const dureeSecondes = Math.floor(
+>       (Date.now() - trackerTemps.debut) / 1000
+>     );
+>     if (dureeSecondes < 5) return; // Ignorer les passages rapides
+>
+>     await api.post('/bibliotheque/tracker', {
+>       support_id: trackerTemps.supportId,
+>       duree_secondes: dureeSecondes
+>     });
+>     trackerTemps.debut = null;
+>   }
+> };
+> ```
+>
+> #### Vue suivi côté étudiant
+>
+> ```
+> ⏱️ Mon Suivi d'Apprentissage — Semestre 5
+> ─────────────────────────────────────────────
+> Matière               Temps passé  Quiz      Progression
+> Droit social          2h 34min     4/5 ✅    ████████░░ 80%
+> Droit du travail      45min        2/3 ⚠️    █████░░░░░ 50%
+> Contrôle fiscal       1h 12min     0/2 ❌    ███░░░░░░░ 30%
+> Impôt sur le revenu   0min         0/1 ❌    ░░░░░░░░░░  0%
+> ─────────────────────────────────────────────
+> Total cette semaine : 4h 31min
+> ```
+>
+> #### Vue suivi côté enseignant
+>
+> ```
+> 👥 Suivi étudiants — Droit social
+> ─────────────────────────────────────────────
+> Étudiant         Temps passé  Quiz moyen  Dernière activité
+> Kevin Kouman     3h 12min     17/20       Hier à 22h
+> Emerson Kouassi  1h 45min     14/20       Il y a 3 jours
+> Reine Blé        22min        8/20 ⚠️     Il y a 1 semaine
+> Christ Diby      0min         —   🔴      Jamais consulté
+> ─────────────────────────────────────────────
+> 1 étudiant n'a jamais consulté les supports → [Envoyer rappel]
+> ```
+>
+> ---
+>
+> ### 5. Recommandations de révision avant les examens
+>
+> #### Déclenchement automatique
+>
+> Le système génère des recommandations **15 jours avant chaque examen** :
+>
+> ```javascript
+> const genererRecommandations = async (etudiantId, semestreId) => {
+>   const examens = await getExamensProchains(semestreId, 15); // 15 jours
+>
+>   for (const examen of examens) {
+>     const analyse = await analyserEtudiant(etudiantId, examen.matiere_id);
+>
+>     // Calculer le score de priorité
+>     const priorite = calculerPriorite({
+>       noteActuelle: analyse.moyenne,          // Note actuelle
+>       tempsConsulte: analyse.temps_total,     // Temps sur les supports
+>       scoreQuiz: analyse.score_moyen_quiz,    // Score aux quiz
+>       joursAvantExamen: examen.jours_restants // Urgence temporelle
+>     });
+>
+>     await sauvegarderRecommandation({
+>       etudiant_id: etudiantId,
+>       matiere_id: examen.matiere_id,
+>       priorite,                    // haute / moyenne / faible
+>       supports_recommandes: analyse.supports_non_consultes,
+>       quiz_recommandes: analyse.quiz_echoues
+>     });
+>   }
+> };
+> ```
+>
+> #### Affichage des recommandations côté étudiant
+>
+> ```
+> 💡 Recommandations de Révision
+> ─────────────────────────────────────────────
+> Examen dans 8 jours — Contrôle fiscal
+>
+> 🔴 PRIORITÉ HAUTE
+> ┌──────────────────────────────────────────┐
+> │ Vous n'avez pas consulté 3 supports      │
+> │ de Contrôle fiscal                       │
+> │ Score quiz moyen : 6/20                  │
+> │                                          │
+> │ 📄 Cours magistral — Chapitre 3  [Voir]  │
+> │ 📄 TD N°2 corrigé                [Voir]  │
+> │ 🎯 Quiz Chapitre 3        6/20   [Revoir]│
+> └──────────────────────────────────────────┘
+>
+> 🟡 PRIORITÉ MOYENNE
+> ┌──────────────────────────────────────────┐
+> │ Impôt sur le revenu — Examen dans 12j    │
+> │ Temps de révision insuffisant : 22min    │
+> │                                          │
+> │ 📄 Résumé de cours               [Voir]  │
+> │ 🎯 Quiz Chapitre 1        14/20  [Voir]  │
+> └──────────────────────────────────────────┘
+>
+> 🟢 BIEN PRÉPARÉ
+> ┌──────────────────────────────────────────┐
+> │ Droit social — Examen dans 15j           │
+> │ Temps de révision : 2h34 ✅              │
+> │ Score quiz moyen : 17/20 ✅              │
+> └──────────────────────────────────────────┘
+> ```
+>
+> ---
+>
+> ### 6. Notifications push liées aux recommandations
+>
+> | Déclencheur | Message push |
+> |---|---|
+> | J-15 avant examen | *"Commencez vos révisions en Droit fiscal — 3 supports disponibles"* |
+> | J-7 avant examen | *"⚠️ Examen dans 7 jours — Vous n'avez pas encore consulté 2 supports"* |
+> | J-3 avant examen | *"🔴 Urgent — Révisez Contrôle fiscal avant demain"* |
+> | Quiz échoué | *"Vous avez eu 6/20 au Quiz Chap.3 — Revoir le cours recommandé"* |
+> | Support non consulté depuis 7j | *"N'oubliez pas vos cours de Droit du travail"* |
+>
+> ---
+>
+> ### 7. Statistiques pour l'administration
+>
+> | Indicateur | Détail |
+> |---|---|
+> | Support le plus consulté | Par matière et semestre |
+> | Temps moyen par étudiant | Par matière |
+> | Score moyen aux quiz | Par matière et par classe |
+> | Corrélation temps/résultat | Les étudiants qui révisent plus ont-ils de meilleurs résultats ? |
+> | Étudiants jamais connectés | Liste pour intervention ciblée |
+
+---
+
+La fonctionnalité la plus impactante est la **corrélation temps de révision / résultats aux examens** — c'est une donnée que les établissements n'ont jamais pu mesurer auparavant et qui permettrait de prouver scientifiquement l'utilité de la bibliothèque numérique, renforçant considérablement l'argument commercial de CPEC-Digital.

@@ -1,0 +1,10 @@
+export { downloadBulletinPdf } from "./bulletin";
+export { downloadListeEtudiantsPdf } from "./liste-etudiants";
+export { downloadAttestationPdf } from "./attestation";
+export { downloadFicheEtudiantPdf } from "./fiche-etudiant";
+export { downloadEmploiDuTempsPdf } from "./emploi-du-temps";
+export { downloadFeuillePresencePdf, downloadFeuillePresenceViergePdf } from "./feuille-presence";
+export { downloadBilanAbsencesPdf } from "./bilan-absences";
+export { downloadPvJuryPdf } from "./pv-jury";
+export { downloadHonorairesRecapPdf, downloadFicheHonorairesPdf } from "./honoraires";
+export { downloadResultatsClassePdf } from "./resultats-classe";

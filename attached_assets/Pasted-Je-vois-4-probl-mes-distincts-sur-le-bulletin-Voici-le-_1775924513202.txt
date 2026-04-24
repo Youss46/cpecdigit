@@ -1,0 +1,115 @@
+Je vois 4 problèmes distincts sur le bulletin. Voici le prompt :
+
+---
+
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le module **Bulletins de Notes**, corriger **4 anomalies** identifiées sur le bulletin généré en PDF.
+>
+> ---
+>
+> ### Problème 1 — Date de naissance affiche "Invalid Date"
+>
+> **Constat :** La fiche étudiant (Image 2) montre `14/08/2006` mais le bulletin affiche `Invalid Date`
+>
+> **Cause :** La date est stockée au format `JJ/MM/AAAA` mais le bulletin tente de la parser avec `new Date()` qui attend `AAAA-MM-JJ`
+>
+> **Correction :**
+> ```javascript
+> // ❌ Conversion incorrecte
+> const dateAffichee = new Date(etudiant.date_naissance).toLocaleDateString();
+>
+> // ✅ Conversion correcte
+> const formaterDate = (dateStr) => {
+>   if (!dateStr) return "—";
+>   // Si format JJ/MM/AAAA → convertir avant parsing
+>   if (dateStr.includes('/')) {
+>     const [dd, mm, yyyy] = dateStr.split('/');
+>     return `${dd}/${mm}/${yyyy}`; // Retourner tel quel
+>   }
+>   // Si format AAAA-MM-JJ (ISO)
+>   const [yyyy, mm, dd] = dateStr.split('-');
+>   return `${dd}/${mm}/${yyyy}`;
+> };
+> ```
+>
+> ---
+>
+> ### Problème 2 — URL du QR Code visible sur le bulletin
+>
+> **Constat :** L'URL complète `https://cpecdigital.replit.app/verify/bulletin/...` s'affiche en texte sous le QR Code
+>
+> **Correction :**
+> - L'URL ne doit **jamais être affichée en clair** sur le bulletin
+> - Seuls le **QR Code** et la mention *"Vérifier l'authenticité"* doivent apparaître :
+>
+> ```jsx
+> {/* ❌ ACTUEL — URL visible */}
+> <div>
+>   <QRCode value={verificationUrl} />
+>   <p>{verificationUrl}</p>  {/* ← SUPPRIMER cette ligne */}
+> </div>
+>
+> {/* ✅ CORRIGÉ — URL masquée */}
+> <div className="qr-section">
+>   <QRCode value={verificationUrl} size={80} />
+>   <p>Scannez pour vérifier l'authenticité de ce bulletin</p>
+> </div>
+> ```
+>
+> ---
+>
+> ### Problème 3 — Classement affiché "5er / 5" au lieu de "5ème / 5"
+>
+> **Constat :** Le suffixe ordinal en français est incorrect — *"er"* est réservé au 1er uniquement
+>
+> **Correction :**
+> ```javascript
+> // ❌ Suffixe incorrect
+> const afficherRang = (rang) => `${rang}er`;
+> // → 1er, 2er, 3er, 4er, 5er ❌
+>
+> // ✅ Suffixe correct en français
+> const afficherRang = (rang) => {
+>   if (rang === 1) return "1er";
+>   return `${rang}ème`;
+> };
+> // → 1er, 2ème, 3ème, 4ème, 5ème ✅
+> ```
+>
+> ---
+>
+> ### Problème 4 — Crédits affichant "| ' )" au lieu d'une valeur
+>
+> **Constat :** La ligne UE affiche `Moy: 12.96/20 | Crédits: 8 | ')` — des caractères parasites apparaissent
+>
+> **Cause :** Un problème de **template literal mal fermé** dans le code de génération du bulletin
+>
+> **Correction :**
+> ```javascript
+> // ❌ Template literal mal formé
+> const ligneUE = `UE1 — DROIT DES ENTREPRISES
+>   (Moy: ${moyenne}/20 | Crédits: ${credits} | ')`;
+> //                                              ↑ Guillemet parasite non fermé
+>
+> // ✅ Template literal correct
+> const ligneUE = `UE1 — DROIT DES ENTREPRISES
+>   (Moy: ${moyenne}/20 | Crédits: ${credits})`;
+> ```
+>
+> ---
+>
+> ### Récapitulatif des corrections
+>
+> | # | Problème | Correction |
+> |---|---|---|
+> | 1 | *"Invalid Date"* sur date de naissance | Corriger le parsing de date `JJ/MM/AAAA` |
+> | 2 | URL QR Code visible en clair | Supprimer l'affichage de l'URL sous le QR Code |
+> | 3 | *"5er/5"* au lieu de *"5ème/5"* | Corriger la fonction de suffixe ordinal français |
+> | 4 | *"| ' )"* après les crédits | Corriger le template literal mal fermé |
+
+---
+
+Le problème le plus **urgent** est le **rang** — afficher *"5er"* sur un document officiel est une faute qui nuit à la crédibilité institutionnelle du bulletin. La correction du suffixe ordinal est une ligne de code à corriger immédiatement.

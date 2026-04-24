@@ -1,0 +1,67 @@
+modules = ["nodejs-24", "postgresql-16"]
+
+[[artifacts]]
+id = "artifacts/api-server"
+
+[[artifacts]]
+id = "artifacts/mockup-sandbox"
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=3001 pnpm --filter @workspace/api-server run dev"
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+
+[[ports]]
+localPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 8082
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BJNuG033eUOGvSPRBepp0mQX3Mc5dxJF7JP5lItp3sAZcbiXC5lLAhAQdU3Um5nkf6MsYl82NMqZYD8EZ6Wp-V4"
+VAPID_PRIVATE_KEY = "-I6Sf0Oka9rfjWRfRxCE9bLkWEWEgM74CGE6ozyx9Kk"
+VAPID_EMAIL = "mailto:admin@cpec-u.fr"
+DEV_MASTER_KEY = "@Youss054626"

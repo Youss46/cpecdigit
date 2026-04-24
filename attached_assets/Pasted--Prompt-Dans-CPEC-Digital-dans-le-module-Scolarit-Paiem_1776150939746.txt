@@ -1,0 +1,185 @@
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, dans le module **Scolarité / Paiements**, ajouter une interface complète permettant à l'administration de **définir et gérer les échéances de paiement** par classe ou par étudiant.
+>
+> ---
+>
+> ### 1. Problème identifié
+> - Le module Scolarité/Paiements existe mais **ne propose pas d'option** pour créer des échéances
+> - L'administration ne peut pas planifier les tranches de paiement
+> - Les rappels automatiques ne peuvent pas fonctionner sans échéancier défini
+>
+> ---
+>
+> ### 2. Structure de la page Scolarité / Paiements
+>
+> Ajouter **3 onglets** dans le module :
+>
+> ```
+> ┌─────────────────┬─────────────────┬─────────────────┐
+> │ 💰 Frais &      │ 📅 Échéanciers  │ 📊 Suivi des    │
+> │    Paiements    │                 │    Paiements    │
+> └─────────────────┴─────────────────┴─────────────────┘
+> ```
+>
+> ---
+>
+> ### 3. Onglet "Frais & Paiements" — Existant à compléter
+>
+> - Définir le **montant total des frais** par classe
+> - Enregistrer les paiements individuels
+> - Consulter les soldes
+>
+> ---
+>
+> ### 4. Onglet "Échéanciers" — À créer
+>
+> #### 4.1 Création d'un échéancier type par classe
+>
+> Bouton **"+ Créer un échéancier"** ouvrant un formulaire :
+>
+> ```
+> Créer un échéancier de paiement
+> ─────────────────────────────────────────────
+> Classe cible       : [Licence 3 Decogef ▼]
+>                      ☐ Appliquer à toutes les classes
+>
+> Montant total      : [400 000] FCFA
+>
+> Tranches :
+> ┌───┬──────────────────┬──────────────┬────────────┐
+> │ # │ Libellé          │ Montant FCFA │ Date limite│
+> ├───┼──────────────────┼──────────────┼────────────┤
+> │ 1 │ 1ère tranche     │ 150 000      │ 15/10/2025 │
+> │ 2 │ 2ème tranche     │ 150 000      │ 15/01/2026 │
+> │ 3 │ Solde            │ 100 000      │ 15/03/2026 │
+> └───┴──────────────────┴──────────────┴────────────┘
+> [+ Ajouter une tranche]
+>
+> Rappels automatiques :
+> ☑ J-7  ☑ J-3  ☑ Jour J  ☑ J+1  ☑ J+3  ☑ J+7
+>
+> [Annuler]          [Créer et appliquer →]
+> ```
+>
+> #### 4.2 Validation automatique
+>
+> ```javascript
+> // Vérifier que la somme des tranches = montant total
+> const validerEcheancier = (tranches, montantTotal) => {
+>   const sommeTranches = tranches
+>     .reduce((sum, t) => sum + t.montant, 0);
+>
+>   if (sommeTranches !== montantTotal) {
+>     return {
+>       valide: false,
+>       message: `La somme des tranches (${sommeTranches} FCFA)
+>                 ne correspond pas au montant total
+>                 (${montantTotal} FCFA)`
+>     };
+>   }
+>   return { valide: true };
+> };
+> ```
+>
+> ---
+>
+> ### 5. Implémentation technique — Tables à créer
+>
+> ```sql
+> -- Table échéanciers types par classe
+> CREATE TABLE echeanciers (
+>   id SERIAL PRIMARY KEY,
+>   classe_id INTEGER REFERENCES classes(id),
+>   annee_academique_id INTEGER,
+>   montant_total INTEGER NOT NULL,
+>   cree_le TIMESTAMP DEFAULT NOW()
+> );
+>
+> -- Table tranches de l'échéancier
+> CREATE TABLE echeancier_tranches (
+>   id SERIAL PRIMARY KEY,
+>   echeancier_id INTEGER REFERENCES echeanciers(id),
+>   libelle VARCHAR(100) NOT NULL,  -- "1ère tranche", "Solde"...
+>   montant INTEGER NOT NULL,
+>   date_echeance DATE NOT NULL,
+>   ordre INTEGER NOT NULL          -- 1, 2, 3...
+> );
+>
+> -- Table suivi paiements par étudiant et tranche
+> CREATE TABLE paiements_echeances (
+>   id SERIAL PRIMARY KEY,
+>   etudiant_id INTEGER REFERENCES students(id),
+>   tranche_id INTEGER REFERENCES echeancier_tranches(id),
+>   montant_paye INTEGER DEFAULT 0,
+>   date_paiement DATE,
+>   moyen_paiement VARCHAR(50),
+>   statut VARCHAR(20) DEFAULT 'en_attente',
+>   -- en_attente / partiel / paye / en_retard
+>   cree_le TIMESTAMP DEFAULT NOW()
+> );
+> ```
+>
+> ---
+>
+> ### 6. Routes API à créer
+>
+> ```javascript
+> // Créer un échéancier
+> POST /api/echeanciers
+>
+> // Récupérer les échéanciers d'une classe
+> GET /api/echeanciers?classe_id=X
+>
+> // Appliquer un échéancier à tous les étudiants d'une classe
+> POST /api/echeanciers/:id/appliquer
+>
+> // Récupérer les tranches d'un étudiant
+> GET /api/etudiants/:id/echeances
+>
+> // Enregistrer un paiement sur une tranche
+> POST /api/paiements-echeances
+> ```
+>
+> ---
+>
+> ### 7. Onglet "Suivi des Paiements"
+>
+> Vue tableau avec filtres :
+>
+> ```
+> Filtres : [Licence 3 Decogef ▼] [Tranche 1 ▼] [Tous statuts ▼]
+> ─────────────────────────────────────────────────────────────────
+> Étudiant        │ Tranche 1      │ Tranche 2     │ Solde  │ Total
+>                 │ 15/10/2025     │ 15/01/2026    │        │
+> ────────────────┼────────────────┼───────────────┼────────┼──────
+> Kevin Kouman    │ ✅ 150 000     │ ⏳ En attente │ ❌ 0   │ 37%
+> Emerson Kouassi │ ✅ 150 000     │ ✅ 150 000    │ ⏳ 0   │ 75%
+> Reine Blé       │ 🔴 En retard   │ ⏳ En attente │ ❌ 0   │ 0%
+> ─────────────────────────────────────────────────────────────────
+> Total perçu : 450 000 FCFA / 1 200 000 FCFA attendus — 37.5%
+> ```
+>
+> ---
+>
+> ### 8. Accès rapide depuis le tableau de bord
+>
+> Ajouter un bouton **"Configurer les échéances"** directement visible :
+>
+> ```jsx
+> {/* Si aucun échéancier n'est défini → CTA visible */}
+> {!echeancierDefini && (
+>   <div className="alert-config">
+>     ⚠️ Aucun échéancier de paiement configuré
+>     <button onClick={() => navigate('/admin/scolarite?onglet=echeanciers')}>
+>       Configurer maintenant →
+>     </button>
+>   </div>
+> )}
+> ```
+
+---
+
+Le point le plus important est la **validation que la somme des tranches = montant total** — sans ce contrôle, un échéancier mal configuré (ex: 3 tranches de 100 000 pour un total de 400 000) créerait des incohérences dans tout le suivi financier.

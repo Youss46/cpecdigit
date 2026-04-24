@@ -1,0 +1,128 @@
+> Dans **CPEC-Digital**, implémenter un module de **Tableau de Bord Comparatif Multi-Années** accessible à la Direction, permettant d'analyser les performances académiques sur plusieurs années et d'identifier les tendances récurrentes pour orienter les décisions pédagogiques.
+>
+> ---
+>
+> ### 1. Accès et positionnement
+> - Accessible depuis le module **Rapports & Statistiques** → onglet **"Comparatif Multi-Années"**
+> - Réservé aux profils **Directeur et Scolarité**
+> - Période analysable : toutes les **années académiques archivées** + année en cours
+>
+> ---
+>
+> ### 2. Comparaison des performances par promotion
+>
+> #### Vue globale
+> Graphique en barres groupées comparant **année par année** :
+>
+> | Indicateur | Détail |
+> |---|---|
+> | **Taux de réussite global** | % d'étudiants ayant validé l'année |
+> | **Moyenne générale promotion** | Moyenne de tous les étudiants |
+> | **Taux de passage en rattrapage** | % ayant dû passer en session 2 |
+> | **Taux d'admission au jury spécial** | % ayant nécessité une délibération |
+> | **Taux d'abandon** | % d'étudiants n'ayant pas terminé l'année |
+>
+> #### Vue par filière et niveau
+> - Filtrer par **filière** (ex : DECOGEF, Comptabilité, Gestion)
+> - Filtrer par **niveau** (L1, L2, L3, M1, M2)
+> - Comparer la **même promotion** sur 2 ou 3 années sélectionnables
+>
+> #### Exemple de visualisation
+> ```
+> Taux de réussite — CPEC-U L1
+> ─────────────────────────────
+> 2022-2023 ████████░░ 78%
+> 2023-2024 ██████░░░░ 61%
+> 2024-2025 █████████░ 84%
+> 2025-2026 ███████░░░ 71% (en cours)
+> ```
+>
+> ---
+>
+> ### 3. Identification des matières à taux d'échec récurrents
+>
+> #### Tableau des matières problématiques
+> - Liste automatique des matières ayant un taux d'échec **> seuil configurable** (ex: 40%) sur **au moins 2 années consécutives**
+>
+> | Matière | 2022-23 | 2023-24 | 2024-25 | Tendance |
+> |---|---|---|---|---|
+> | Droit fiscal | 52% échec | 48% échec | 55% échec | 🔴 Récurrent |
+> | Mathématiques | 38% échec | 41% échec | 36% échec | 🟡 Surveillance |
+> | Comptabilité | 22% échec | 18% échec | 15% échec | 🟢 Amélioration |
+>
+> #### Indicateurs par matière
+> - Taux d'échec **en session normale**
+> - Taux d'échec **après rattrapage**
+> - **Moyenne de la matière** par année
+> - **Enseignant(s)** ayant dispensé la matière chaque année
+> - Corrélation entre **changement d'enseignant** et évolution des résultats
+>
+> ---
+>
+> ### 4. Analyse des tendances
+>
+> #### Tendances positives
+> - Matières avec **amélioration continue** du taux de réussite
+> - Promotions avec **progression régulière** des moyennes
+> - Classes ayant **réduit leur taux d'abandon**
+>
+> #### Tendances négatives
+> - Matières avec **dégradation continue** des résultats
+> - Promotions dont la **moyenne baisse** depuis 2 ans ou plus
+> - Périodes de l'année avec **pics d'absences** récurrents
+>
+> #### Corrélations automatiques détectées
+> - Lien entre **taux d'absence élevé** et taux d'échec dans une matière
+> - Lien entre **changement d'enseignant** et variation des résultats
+> - Lien entre **effectif de la classe** et performances moyennes
+>
+> ---
+>
+> ### 5. Aide à la décision pédagogique
+>
+> Le système génère automatiquement des **recommandations** basées sur les données :
+>
+> | Situation détectée | Recommandation générée |
+> |---|---|
+> | Matière en échec récurrent > 3 ans | *"Révision du contenu ou changement d'enseignant recommandé"* |
+> | Taux d'absence > 25% en début de semestre | *"Renforcement du suivi en semaine 1 à 4 recommandé"* |
+> | Baisse de moyenne > 5 points vs année précédente | *"Audit pédagogique de la promotion recommandé"* |
+> | Taux de réussite en hausse > 3 années | *"Bonnes pratiques à documenter et partager"* |
+> | Effectif classe > capacité optimale | *"Division en sous-groupes recommandée"* |
+>
+> ---
+>
+> ### 6. Comparatif enseignants
+>
+> - Pour chaque enseignant, comparer ses **résultats d'une année à l'autre** :
+>   - Taux de réussite dans ses matières
+>   - Moyenne des notes attribuées
+>   - Taux d'absence dans ses cours
+>   - Résultats de ses évaluations par les étudiants
+> - Identifier les enseignants avec **résultats constants vs variables**
+> - Vue accessible uniquement au **Directeur** (données sensibles)
+>
+> ---
+>
+> ### 7. Rapport de synthèse annuel
+>
+> À la fin de chaque année académique, génération automatique d'un **rapport de synthèse** comprenant :
+> - Bilan comparatif complet vs années précédentes
+> - Top 5 matières avec meilleurs résultats
+> - Top 5 matières nécessitant une attention particulière
+> - Évolution des effectifs par filière
+> - Recommandations pédagogiques pour l'année suivante
+> - Exportable en **PDF officiel** et **Excel** pour le conseil pédagogique
+>
+> ---
+>
+> ### 8. Implémentation technique
+> - Données historiques issues des **années archivées** en base
+> - Graphiques générés avec **Recharts** ou **Chart.js**
+> - Calcul des tendances via **algorithme de régression linéaire simple**
+> - Seuils de détection des matières problématiques **configurables** par l'administration
+> - Rapport annuel généré automatiquement à la **clôture de chaque année académique**
+
+---
+
+La fonctionnalité la plus stratégique est la **corrélation automatique entre changement d'enseignant et variation des résultats** — c'est une donnée que peu de directions scolaires arrivent à analyser manuellement, et qui aide à prendre des décisions pédagogiques objectives et basées sur les données.

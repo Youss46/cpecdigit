@@ -1,0 +1,286 @@
+**Prompt :**
+
+---
+
+> Dans **CPEC-Digital**, implémenter un **mode hors ligne complet** permettant à l'application de fonctionner sans connexion internet et de synchroniser automatiquement les données dès le retour de la connectivité.
+>
+> ---
+>
+> ### 1. Principe général
+>
+> ```
+> Connexion disponible :
+> App ←→ Serveur (fonctionnement normal)
+>
+> Connexion perdue :
+> App ←→ Base locale (IndexedDB)
+>         ↓
+> Données sauvegardées localement
+>
+> Connexion rétablie :
+> Base locale → Synchronisation → Serveur
+>         ↓
+> Conflits détectés et résolus automatiquement
+> ```
+>
+> ---
+>
+> ### 2. Fonctionnalités disponibles hors ligne par profil
+>
+> #### Enseignant
+>
+> | Fonctionnalité | Hors ligne | Sync au retour |
+> |---|---|---|
+> | Saisie des présences | ✅ Oui | ✅ Automatique |
+> | Saisie des notes | ✅ Oui | ✅ Automatique |
+> | Consultation emploi du temps | ✅ Oui (cache) | — |
+> | Cahier de texte | ✅ Oui | ✅ Automatique |
+> | Messagerie | ❌ Non | — |
+>
+> #### Étudiant
+>
+> | Fonctionnalité | Hors ligne | Sync au retour |
+> |---|---|---|
+> | Consultation des notes | ✅ Oui (cache) | — |
+> | Emploi du temps | ✅ Oui (cache) | — |
+> | Carte étudiante | ✅ Oui (cache) | — |
+> | Soumission réclamation | ❌ Non | — |
+>
+> #### Administration
+>
+> | Fonctionnalité | Hors ligne | Sync au retour |
+> |---|---|---|
+> | Consultation listes | ✅ Oui (cache) | — |
+> | Modification données | ❌ Non | — |
+> | Tableaux de bord | ✅ Oui (cache) | — |
+>
+> ---
+>
+> ### 3. Architecture technique
+>
+> #### Service Worker — Mise en cache
+> ```javascript
+> // sw.js — Service Worker
+> const CACHE_NAME = 'cpec-digital-v1';
+>
+> // Ressources à mettre en cache au démarrage
+> const STATIC_CACHE = [
+>   '/',
+>   '/index.html',
+>   '/manifest.json',
+>   '/icons/icon-192x192.png',
+>   // CSS, JS bundles...
+> ];
+>
+> // Installation — mise en cache des ressources statiques
+> self.addEventListener('install', (event) => {
+>   event.waitUntil(
+>     caches.open(CACHE_NAME)
+>       .then(cache => cache.addAll(STATIC_CACHE))
+>   );
+> });
+>
+> // Interception des requêtes réseau
+> self.addEventListener('fetch', (event) => {
+>   event.respondWith(
+>     fetch(event.request)
+>       .then(response => {
+>         // Mettre en cache la réponse fraîche
+>         const clone = response.clone();
+>         caches.open(CACHE_NAME)
+>           .then(cache => cache.put(event.request, clone));
+>         return response;
+>       })
+>       .catch(() => {
+>         // Pas de réseau → servir depuis le cache
+>         return caches.match(event.request);
+>       })
+>   );
+> });
+> ```
+>
+> #### IndexedDB — Stockage local des données
+> ```javascript
+> // Base de données locale pour les données métier
+> const initIndexedDB = () => {
+>   const db = indexedDB.open('cpec-offline', 1);
+>
+>   db.onupgradeneeded = (event) => {
+>     const db = event.target.result;
+>
+>     // Tables locales
+>     db.createObjectStore('presences_offline', { keyPath: 'id' });
+>     db.createObjectStore('notes_offline', { keyPath: 'id' });
+>     db.createObjectStore('cahier_texte_offline', { keyPath: 'id' });
+>     db.createObjectStore('sync_queue', { keyPath: 'id', autoIncrement: true });
+>   };
+> };
+> ```
+>
+> #### File d'attente de synchronisation
+> ```javascript
+> // Toute action hors ligne est ajoutée à la sync queue
+> const ajouterASyncQueue = async (action) => {
+>   const db = await openIndexedDB();
+>   await db.put('sync_queue', {
+>     type: action.type,       // 'PRESENCE', 'NOTE', 'CAHIER'
+>     data: action.data,       // Données à synchroniser
+>     timestamp: new Date(),   // Horodatage local
+>     statut: 'EN_ATTENTE',
+>     tentatives: 0
+>   });
+> };
+>
+> // Exemple — Saisie de présence hors ligne
+> const saisirPresenceOffline = async (presenceData) => {
+>   // Sauvegarder localement
+>   await sauvegarderLocalement('presences_offline', presenceData);
+>
+>   // Ajouter à la file de synchronisation
+>   await ajouterASyncQueue({
+>     type: 'PRESENCE',
+>     data: presenceData
+>   });
+>
+>   // Informer l'utilisateur
+>   toast.warning("Hors ligne — Présence sauvegardée localement. Sera synchronisée dès le retour de connexion.");
+> };
+> ```
+>
+> ---
+>
+> ### 4. Synchronisation automatique au retour de connexion
+>
+> ```javascript
+> // Détecter le retour de connexion
+> window.addEventListener('online', async () => {
+>   console.log('Connexion rétablie — Synchronisation en cours...');
+>   await synchroniserDonnees();
+> });
+>
+> const synchroniserDonnees = async () => {
+>   const queue = await recupererSyncQueue();
+>
+>   for (const item of queue) {
+>     try {
+>       // Envoyer au serveur selon le type
+>       switch (item.type) {
+>         case 'PRESENCE':
+>           await api.post('/feuilles-presence', item.data);
+>           break;
+>         case 'NOTE':
+>           await api.post('/notes', item.data);
+>           break;
+>         case 'CAHIER':
+>           await api.post('/cahier-texte', item.data);
+>           break;
+>       }
+>
+>       // Marquer comme synchronisé
+>       await marquerCommeSynchronise(item.id);
+>
+>     } catch (error) {
+>       // Incrémenter le compteur de tentatives
+>       await incrementerTentatives(item.id);
+>
+>       // Après 3 tentatives → alerter l'admin
+>       if (item.tentatives >= 3) {
+>         await alerterEchec(item);
+>       }
+>     }
+>   }
+>
+>   // Notifier l'utilisateur
+>   toast.success(`Synchronisation terminée — ${queue.length} élément(s) envoyé(s)`);
+> };
+> ```
+>
+> ---
+>
+> ### 5. Gestion des conflits
+>
+> ```javascript
+> const gererConflit = (donneesLocales, donneesServeur) => {
+>
+>   // Règle 1 — Le serveur a priorité sur les données de consultation
+>   // Règle 2 — Les données locales ont priorité sur les saisies
+>   // Règle 3 — En cas de conflit réel → alerter l'admin
+>
+>   if (donneesLocales.timestamp > donneesServeur.updated_at) {
+>     // Données locales plus récentes → conserver local
+>     return { resolution: 'LOCAL', donnees: donneesLocales };
+>   }
+>
+>   if (donneesServeur.updated_at > donneesLocales.timestamp) {
+>     // Serveur plus récent → écraser local
+>     return { resolution: 'SERVEUR', donnees: donneesServeur };
+>   }
+>
+>   // Conflit réel → escalade vers admin
+>   return { resolution: 'CONFLIT', donnees: null };
+> };
+> ```
+>
+> ---
+>
+> ### 6. Indicateur visuel dans l'interface
+>
+> ```jsx
+> // Bandeau affiché en haut de l'app selon l'état de connexion
+>
+> {!isOnline && (
+>   <div className="offline-banner">
+>     🔴 Mode hors ligne — Les données sont sauvegardées localement
+>   </div>
+> )}
+>
+> {isOnline && syncEnCours && (
+>   <div className="sync-banner">
+>     🔄 Synchronisation en cours... {nbElementsRestants} élément(s)
+>   </div>
+> )}
+>
+> {isOnline && syncTerminee && (
+>   <div className="sync-success-banner">
+>     ✅ Synchronisation terminée
+>   </div>
+> )}
+> ```
+>
+> ---
+>
+> ### 7. Données pré-chargées au démarrage
+>
+> Au lancement de l'app avec connexion, pré-charger automatiquement :
+>
+> | Données | Profil | Durée cache |
+> |---|---|---|
+> | Emploi du temps du semestre | Enseignant + Étudiant | 7 jours |
+> | Liste des étudiants de ses classes | Enseignant | 1 jour |
+> | Notes et résultats publiés | Étudiant | 7 jours |
+> | Carte étudiante | Étudiant | 30 jours |
+> | Matières et classes | Enseignant | 7 jours |
+>
+> ---
+>
+> ### 8. Limitations clairement communiquées
+>
+> Quand l'utilisateur est hors ligne, afficher clairement ce qui est disponible :
+>
+> ```
+> 🔴 Vous êtes hors ligne
+> ─────────────────────────────────
+> ✅ Disponible    : Saisie présences
+>                   Saisie notes
+>                   Emploi du temps
+>                   Résultats (cache)
+>
+> ❌ Non disponible : Messagerie
+>                    Notifications
+>                    Téléchargement PDF
+>                    Réclamations
+> ```
+
+---
+
+La fonctionnalité la plus critique à implémenter en priorité est la **saisie des présences hors ligne** — c'est le cas d'usage le plus fréquent en Côte d'Ivoire où un enseignant peut se retrouver sans connexion en salle de cours. La file d'attente de synchronisation (`sync_queue`) garantit qu'aucune donnée n'est perdue même en cas de coupure prolongée.

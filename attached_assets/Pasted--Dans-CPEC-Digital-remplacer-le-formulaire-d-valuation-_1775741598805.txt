@@ -1,0 +1,148 @@
+> Dans **CPEC-Digital**, remplacer le formulaire d'évaluation des enseignants actuel par une fiche structurée en **4 sections**, notée de **1 à 10**, conforme à la fiche officielle d'évaluation de formation.
+>
+> ---
+>
+> ### 1. Structure du formulaire
+>
+> Le formulaire est divisé en **4 sections** avec des critères notés de 1 à 10 :
+>
+> ```
+> 1 = Mauvais
+> 2-3 = Insuffisant
+> 4-5 = Moyen
+> 6-7 = Bien
+> 8-9-10 = Excellent
+> ```
+>
+> ---
+>
+> ### Section A — Contenu de la Formation
+>
+> | # | Critère |
+> |---|---|
+> | 1 | Contenu du cours (texte, illustration) |
+> | 2 | Prise en compte des objectifs fixés |
+> | 3 | Qualité de la progression de la formation |
+> | 4 | Clarté des concepts abordés |
+> | 5 | Alternance théorie / pratique |
+>
+> ---
+>
+> ### Section B — Formateur
+>
+> | # | Critère |
+> |---|---|
+> | 6 | Maîtrise du contenu |
+> | 7 | Approche pédagogique |
+> | 8 | Organisation du cours |
+> | 9 | Qualité des échanges avec les apprenants |
+> | 10 | Comportement vis-à-vis des apprenants |
+> | 11 | Prise en compte des difficultés individuelles |
+> | 12 | Voix (articulation, qualité et portée) |
+> | 13 | Présentation physique (tenue vestimentaire, propreté) |
+> | 14 | Gestion du temps (rythme, durée) |
+>
+> ---
+>
+> ### Section C — Apprenants
+>
+> | # | Critère |
+> |---|---|
+> | 15 | Satisfaction par rapport aux attentes |
+> | 16 | Satisfaction par rapport aux réponses aux questions |
+> | 17 | Utilité (richesse) de la documentation remise |
+> | 18 | Possibilité d'appliquer les thèmes abordés |
+> | 19 | Qualité des travaux dirigés |
+> | 20 | Qualité des évaluations (interrogations écrites, devoirs) |
+>
+> ---
+>
+> ### Section D — Appréciations Générales (Champs texte libres)
+>
+> | # | Question |
+> |---|---|
+> | 1 | Parmi les thèmes abordés, quels sont ceux que vous avez le **plus** appréciés ? |
+> | 2 | Parmi les thèmes abordés, quels sont ceux que vous avez le **moins** appréciés ? |
+> | 3 | Quels éléments manquaient, étaient inutiles ou à modifier ? |
+> | 4 | Quelles sont vos propositions d'amélioration ? |
+>
+> ---
+>
+> ### Question finale
+> **Globalement, cette formation vous a paru :**
+> - ⭐ Très utile
+> - 👍 Utile
+> - 👎 Peu utile
+> - ❌ Inutile
+>
+> ---
+>
+> ### 2. Interface de saisie
+>
+> **Affichage de la notation :**
+> - Pour chaque critère, afficher **10 cases cliquables** numérotées de 1 à 10
+> - Les cases sont colorées selon la note sélectionnée :
+>
+> | Note | Couleur |
+> |---|---|
+> | 1-2 | 🔴 Rouge |
+> | 3-4 | 🟠 Orange |
+> | 5-6 | 🟡 Jaune |
+> | 7-8 | 🔵 Bleu |
+> | 9-10 | 🟢 Vert |
+>
+> - Indicateur de progression : *"Section 1/4 complétée"*
+> - Navigation entre sections avec boutons **"Précédent / Suivant"**
+> - Impossible de passer à la section suivante si un critère est **non noté**
+>
+> ---
+>
+> ### 3. Calculs automatiques
+>
+> | Calcul | Détail |
+> |---|---|
+> | **Moyenne Section A** | Moyenne des 5 critères Contenu |
+> | **Moyenne Section B** | Moyenne des 9 critères Formateur |
+> | **Moyenne Section C** | Moyenne des 6 critères Apprenants |
+> | **Note globale /10** | Moyenne pondérée des 3 sections |
+> | **Mention automatique** | Mauvais / Insuffisant / Moyen / Bien / Excellent |
+>
+> **Pondération recommandée :**
+> ```
+> Section A (Contenu)    → 30%
+> Section B (Formateur)  → 50%
+> Section C (Apprenants) → 20%
+> ```
+>
+> ---
+>
+> ### 4. Résultats côté enseignant
+>
+> L'enseignant consulte ses résultats après clôture avec :
+> - **Note moyenne par section** et note globale
+> - **Graphique radar** des 4 sections pour visualisation rapide
+> - **Commentaires anonymes** des sections D regroupés
+> - **Résultat global** : Très utile / Utile / Peu utile / Inutile
+> - Évolution vs semestre précédent
+>
+> ---
+>
+> ### 5. Résultats côté administration
+>
+> - Résultats complets par enseignant et par matière
+> - Classement des enseignants par note globale
+> - **Alertes** si note globale < 5/10
+> - Export en **PDF** (fiche officielle complète) et **Excel**
+> - Rapport comparatif entre semestres
+>
+> ---
+>
+> ### 6. Règles de sécurité et anonymat
+> - Formulaire **strictement anonyme** — aucun lien possible avec l'étudiant
+> - Résultats visibles seulement à partir de **5 évaluations minimum**
+> - Une seule soumission par étudiant par enseignant par semestre
+> - Résultats accessibles uniquement **après clôture** de la période d'évaluation
+
+---
+
+La section **D (appréciations libres)** est la plus précieuse pédagogiquement — les commentaires qualitatifs donnent des informations que les notes seules ne peuvent pas capturer, notamment sur les points précis à améliorer dans le contenu ou la méthode.

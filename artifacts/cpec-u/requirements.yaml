@@ -1,0 +1,23 @@
+packages:
+  "framer-motion": "For page transitions and premium micro-interactions"
+  "date-fns": "For elegant date formatting in the academic calendar"
+  "react-hook-form": "For robust, type-safe form state management"
+  "@hookform/resolvers": "To integrate Zod validation with forms"
+  "zod": "For runtime type validation of complex form inputs"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge Tailwind CSS classes without style conflicts"
+  "lucide-react": "Beautiful, consistent iconography"
+
+images:
+  - path: "artifacts/cpec-u/public/images/login-bg.png"
+    description: "A blurred, abstract background featuring elegant academic motifs, deep royal blue and gold gradients, architectural columns subtly visible, high-end institutional feel"
+    aspect_ratio: "16:9"
+  - path: "artifacts/cpec-u/public/images/logo.png"
+    description: "A minimal, modern university crest logo in solid royal blue on a transparent background, featuring an open book and a laurel wreath, very clean and professional"
+    aspect_ratio: "1:1"
+
+notes:
+  - Using generated hooks from @workspace/api-client-react
+  - Implementing strictly role-based routing (Admin, Teacher, Student)
+  - Offline sync for teacher grades utilizes localStorage as a robust fallback
+  - Service worker stub included for basic PWA requirements
