@@ -54,6 +54,13 @@ export interface BulletinSchool {
   name: string;
 }
 
+export interface BulletinTenantInfo {
+  name: string;
+  contactEmail?: string | null;
+  domain?: string | null;
+  country?: string | null;
+}
+
 export interface BulletinData {
   studentName: string;
   studentMatricule: string;
@@ -81,10 +88,12 @@ export interface BulletinData {
   editionDate: string;
   schools?: BulletinSchool[];
   qrCodeDataUrl?: string;
+  tenantInfo?: BulletinTenantInfo;
 }
 
 export function generateBulletinHTML(data: BulletinData): string {
   const logo = getLogoBase64();
+  const tenant = data.tenantInfo;
 
   // Rank only shown when semester average is fully calculable
   const rankStr = (data.rank !== null && data.totalStudents !== null && data.averageNette !== null)
@@ -123,11 +132,10 @@ export function generateBulletinHTML(data: BulletinData): string {
         <div class="jury-stamp-sublabel">P.O LE RESPONSABLE D'ETUDE</div>
         <div class="jury-stamp">
           <div class="stamp-circle">
-            <span>ESCAE</span>
-            <span>CPEC-UEMOA</span>
+            <span>${tenant?.name ?? "CPEC-U"}</span>
           </div>
         </div>
-        <div class="jury-name">Dr. KPOLIE DEFFO CASIMIR</div>
+        <div class="jury-name">Le Directeur du Centre</div>
       </div>
     </div>`;
   }
@@ -720,12 +728,7 @@ export function generateBulletinHTML(data: BulletinData): string {
     <!-- ═══ INFO BLOCK (école + étudiant) ═══ -->
     <div class="info-block">
       <div class="info-school">
-        École Supérieure de Commerce<br>
-        et d'Administration des Entreprises<br>
-        <strong>ESCAE</strong><br>
-        Centre Préparatoire à l'Expertise Comptable-UEMOA<br>
-        <strong>CPEC-U</strong><br>
-        <span class="school-ref">Réf : 023/2024/INP-HB/ESCAE/CPEC-U/RE/CC</span>
+        <strong>${tenant?.name ?? "CPEC-U"}</strong>
       </div>
       <div class="student-card">
         <div class="student-card-header">Étudiant(e)</div>
@@ -806,28 +809,9 @@ export function generateBulletinHTML(data: BulletinData): string {
         </div>`).join("")}
     </div>
     <div class="footer-contacts">
-      <div class="footer-contacts-group">
-        <span>&#127968; 1093 Yamoussoukro (RCI)</span>
-        <span>&#127968; V 79 Abidjan (RCI)</span>
-        <span>&#9654; @inp-hbpageoffficielle6975</span>
-      </div>
-      <div class="footer-contacts-group">
-        <span>&#127760; www.inphb.ci</span>
-        <span>&#9993; polytec@inphb.ci</span>
-      </div>
-      <div class="footer-contacts-group">
-        <span>&#9410; @inphb.polytech</span>
-        <span>&#10005; @inphbpolytech</span>
-      </div>
-      <div class="footer-contacts-group">
-        <span>in Linkedin.com</span>
-        <span>&#9432; inphb2021</span>
-      </div>
-      <div class="footer-contacts-group" style="text-align:right;">
-        <span>&#128222; (225) 27 30 64 66 66</span>
-        <span>&#128222; (225) 05 01 80 00 24</span>
-        <span>&#128222; (225) 05 01 80 00 19</span>
-      </div>
+      ${tenant?.country ? `<div class="footer-contacts-group"><span>&#127968; ${tenant.country}</span></div>` : ""}
+      ${tenant?.domain ? `<div class="footer-contacts-group"><span>&#127760; ${tenant.domain}</span></div>` : ""}
+      ${tenant?.contactEmail ? `<div class="footer-contacts-group"><span>&#9993; ${tenant.contactEmail}</span></div>` : ""}
     </div>
 
   </div><!-- /content -->

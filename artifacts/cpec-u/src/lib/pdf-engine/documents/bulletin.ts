@@ -42,6 +42,7 @@ interface BulletinJson {
   ueResults: UEResult[];
   unassignedSubjects: Array<{ subjectName: string; coefficient: number; value: number | null }>;
   verifyUrl: string;
+  tenantInfo?: { name: string; contactEmail?: string | null; domain?: string | null; country?: string | null };
 }
 
 function pickFontSize(totalSubjects: number): number {
@@ -181,7 +182,7 @@ export async function downloadBulletinPdf(studentId: number, semesterId: number)
   pdf.addVSpace(3);
   pdf.addSignatureBlock(
     [
-      { title: "Le Directeur", name: "CPEC-U" },
+      { title: "Le Directeur", name: data.tenantInfo?.name ?? "CPEC-U" },
       { title: "Cachet de l'établissement", name: "" },
       { title: "L'étudiant(e)", name: data.studentName },
     ],
