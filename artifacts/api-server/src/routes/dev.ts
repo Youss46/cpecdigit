@@ -1,7 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { db } from "@workspace/db";
-import { activationKeysTable, usersTable } from "@workspace/db";
+import { activationKeysTable, usersTable, tenantsTable } from "@workspace/db";
 import { eq, desc, and, isNull } from "drizzle-orm";
 
 const router = Router();
@@ -258,6 +258,133 @@ router.get("/directeurs", requireDev, async (_req, res) => {
       .where(eq(usersTable.adminSubRole, "directeur"))
       .orderBy(desc(usersTable.createdAt));
     res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── School (Tenant) Management ─────────────────────────────────────────────
+
+// GET /api/dev/schools — all schools with their admin user + license info
+router.get("/schools", requireDev, async (_req, res) => {
+  try {
+    const schools = await db.select().from(tenantsTable).orderBy(desc(tenantsTable.createdAt));
+    const result = await Promise.all(schools.map(async (school) => {
+      const [admin] = await db.select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        firstLoginAt: usersTable.firstLoginAt,
+      }).from(usersTable)
+        .where(and(eq(usersTable.tenantId, school.id), eq(usersTable.adminSubRole, "directeur")))
+        .limit(1);
+
+      let license = null;
+      if (admin) {
+        const [key] = await db.select().from(activationKeysTable)
+          .where(eq(activationKeysTable.assignedToUserId, String(admin.id)))
+          .limit(1);
+        license = key ?? null;
+      }
+
+      return { ...school, admin: admin ?? null, license };
+    }));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /api/dev/schools — create school + admin + assign license in one step
+router.post("/schools", requireDev, async (req, res) => {
+  try {
+    const { schoolName, adminName, adminEmail, adminPassword, licenseKeyId, licenseDuration } = req.body;
+
+    if (!schoolName?.trim() || !adminName?.trim() || !adminEmail?.trim() || !adminPassword) {
+      return res.status(400).json({ error: "schoolName, adminName, adminEmail et adminPassword sont requis" });
+    }
+    if (adminPassword.length < 6) {
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères" });
+    }
+
+    // Check email not already used
+    const emailExists = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(eq(usersTable.email, adminEmail.trim().toLowerCase())).limit(1);
+    if (emailExists[0]) {
+      return res.status(409).json({ error: "Un utilisateur avec cet email existe déjà" });
+    }
+
+    // 1. Create the tenant (school)
+    const subdomain = schoolName.trim().toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+    const [tenant] = await db.insert(tenantsTable).values({
+      name: schoolName.trim(),
+      subdomain: `${subdomain}-${Date.now()}`,
+      active: true,
+    }).returning();
+
+    // 2. Create the super admin for this school
+    const hash = crypto.createHash("sha256").update(adminPassword + "cpec-u-salt").digest("hex");
+    const [user] = await db.insert(usersTable).values({
+      email: adminEmail.trim().toLowerCase(),
+      name: adminName.trim(),
+      passwordHash: hash,
+      role: "admin",
+      adminSubRole: "directeur",
+      mustChangePassword: false,
+      requiresActivationKey: false,
+      tenantId: tenant.id,
+    }).returning();
+
+    // 3. Assign license
+    let license = null;
+    if (licenseKeyId) {
+      const [key] = await db.update(activationKeysTable)
+        .set({ assignedToUserId: String(user.id), assignedAt: new Date(), status: "assigned" })
+        .where(and(eq(activationKeysTable.id, Number(licenseKeyId)), eq(activationKeysTable.status, "available")))
+        .returning();
+      license = key ?? null;
+    } else if (licenseDuration) {
+      const validDurations = ["lifetime", "1year", "2years", "5years", "10years"];
+      if (validDurations.includes(licenseDuration)) {
+        const key = generateKey();
+        const expiresAt = computeExpiry(licenseDuration);
+        const [newKey] = await db.insert(activationKeysTable).values({
+          key,
+          duration: licenseDuration as any,
+          expiresAt,
+          notes: `Licence automatique — ${schoolName.trim()}`,
+          assignedToUserId: String(user.id),
+          assignedAt: new Date(),
+          status: "assigned",
+          tenantId: tenant.id,
+        }).returning();
+        license = newKey;
+      }
+    }
+
+    res.status(201).json({ school: tenant, admin: user, license });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// PATCH /api/dev/schools/:id/toggle — activate or deactivate a school
+router.patch("/schools/:id/toggle", requireDev, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [school] = await db.select({ active: tenantsTable.active }).from(tenantsTable).where(eq(tenantsTable.id, id));
+    if (!school) return res.status(404).json({ error: "École introuvable" });
+    const [updated] = await db.update(tenantsTable)
+      .set({ active: !school.active })
+      .where(eq(tenantsTable.id, id))
+      .returning();
+    res.json(updated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
