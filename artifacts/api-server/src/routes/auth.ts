@@ -19,13 +19,9 @@ router.post("/login", async (req, res) => {
       return;
     }
 
-    const tenantId = req.tenantId!;
-
+    // Find user by email globally — tenant is determined from the user's own account
     const users = await db.select().from(usersTable)
-      .where(and(
-        eq(usersTable.email, email),
-        eq(usersTable.tenantId, tenantId)
-      ))
+      .where(eq(usersTable.email, email))
       .limit(1);
 
     const user = users[0];
@@ -39,6 +35,8 @@ router.post("/login", async (req, res) => {
       res.status(401).json({ error: "Unauthorized", message: "Invalid credentials" });
       return;
     }
+
+    const tenantId = user.tenantId!;
 
     const isFirstLogin = user.role === "admin" && user.adminSubRole === "directeur" && !user.firstLoginAt;
     if (isFirstLogin) {
