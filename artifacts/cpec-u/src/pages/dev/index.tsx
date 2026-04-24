@@ -25,6 +25,12 @@ function devFetch(url: string, opts: RequestInit = {}): Promise<Response> {
     },
   });
 }
+async function computeToken(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`dev-token:${password}:m15edutech`);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
 interface ActivationKey {
   id: number;
@@ -177,25 +183,23 @@ export default function DevDashboard() {
     e.preventDefault();
     setLoginError("");
     try {
-      const r = await fetch(`${API}/auth`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: loginPassword }),
-      });
+      const token = await computeToken(loginPassword);
+      localStorage.setItem(DEV_TOKEN_KEY, token);
+      const r = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } });
       const d = await r.json();
-      if (r.ok) {
-        localStorage.setItem(DEV_TOKEN_KEY, d.token);
+      if (d.authenticated) {
         setAuthenticated(true);
       } else {
-        setLoginError(d.error ?? "Erreur d'authentification");
+        localStorage.removeItem(DEV_TOKEN_KEY);
+        setLoginError("Mot de passe développeur incorrect");
       }
     } catch {
+      localStorage.removeItem(DEV_TOKEN_KEY);
       setLoginError("Erreur réseau");
     }
   };
 
-  const handleLogout = async () => {
-    await devFetch(`${API}/logout`, { method: "POST" });
+  const handleLogout = () => {
     localStorage.removeItem(DEV_TOKEN_KEY);
     setAuthenticated(false);
     setKeys([]);
