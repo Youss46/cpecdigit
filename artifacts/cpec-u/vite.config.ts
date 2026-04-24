@@ -57,6 +57,10 @@ export default defineConfig({
     strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
+    hmr: {
+      clientPort: 443,
+      protocol: "wss",
+    },
     proxy: {
       "/api": {
         target: `http://localhost:${process.env.API_PORT ?? "3001"}`,

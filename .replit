@@ -35,7 +35,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=8080 pnpm --filter @workspace/api-server run dev & PORT=5000 BASE_PATH=/ API_PORT=8080 pnpm --filter @workspace/cpec-u run dev"
+args = "PORT=8080 pnpm --filter @workspace/api-server run dev & PORT=5000 BASE_PATH=/ API_PORT=8080 pnpm --filter @workspace/cpec-u run dev & node -e \"const http=require('http');http.createServer((req,res)=>{const opt={hostname:'127.0.0.1',port:5000,path:req.url,method:req.method,headers:req.headers};const pr=http.request(opt,r=>{res.writeHead(r.statusCode,r.headers);r.pipe(res)});pr.on('error',()=>{res.writeHead(502);res.end()});req.pipe(pr)}).listen(8081)\""
 waitForPort = 5000
 
 [agent]
@@ -51,13 +51,6 @@ channel = "stable-25_05"
 
 [[ports]]
 localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 8080
-
-[[ports]]
-localPort = 8081
 externalPort = 80
 
 [[ports]]
