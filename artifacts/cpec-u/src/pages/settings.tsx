@@ -118,10 +118,10 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl select-none">
-                  {u?.fullName?.[0]?.toUpperCase() ?? u?.email?.[0]?.toUpperCase() ?? "?"}
+                  {u?.name?.[0]?.toUpperCase() ?? u?.email?.[0]?.toUpperCase() ?? "?"}
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">{u?.fullName ?? "—"}</p>
+                  <p className="font-semibold text-foreground">{u?.name ?? "—"}</p>
                   <p className="text-sm text-muted-foreground">{u?.email ?? "—"}</p>
                   <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary mt-1">
                     {roleLabel}
@@ -132,7 +132,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wide mb-0.5">Nom complet</p>
-                  <p className="font-medium">{u?.fullName ?? "—"}</p>
+                  <p className="font-medium">{u?.name ?? "—"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wide mb-0.5">Adresse e-mail</p>
