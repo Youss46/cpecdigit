@@ -8,8 +8,17 @@ const router = Router();
 
 const DEV_PASSWORD = process.env.DEV_MASTER_KEY ?? "dev-change-me";
 
+// Derive a stable token from the password — no session needed
+function makeToken(password: string): string {
+  return crypto.createHash("sha256").update(`dev-token:${password}:m15edutech`).digest("hex");
+}
+
+const VALID_TOKEN = makeToken(DEV_PASSWORD);
+
 function requireDev(req: any, res: any, next: any) {
-  if (!req.session?.devAuthenticated) {
+  const header = req.headers["authorization"] ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token || token !== VALID_TOKEN) {
     return res.status(401).json({ error: "Unauthorized", message: "Espace développeur — accès refusé" });
   }
   next();
@@ -37,17 +46,18 @@ router.post("/auth", (req, res) => {
   if (!password || password !== DEV_PASSWORD) {
     return res.status(401).json({ error: "Mot de passe développeur incorrect" });
   }
-  req.session!.devAuthenticated = true;
-  res.json({ message: "Authentifié en tant que développeur" });
+  const token = makeToken(password);
+  res.json({ token, message: "Authentifié en tant que développeur" });
 });
 
-router.post("/logout", (req, res) => {
-  req.session!.devAuthenticated = false;
+router.post("/logout", (_req, res) => {
   res.json({ message: "Déconnecté" });
 });
 
 router.get("/me", (req, res) => {
-  if (!req.session?.devAuthenticated) {
+  const header = req.headers["authorization"] ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token || token !== VALID_TOKEN) {
     return res.status(401).json({ authenticated: false });
   }
   res.json({ authenticated: true });

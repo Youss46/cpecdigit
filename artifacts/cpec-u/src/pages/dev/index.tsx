@@ -13,6 +13,18 @@ import {
 import { cn } from "@/lib/utils";
 
 const API = "/api/dev";
+const DEV_TOKEN_KEY = "m15-dev-token";
+function getDevToken(): string | null { return localStorage.getItem(DEV_TOKEN_KEY); }
+function devFetch(url: string, opts: RequestInit = {}): Promise<Response> {
+  const token = getDevToken();
+  return fetch(url, {
+    ...opts,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(opts.headers as Record<string, string> ?? {}),
+    },
+  });
+}
 
 interface ActivationKey {
   id: number;
@@ -139,7 +151,9 @@ export default function DevDashboard() {
   const [saResult, setSaResult] = useState<{ school: any; admin: any; license: any } | null>(null);
 
   useEffect(() => {
-    fetch(`${API}/me`, { credentials: "include" })
+    const token = getDevToken();
+    if (!token) { setAuthenticated(false); return; }
+    devFetch(`${API}/me`)
       .then(r => r.json())
       .then(d => setAuthenticated(!!d.authenticated))
       .catch(() => setAuthenticated(false));
@@ -152,7 +166,7 @@ export default function DevDashboard() {
   const fetchKeys = async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API}/keys`, { credentials: "include" });
+      const r = await devFetch(`${API}/keys`);
       if (r.ok) setKeys(await r.json());
     } finally {
       setLoading(false);
@@ -165,12 +179,12 @@ export default function DevDashboard() {
     try {
       const r = await fetch(`${API}/auth`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: loginPassword }),
       });
       const d = await r.json();
       if (r.ok) {
+        localStorage.setItem(DEV_TOKEN_KEY, d.token);
         setAuthenticated(true);
       } else {
         setLoginError(d.error ?? "Erreur d'authentification");
@@ -181,7 +195,8 @@ export default function DevDashboard() {
   };
 
   const handleLogout = async () => {
-    await fetch(`${API}/logout`, { method: "POST", credentials: "include" });
+    await devFetch(`${API}/logout`, { method: "POST" });
+    localStorage.removeItem(DEV_TOKEN_KEY);
     setAuthenticated(false);
     setKeys([]);
   };
@@ -189,9 +204,8 @@ export default function DevDashboard() {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const r = await fetch(`${API}/keys`, {
+      const r = await devFetch(`${API}/keys`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ duration: genDuration, count: parseInt(genCount) || 1, notes: genNotes || undefined }),
       });
@@ -207,13 +221,13 @@ export default function DevDashboard() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("Supprimer cette clé ?")) return;
-    await fetch(`${API}/keys/${id}`, { method: "DELETE", credentials: "include" });
+    await devFetch(`${API}/keys/${id}`, { method: "DELETE" });
     setKeys(k => k.filter(x => x.id !== id));
   };
 
   const handleRevoke = async (id: number) => {
     if (!confirm("Révoquer cette clé ?")) return;
-    const r = await fetch(`${API}/keys/${id}/revoke`, { method: "PATCH", credentials: "include" });
+    const r = await devFetch(`${API}/keys/${id}/revoke`, { method: "PATCH" });
     if (r.ok) {
       const updated = await r.json();
       setKeys(k => k.map(x => x.id === id ? updated : x));
@@ -222,7 +236,7 @@ export default function DevDashboard() {
 
   const handleRenew = async (id: number) => {
     if (!confirm("Renouveler cette clé ? Un nouveau code sera généré avec la même durée, et l'ancienne assignation sera effacée.")) return;
-    const r = await fetch(`${API}/keys/${id}/renew`, { method: "POST", credentials: "include" });
+    const r = await devFetch(`${API}/keys/${id}/renew`, { method: "POST" });
     if (r.ok) {
       const updated = await r.json();
       setKeys(k => k.map(x => x.id === id ? updated : x));
@@ -232,7 +246,7 @@ export default function DevDashboard() {
   const handleExtend = async (id: number, duration: string) => {
     const label = DURATION_LABELS[duration as keyof typeof DURATION_LABELS] ?? duration;
     if (!confirm(`Prolonger cette clé de ${label} supplémentaire(s) à partir de l'expiration actuelle ?`)) return;
-    const r = await fetch(`${API}/keys/${id}/extend`, { method: "POST", credentials: "include" });
+    const r = await devFetch(`${API}/keys/${id}/extend`, { method: "POST" });
     if (r.ok) {
       const updated = await r.json();
       setKeys(k => k.map(x => x.id === id ? updated : x));
@@ -248,7 +262,7 @@ export default function DevDashboard() {
   const fetchSchools = async () => {
     setSchoolsLoading(true);
     try {
-      const r = await fetch(`${API}/schools`, { credentials: "include" });
+      const r = await devFetch(`${API}/schools`);
       if (r.ok) setSchools(await r.json());
     } finally {
       setSchoolsLoading(false);
@@ -271,9 +285,8 @@ export default function DevDashboard() {
       if (saLicenseMode === "duration") body.licenseDuration = saLicenseDuration;
       else if (saLicenseKeyId) body.licenseKeyId = saLicenseKeyId;
 
-      const r = await fetch(`${API}/schools`, {
+      const r = await devFetch(`${API}/schools`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -290,7 +303,7 @@ export default function DevDashboard() {
   };
 
   const handleToggleSchool = async (id: number) => {
-    const r = await fetch(`${API}/schools/${id}/toggle`, { method: "PATCH", credentials: "include" });
+    const r = await devFetch(`${API}/schools/${id}/toggle`, { method: "PATCH" });
     if (r.ok) {
       const updated = await r.json();
       setSchools(s => s.map(x => x.id === id ? { ...x, active: updated.active } : x));
@@ -300,7 +313,7 @@ export default function DevDashboard() {
   const fetchDirecteurs = async () => {
     setDirecteursLoading(true);
     try {
-      const r = await fetch(`${API}/directeurs`, { credentials: "include" });
+      const r = await devFetch(`${API}/directeurs`);
       if (r.ok) setDirecteurs(await r.json());
     } finally {
       setDirecteursLoading(false);
@@ -331,9 +344,8 @@ export default function DevDashboard() {
     }
     setResetLoading(true);
     try {
-      const r = await fetch(`${API}/reset-password`, {
+      const r = await devFetch(`${API}/reset-password`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: resetingId, newPassword: resetPassword }),
       });
@@ -365,9 +377,8 @@ export default function DevDashboard() {
     try {
       const body: any = { name: cdName.trim(), email: cdEmail.trim(), password: cdPassword };
       if (cdKeyId !== "auto") body.activationKeyId = cdKeyId;
-      const r = await fetch(`${API}/directeurs`, {
+      const r = await devFetch(`${API}/directeurs`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
