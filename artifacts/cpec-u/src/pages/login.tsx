@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { CpecLogo } from "@/components/cpec-logo";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -233,7 +234,7 @@ export default function Login() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <img src={`${import.meta.env.BASE_URL}images/logo.jpg`} alt="Logo" className="w-20 h-20 object-contain rounded-2xl shadow-lg" />
+          <CpecLogo variant="icon" size={80} />
         </motion.div>
 
         <div className="absolute bottom-16 left-16 z-30 max-w-xl text-sidebar-foreground">
@@ -276,7 +277,7 @@ export default function Login() {
           <Card className="border-none shadow-2xl bg-card/50 backdrop-blur-xl">
             <CardHeader className="space-y-4 pb-8">
               <div className="lg:hidden flex justify-center mb-4">
-                <img src={`${import.meta.env.BASE_URL}images/logo.jpg`} alt="Logo" className="w-20 h-20 object-contain rounded-xl shadow-md" />
+                <CpecLogo variant="icon" size={80} />
               </div>
               <CardTitle className="text-3xl font-serif text-center">Connexion</CardTitle>
               <CardDescription className="text-center text-base">
