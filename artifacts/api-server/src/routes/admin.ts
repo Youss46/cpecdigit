@@ -248,7 +248,7 @@ router.post("/users", requireRole("admin"), async (req, res) => {
       return;
     }
     if (role === "teacher" && cu?.adminSubRole === "scolarite") {
-      res.status(403).json({ error: "Forbidden", message: "L'Assistant(e) de Direction ne peut créer que des comptes étudiants." });
+      res.status(403).json({ error: "Forbidden", message: "La Responsable Scolarité ne peut créer que des comptes étudiants." });
       return;
     }
 
@@ -469,7 +469,7 @@ router.post("/classes", requireRole("admin"), async (req, res) => {
     const tenantId = req.tenantId!;
     const cu = req.session?.user as any;
     if (cu?.adminSubRole === "scolarite") {
-      res.status(403).json({ error: "Forbidden", message: "L'Assistant(e) de Direction ne peut pas créer de classe." });
+      res.status(403).json({ error: "Forbidden", message: "La Responsable Scolarité ne peut pas créer de classe." });
       return;
     }
     const { name, description, filiere } = req.body;
@@ -607,7 +607,7 @@ router.post("/subjects", requireRole("admin"), async (req, res) => {
     const tenantId = req.tenantId!;
     const cu = req.session?.user as any;
     if (cu?.adminSubRole === "scolarite") {
-      res.status(403).json({ error: "Forbidden", message: "L'Assistant(e) de Direction ne peut pas créer de matière." });
+      res.status(403).json({ error: "Forbidden", message: "La Responsable Scolarité ne peut pas créer de matière." });
       return;
     }
     const { name, coefficient, credits, description, ueId, classId, semesterId } = req.body;
@@ -897,7 +897,7 @@ router.post("/semesters/:id/publish", requireRole("admin"), async (req, res) => 
   try {
     const cu = req.session.user!;
     if (cu.adminSubRole !== "scolarite" && cu.adminSubRole !== "directeur") {
-      res.status(403).json({ error: "La publication des résultats est réservée au Directeur du Centre et à l'Assistant(e) de Direction." });
+      res.status(403).json({ error: "La publication des résultats est réservée au Directeur du Centre et à la Responsable Scolarité." });
       return;
     }
     const id = parseInt(req.params.id);
@@ -936,7 +936,7 @@ router.post("/semesters/:id/promote", requireRole("admin"), async (req, res) => 
   try {
     const cu = req.session.user!;
     if (cu.adminSubRole !== "scolarite" && cu.adminSubRole !== "directeur") {
-      res.status(403).json({ error: "Réservé au Assistant(e) de Direction." });
+      res.status(403).json({ error: "Réservé au Responsable Scolarité." });
       return;
     }
     const semesterId = parseInt(req.params.id);
@@ -1044,7 +1044,7 @@ router.get("/annual-promotion/preview", requireRole("admin"), async (req, res) =
   try {
     const cu = req.session.user!;
     if (cu.adminSubRole !== "scolarite" && cu.adminSubRole !== "directeur") {
-      res.status(403).json({ error: "Réservé au Assistant(e) de Direction." }); return;
+      res.status(403).json({ error: "Réservé au Responsable Scolarité." }); return;
     }
     const { academicYear } = req.query;
     if (!academicYear) { res.status(400).json({ error: "academicYear requis." }); return; }
@@ -1098,7 +1098,7 @@ router.post("/annual-promotion", requireRole("admin"), async (req, res) => {
   try {
     const cu = req.session.user!;
     if (cu.adminSubRole !== "scolarite" && cu.adminSubRole !== "directeur") {
-      res.status(403).json({ error: "Réservé au Assistant(e) de Direction." }); return;
+      res.status(403).json({ error: "Réservé au Responsable Scolarité." }); return;
     }
     const { academicYear } = req.body;
     if (!academicYear) { res.status(400).json({ error: "academicYear requis." }); return; }
@@ -1172,7 +1172,7 @@ router.post("/annual-promotion/rollback", requireRole("admin"), async (req, res)
   try {
     const cu = req.session.user!;
     if (cu.adminSubRole !== "scolarite" && cu.adminSubRole !== "directeur") {
-      res.status(403).json({ error: "Réservé au Assistant(e) de Direction." }); return;
+      res.status(403).json({ error: "Réservé au Responsable Scolarité." }); return;
     }
 
     // Expects: { academicYear, results: [{classId, nextClassId, promoted: [{id}]}] }
@@ -2242,7 +2242,7 @@ router.post("/subject-approvals", requireRole("admin"), async (req, res) => {
   try {
     const cu = req.session.user!;
     if (cu.adminSubRole !== "scolarite" && cu.adminSubRole !== "directeur") {
-      res.status(403).json({ error: "Réservé au Assistant(e) de Direction." });
+      res.status(403).json({ error: "Réservé au Responsable Scolarité." });
       return;
     }
     const { subjectId, classId, semesterId } = req.body;
@@ -2271,7 +2271,7 @@ router.delete("/subject-approvals/:id", requireRole("admin"), async (req, res) =
   try {
     const cu = req.session.user!;
     if (cu.adminSubRole !== "scolarite" && cu.adminSubRole !== "directeur") {
-      res.status(403).json({ error: "Réservé au Assistant(e) de Direction." });
+      res.status(403).json({ error: "Réservé au Responsable Scolarité." });
       return;
     }
     const id = parseInt(req.params.id);
@@ -2492,7 +2492,7 @@ router.put("/grades/derogate", requireRole("admin"), async (req, res) => {
   try {
     const cu = req.session.user!;
     if (cu.adminSubRole !== "scolarite" && cu.adminSubRole !== "directeur") {
-      res.status(403).json({ error: "Réservé au Assistant(e) de Direction." });
+      res.status(403).json({ error: "Réservé au Responsable Scolarité." });
       return;
     }
     const { studentId, subjectId, semesterId, value, justification } = req.body;
@@ -2540,7 +2540,7 @@ router.get("/activity-log", requireRole("admin"), async (req, res) => {
   try {
     const cu = req.session.user!;
     if (cu.adminSubRole !== "scolarite" && cu.adminSubRole !== "directeur") {
-      res.status(403).json({ error: "Réservé au Assistant(e) de Direction." });
+      res.status(403).json({ error: "Réservé au Responsable Scolarité." });
       return;
     }
     const rows = await db

@@ -29,7 +29,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const SUB_ROLE_LABELS: Record<string, string> = {
   directeur: "Directeur du Centre",
-  scolarite: "Assistant(e) de Direction",
+  scolarite: "Responsable Scolarité",
   planificateur: "Responsable pédagogique",
   hebergement: "Responsable Hébergement",
 };

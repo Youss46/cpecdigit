@@ -183,7 +183,7 @@ export default function GradeEntry() {
     } catch (e: any) {
       const msg = e?.message ?? "Erreur lors de l'enregistrement";
       toast({
-        title: msg.includes("verrouillées") ? "Notes verrouillées par le Assistant(e) de Direction." : msg,
+        title: msg.includes("verrouillées") ? "Notes verrouillées par le Responsable Scolarité." : msg,
         variant: "destructive"
       });
     }

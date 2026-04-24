@@ -377,7 +377,7 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
         ? "Directeur du Centre"
         : adminSubRole === "hebergement"
         ? "Responsable Hébergement"
-        : "Assistant(e) de Direction"
+        : "Responsable Scolarité"
       : user.role === "teacher"
       ? "Enseignant"
       : user.role === "parent"

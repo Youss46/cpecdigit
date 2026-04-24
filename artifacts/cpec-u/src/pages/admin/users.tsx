@@ -26,7 +26,7 @@ import { Card } from "@/components/ui/card";
 
 const ROLE_LABELS: Record<string, string> = { admin: "Admin", teacher: "Enseignant", student: "Étudiant" };
 const SUB_ROLE_LABELS: Record<string, string> = {
-  scolarite: "Assistant(e) de Direction",
+  scolarite: "Responsable Scolarité",
   planificateur: "Responsable pédagogique",
   directeur: "Directeur du Centre",
   hebergement: "Responsable Hébergement",
@@ -866,7 +866,7 @@ export default function AdminUsers() {
     const target = users?.find((u: any) => u.id === id);
     const isScolarite = currentSubRole === "scolarite";
     if (isScolarite && target?.role !== "student") {
-      toast({ title: "L'Assistant(e) de Direction peut uniquement supprimer des étudiants.", variant: "destructive" });
+      toast({ title: "La Responsable Scolarité peut uniquement supprimer des étudiants.", variant: "destructive" });
       setPendingDeleteId(null);
       return;
     }
@@ -1210,7 +1210,7 @@ export default function AdminUsers() {
                       <Select name="adminSubRole" required defaultValue="scolarite">
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="scolarite">Assistant(e) de Direction</SelectItem>
+                          <SelectItem value="scolarite">Responsable Scolarité</SelectItem>
                           <SelectItem value="planificateur">Responsable pédagogique</SelectItem>
                           <SelectItem value="directeur">Directeur du Centre</SelectItem>
                           <SelectItem value="hebergement">Responsable Hébergement</SelectItem>

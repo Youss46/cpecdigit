@@ -23,7 +23,7 @@ const router = Router();
 function requireScolariteOrDirecteur(req: any, res: any, next: any) {
   const sub = req.session?.user?.adminSubRole;
   if (sub !== "scolarite" && sub !== "directeur") {
-    res.status(403).json({ error: "Réservé à l'Assistant(e) de Direction et au Directeur du Centre." });
+    res.status(403).json({ error: "Réservé à la Responsable Scolarité et au Directeur du Centre." });
     return;
   }
   next();
