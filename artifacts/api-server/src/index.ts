@@ -3,8 +3,8 @@ import crypto from "crypto";
 import app from "./app";
 import { initSocketIO } from "./lib/socket.js";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { usersTable, tenantsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { startFeeReminderScheduler } from "./lib/fee-reminder-scheduler.js";
 import { startRecommendationScheduler } from "./lib/recommendation-scheduler.js";
 
@@ -22,14 +22,44 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+async function seedDefaultTenant(): Promise<number> {
+  try {
+    const existing = await db.select().from(tenantsTable)
+      .where(eq(tenantsTable.subdomain, "cpec"))
+      .limit(1);
+
+    if (existing[0]) {
+      return existing[0].id;
+    }
+
+    const [tenant] = await db.insert(tenantsTable).values({
+      name: "CPEC-U INP-HB",
+      subdomain: "cpec",
+      country: "Côte d'Ivoire",
+      contactEmail: "scolarite@cpec-u.ci",
+      planType: "standard",
+      active: true,
+    }).returning();
+
+    console.log("✓ Tenant par défaut créé : cpec (CPEC-U INP-HB)");
+    return tenant.id;
+  } catch (err) {
+    console.error("Erreur lors du seeding du tenant :", err);
+    return 1;
+  }
+}
+
 async function seedInitialAdmin() {
   try {
+    const tenantId = await seedDefaultTenant();
+
     const passwordHash = crypto
       .createHash("sha256")
       .update("password123" + "cpec-u-salt")
       .digest("hex");
 
     const inserted = await db.insert(usersTable).values({
+      tenantId,
       email: "youss@gmail.com",
       name: "Youssouf Sawadogo",
       passwordHash,

@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { classesTable } from "./classes";
 import { semestersTable } from "./semesters";
+import { tenantsTable } from "./tenants";
 
 export const UE_CATEGORIES = ["culture_generale", "connaissances_fondamentales", "specialite"] as const;
 export type UeCategory = typeof UE_CATEGORIES[number];
@@ -15,6 +16,7 @@ export const UE_CATEGORY_LABELS: Record<UeCategory, string> = {
 
 export const teachingUnitsTable = pgTable("teaching_units", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenantsTable.id, { onDelete: "cascade" }),
   code: varchar("code", { length: 20 }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   category: varchar("category", { length: 50 }),

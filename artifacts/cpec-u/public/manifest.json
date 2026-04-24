@@ -1,7 +1,7 @@
 {
-  "name": "CPEC-Digital — Gestion Académique",
-  "short_name": "CPEC-Digital",
-  "description": "Plateforme de gestion académique du CPEC-UEMOA",
+  "name": "M15 EduTech — Gestion Académique",
+  "short_name": "M15 EduTech",
+  "description": "Plateforme SaaS de gestion académique multi-établissements",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -41,14 +41,14 @@
       "sizes": "1280x720",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "Tableau de bord CPEC-Digital"
+      "label": "Tableau de bord M15 EduTech"
     },
     {
       "src": "/login-screenshot.png",
       "sizes": "650x589",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Connexion CPEC-Digital"
+      "label": "Connexion M15 EduTech"
     }
   ],
   "categories": ["education", "productivity"],

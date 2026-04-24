@@ -32,7 +32,7 @@ export default function VerifyCard() {
           <GraduationCap className="w-6 h-6 text-white" />
         </div>
         <div>
-          <div className="text-white font-bold text-xl tracking-tight">CPEC-Digital</div>
+          <div className="text-white font-bold text-xl tracking-tight">M15 EduTech</div>
           <div className="text-blue-300/80 text-xs font-semibold tracking-wider">VÉRIFICATION DE CARTE ÉTUDIANTE</div>
         </div>
       </div>
@@ -150,7 +150,7 @@ export default function VerifyCard() {
               {/* Footer note */}
               <div className="border-t border-white/10 pt-4">
                 <p className="text-white/30 text-[10px] text-center leading-relaxed">
-                  Vérification officielle CPEC-Digital — INP-HB<br />
+                  Vérification officielle M15 EduTech — INP-HB<br />
                   Cette page confirme l'authenticité de la carte étudiante.
                 </p>
               </div>
@@ -171,7 +171,7 @@ export default function VerifyCard() {
 
       {/* Bottom branding */}
       <p className="text-white/20 text-xs mt-8 text-center">
-        © CPEC-Digital — Système de gestion académique INP-HB
+        © M15 EduTech — Système de gestion académique INP-HB
       </p>
     </div>
   );

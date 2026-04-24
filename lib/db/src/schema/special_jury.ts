@@ -1,9 +1,11 @@
 import { pgTable, serial, integer, real, boolean, varchar, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { semestersTable } from "./semesters";
+import { tenantsTable } from "./tenants";
 
 export const specialJurySessionsTable = pgTable("special_jury_sessions", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenantsTable.id, { onDelete: "cascade" }),
   academicYear: varchar("academic_year", { length: 20 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("active"),
   activatedBy: integer("activated_by").references(() => usersTable.id, { onDelete: "set null" }),

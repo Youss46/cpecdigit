@@ -1,11 +1,13 @@
 import { pgTable, serial, integer, varchar, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { semestersTable } from "./semesters";
+import { tenantsTable } from "./tenants";
 
 export const retakeSessionStatusEnum = pgEnum("retake_session_status", ["open", "closed"]);
 
 export const retakeSessionsTable = pgTable("retake_sessions", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenantsTable.id, { onDelete: "cascade" }),
   label: varchar("label", { length: 255 }).notNull(),
   semesterId: integer("semester_id").notNull().references(() => semestersTable.id, { onDelete: "cascade" }),
   status: retakeSessionStatusEnum("status").notNull().default("open"),

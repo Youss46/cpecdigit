@@ -6,12 +6,11 @@ import {
   housingAssignmentsTable,
   usersTable,
 } from "@workspace/db";
-import { eq, and, desc, sql, ne } from "drizzle-orm";
+import { and, eq, desc, sql, ne } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 
 const router = Router();
 
-// Helper: recompute room status based on active assignment count vs capacity
 async function syncRoomStatus(roomId: number) {
   const [room] = await db
     .select({ capacity: housingRoomsTable.capacity, status: housingRoomsTable.status })
@@ -33,6 +32,7 @@ async function syncRoomStatus(roomId: number) {
 
 router.get("/housing/buildings", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const buildings = await db
       .select({
         id: housingBuildingsTable.id,
@@ -45,6 +45,7 @@ router.get("/housing/buildings", requireAuth, async (req, res) => {
       })
       .from(housingBuildingsTable)
       .leftJoin(housingRoomsTable, eq(housingRoomsTable.buildingId, housingBuildingsTable.id))
+      .where(eq(housingBuildingsTable.tenantId, tenantId))
       .groupBy(housingBuildingsTable.id)
       .orderBy(housingBuildingsTable.name);
     res.json(buildings);
@@ -56,9 +57,10 @@ router.get("/housing/buildings", requireAuth, async (req, res) => {
 
 router.post("/housing/buildings", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { name, description, floors } = req.body as { name: string; description?: string; floors?: number };
     if (!name?.trim()) { res.status(400).json({ error: "name requis" }); return; }
-    const [b] = await db.insert(housingBuildingsTable).values({ name: name.trim(), description, floors: floors ?? 1 }).returning();
+    const [b] = await db.insert(housingBuildingsTable).values({ tenantId, name: name.trim(), description, floors: floors ?? 1 }).returning();
     res.json(b);
   } catch (err) {
     console.error(err);
@@ -68,12 +70,13 @@ router.post("/housing/buildings", requireAuth, async (req, res) => {
 
 router.patch("/housing/buildings/:id", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
     const { name, description, floors } = req.body as { name?: string; description?: string; floors?: number };
     const [b] = await db
       .update(housingBuildingsTable)
       .set({ ...(name && { name }), ...(description !== undefined && { description }), ...(floors !== undefined && { floors }) })
-      .where(eq(housingBuildingsTable.id, id))
+      .where(and(eq(housingBuildingsTable.id, id), eq(housingBuildingsTable.tenantId, tenantId)))
       .returning();
     res.json(b);
   } catch (err) {
@@ -84,8 +87,9 @@ router.patch("/housing/buildings/:id", requireAuth, async (req, res) => {
 
 router.delete("/housing/buildings/:id", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
-    await db.delete(housingBuildingsTable).where(eq(housingBuildingsTable.id, id));
+    await db.delete(housingBuildingsTable).where(and(eq(housingBuildingsTable.id, id), eq(housingBuildingsTable.tenantId, tenantId)));
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -97,7 +101,11 @@ router.delete("/housing/buildings/:id", requireAuth, async (req, res) => {
 
 router.get("/housing/rooms", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { buildingId } = req.query as { buildingId?: string };
+    const whereClause = buildingId
+      ? and(eq(housingBuildingsTable.tenantId, tenantId), eq(housingRoomsTable.buildingId, parseInt(buildingId)))
+      : eq(housingBuildingsTable.tenantId, tenantId);
     const rooms = await db
       .select({
         id: housingRoomsTable.id,
@@ -117,7 +125,7 @@ router.get("/housing/rooms", requireAuth, async (req, res) => {
       })
       .from(housingRoomsTable)
       .innerJoin(housingBuildingsTable, eq(housingBuildingsTable.id, housingRoomsTable.buildingId))
-      .where(buildingId ? eq(housingRoomsTable.buildingId, parseInt(buildingId)) : sql`true`)
+      .where(whereClause)
       .orderBy(housingBuildingsTable.name, housingRoomsTable.floor, housingRoomsTable.roomNumber);
     res.json(rooms);
   } catch (err) {
@@ -126,9 +134,9 @@ router.get("/housing/rooms", requireAuth, async (req, res) => {
   }
 });
 
-// Available rooms = not maintenance AND occupant count < capacity
 router.get("/housing/rooms/available", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const rooms = await db
       .select({
         id: housingRoomsTable.id,
@@ -145,10 +153,13 @@ router.get("/housing/rooms/available", requireAuth, async (req, res) => {
       })
       .from(housingRoomsTable)
       .innerJoin(housingBuildingsTable, eq(housingBuildingsTable.id, housingRoomsTable.buildingId))
-      .where(sql`${housingRoomsTable.status} != 'maintenance' and (
-        select count(*)::int from housing_assignments ha
-        where ha.room_id = ${housingRoomsTable.id} and ha.status = 'active'
-      ) < ${housingRoomsTable.capacity}`)
+      .where(and(
+        eq(housingBuildingsTable.tenantId, tenantId),
+        sql`${housingRoomsTable.status} != 'maintenance' and (
+          select count(*)::int from housing_assignments ha
+          where ha.room_id = ${housingRoomsTable.id} and ha.status = 'active'
+        ) < ${housingRoomsTable.capacity}`
+      ))
       .orderBy(housingBuildingsTable.name, housingRoomsTable.roomNumber);
     res.json(rooms);
   } catch (err) {
@@ -159,10 +170,10 @@ router.get("/housing/rooms/available", requireAuth, async (req, res) => {
 
 router.post("/housing/rooms", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { buildingId, roomNumber, floor, capacity, type, pricePerMonth, status, description } = req.body as any;
     if (!buildingId || !roomNumber?.trim()) { res.status(400).json({ error: "buildingId et roomNumber requis" }); return; }
 
-    // 1. Statut limité à "available" ou "maintenance" à la création
     const CREATION_STATUSES = ["available", "maintenance"];
     const resolvedStatus = status ?? "available";
     if (!CREATION_STATUSES.includes(resolvedStatus)) {
@@ -170,7 +181,13 @@ router.post("/housing/rooms", requireAuth, async (req, res) => {
       return;
     }
 
-    // 2. Unicité du numéro de chambre (validation métier)
+    // Verify building belongs to this tenant
+    const [building] = await db.select({ id: housingBuildingsTable.id })
+      .from(housingBuildingsTable)
+      .where(and(eq(housingBuildingsTable.id, parseInt(buildingId)), eq(housingBuildingsTable.tenantId, tenantId)))
+      .limit(1);
+    if (!building) { res.status(404).json({ error: "Bâtiment introuvable" }); return; }
+
     const existing = await db
       .select({ id: housingRoomsTable.id })
       .from(housingRoomsTable)
@@ -181,7 +198,6 @@ router.post("/housing/rooms", requireAuth, async (req, res) => {
       return;
     }
 
-    // Auto-set capacity from type
     const resolvedCapacity = type === "double" ? 2 : 1;
     const [r] = await db.insert(housingRoomsTable).values({
       buildingId: parseInt(buildingId),
@@ -195,7 +211,6 @@ router.post("/housing/rooms", requireAuth, async (req, res) => {
     }).returning();
     res.json(r);
   } catch (err: any) {
-    // DB unique constraint violation fallback (code 23505)
     if (err.code === "23505") {
       res.status(409).json({ error: "Ce numéro de chambre existe déjà" });
       return;
@@ -209,7 +224,6 @@ router.patch("/housing/rooms/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { roomNumber, floor, capacity, type, pricePerMonth, status, description } = req.body as any;
-    // Auto-update capacity when type changes
     const capacityOverride = capacity !== undefined ? capacity : (type === "double" ? 2 : type === "simple" ? 1 : undefined);
     const [r] = await db
       .update(housingRoomsTable)
@@ -246,7 +260,11 @@ router.delete("/housing/rooms/:id", requireAuth, async (req, res) => {
 
 router.get("/housing/assignments", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { status } = req.query as { status?: string };
+    const whereClause = status
+      ? and(eq(housingBuildingsTable.tenantId, tenantId), eq(housingAssignmentsTable.status, status))
+      : eq(housingBuildingsTable.tenantId, tenantId);
     const assignments = await db
       .select({
         id: housingAssignmentsTable.id,
@@ -270,7 +288,7 @@ router.get("/housing/assignments", requireAuth, async (req, res) => {
       .innerJoin(usersTable, eq(usersTable.id, housingAssignmentsTable.studentId))
       .innerJoin(housingRoomsTable, eq(housingRoomsTable.id, housingAssignmentsTable.roomId))
       .innerJoin(housingBuildingsTable, eq(housingBuildingsTable.id, housingRoomsTable.buildingId))
-      .where(status ? eq(housingAssignmentsTable.status, status) : sql`true`)
+      .where(whereClause)
       .orderBy(desc(housingAssignmentsTable.createdAt));
     res.json(assignments);
   } catch (err) {
@@ -286,7 +304,6 @@ router.post("/housing/assignments", requireAuth, async (req, res) => {
       res.status(400).json({ error: "studentId, roomId et startDate requis" }); return;
     }
 
-    // Check no active assignment for this student
     const [existing] = await db
       .select({ id: housingAssignmentsTable.id })
       .from(housingAssignmentsTable)
@@ -296,7 +313,6 @@ router.post("/housing/assignments", requireAuth, async (req, res) => {
       res.status(409).json({ error: "Cet étudiant a déjà une chambre active" }); return;
     }
 
-    // Check room has available capacity
     const [room] = await db
       .select({ capacity: housingRoomsTable.capacity, status: housingRoomsTable.status })
       .from(housingRoomsTable)
@@ -321,9 +337,7 @@ router.post("/housing/assignments", requireAuth, async (req, res) => {
       notes,
     }).returning();
 
-    // Sync room status based on new occupant count
     await syncRoomStatus(parseInt(roomId));
-
     res.json(a);
   } catch (err) {
     console.error(err);
@@ -354,7 +368,6 @@ router.patch("/housing/assignments/:id", requireAuth, async (req, res) => {
       .where(eq(housingAssignmentsTable.id, id))
       .returning();
 
-    // Recompute room status after change
     if (status === "ended" || status === "cancelled") {
       await syncRoomStatus(a.roomId);
     }
@@ -370,25 +383,31 @@ router.patch("/housing/assignments/:id", requireAuth, async (req, res) => {
 
 router.get("/housing/stats", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const [roomStats] = await db
       .select({
         totalRooms: sql<number>`count(*)::int`,
-        available: sql<number>`count(*) filter (where status = 'available')::int`,
-        occupied: sql<number>`count(*) filter (where status = 'occupied')::int`,
-        maintenance: sql<number>`count(*) filter (where status = 'maintenance')::int`,
+        available: sql<number>`count(*) filter (where ${housingRoomsTable.status} = 'available')::int`,
+        occupied: sql<number>`count(*) filter (where ${housingRoomsTable.status} = 'occupied')::int`,
+        maintenance: sql<number>`count(*) filter (where ${housingRoomsTable.status} = 'maintenance')::int`,
       })
-      .from(housingRoomsTable);
+      .from(housingRoomsTable)
+      .innerJoin(housingBuildingsTable, eq(housingBuildingsTable.id, housingRoomsTable.buildingId))
+      .where(eq(housingBuildingsTable.tenantId, tenantId));
 
     const [assignStats] = await db
       .select({
         totalActive: sql<number>`count(*)::int`,
       })
       .from(housingAssignmentsTable)
-      .where(eq(housingAssignmentsTable.status, "active"));
+      .innerJoin(housingRoomsTable, eq(housingRoomsTable.id, housingAssignmentsTable.roomId))
+      .innerJoin(housingBuildingsTable, eq(housingBuildingsTable.id, housingRoomsTable.buildingId))
+      .where(and(eq(housingBuildingsTable.tenantId, tenantId), eq(housingAssignmentsTable.status, "active")));
 
     const [buildingStats] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(housingBuildingsTable);
+      .from(housingBuildingsTable)
+      .where(eq(housingBuildingsTable.tenantId, tenantId));
 
     res.json({
       totalRooms: roomStats?.totalRooms ?? 0,
@@ -438,6 +457,7 @@ router.get("/housing/my", requireAuth, async (req, res) => {
 
 router.get("/housing/unassigned-students", requireAuth, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const assignedStudentIds = db
       .select({ id: housingAssignmentsTable.studentId })
       .from(housingAssignmentsTable)
@@ -447,6 +467,7 @@ router.get("/housing/unassigned-students", requireAuth, async (req, res) => {
       .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
       .from(usersTable)
       .where(and(
+        eq(usersTable.tenantId, tenantId),
         eq(usersTable.role, "student"),
         sql`${usersTable.id} not in (${assignedStudentIds})`
       ))

@@ -67,6 +67,7 @@ async function computeRawAverage(
 // ── GET /admin/jury-special/sessions — list sessions ──────────────────────────
 router.get("/jury-special/sessions", requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const sessions = await db
       .select({
         id: specialJurySessionsTable.id,
@@ -78,6 +79,7 @@ router.get("/jury-special/sessions", requireScolariteOrDirecteur, async (req, re
         createdAt: specialJurySessionsTable.createdAt,
       })
       .from(specialJurySessionsTable)
+      .where(eq(specialJurySessionsTable.tenantId, tenantId))
       .orderBy(specialJurySessionsTable.createdAt);
     res.json(sessions);
   } catch (err) {
@@ -89,6 +91,7 @@ router.get("/jury-special/sessions", requireScolariteOrDirecteur, async (req, re
 // ── POST /admin/jury-special/sessions — activate a jury session ────────────────
 router.post("/jury-special/sessions", requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { academicYear, notes } = req.body as { academicYear: string; notes?: string };
     if (!academicYear) {
       res.status(400).json({ error: "academicYear est requis." });
@@ -99,6 +102,7 @@ router.post("/jury-special/sessions", requireScolariteOrDirecteur, async (req, r
       .select({ id: specialJurySessionsTable.id, status: specialJurySessionsTable.status })
       .from(specialJurySessionsTable)
       .where(and(
+        eq(specialJurySessionsTable.tenantId, tenantId),
         eq(specialJurySessionsTable.academicYear, academicYear),
         eq(specialJurySessionsTable.status, "active")
       ))
@@ -112,7 +116,7 @@ router.post("/jury-special/sessions", requireScolariteOrDirecteur, async (req, r
     const userId = req.session.user!.id;
     const [session] = await db
       .insert(specialJurySessionsTable)
-      .values({ academicYear, notes: notes ?? null, activatedBy: userId })
+      .values({ tenantId, academicYear, notes: notes ?? null, activatedBy: userId })
       .returning();
 
     res.status(201).json(session);

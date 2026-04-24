@@ -323,6 +323,7 @@ router.post(
       const attachmentPath = req.file ? req.file.filename : null;
 
       const [inserted] = await db.insert(reclamationsTable).values({
+        tenantId: req.tenantId!,
         claimNumber,
         periodId: period.id,
         studentId,
@@ -397,7 +398,7 @@ router.post(
 
           // Notify admins
           const admins = await db.select({ id: usersTable.id }).from(usersTable)
-            .where(eq(usersTable.role, "admin"));
+            .where(and(eq(usersTable.tenantId, req.tenantId!), eq(usersTable.role, "admin")));
           for (const admin of admins) {
             await notifyAndPush(
               admin.id,
@@ -760,11 +761,12 @@ router.put("/admin/reclamations/periods/:id", requireRole("admin"), async (req, 
 // GET /api/admin/reclamations — list all, optional ?status=... &semesterId=...
 router.get("/admin/reclamations", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { status, semesterId } = req.query;
     const studentUser = usersTable;
     const teacherUser = { ...usersTable } as any;
 
-    const conditions: any[] = [];
+    const conditions: any[] = [eq(reclamationsTable.tenantId, tenantId)];
     if (status) conditions.push(eq(reclamationsTable.status, status as any));
     if (semesterId) conditions.push(eq(reclamationsTable.semesterId, Number(semesterId)));
 
@@ -802,8 +804,10 @@ router.get("/admin/reclamations", requireRole("admin"), async (req, res) => {
 // GET /api/admin/reclamations/stats — dashboard stats
 router.get("/admin/reclamations/stats", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { semesterId } = req.query;
-    const cond = semesterId ? eq(reclamationsTable.semesterId, Number(semesterId)) : undefined;
+    const baseCond = eq(reclamationsTable.tenantId, tenantId);
+    const cond = semesterId ? and(baseCond, eq(reclamationsTable.semesterId, Number(semesterId))) : baseCond;
 
     const all = await db.select({
       status: reclamationsTable.status,

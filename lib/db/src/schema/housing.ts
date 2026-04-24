@@ -1,8 +1,10 @@
 import { pgTable, serial, integer, varchar, text, numeric, date, timestamp } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { tenantsTable } from "./tenants";
 
 export const housingBuildingsTable = pgTable("housing_buildings", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenantsTable.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   floors: integer("floors").notNull().default(1),

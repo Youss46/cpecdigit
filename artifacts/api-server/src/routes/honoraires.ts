@@ -7,7 +7,7 @@ import {
   usersTable,
   activityLogTable,
 } from "@workspace/db";
-import { eq, sql, inArray } from "drizzle-orm";
+import { eq, sql, inArray, and } from "drizzle-orm";
 import { requireRole } from "../lib/auth.js";
 
 const router = Router();
@@ -27,7 +27,7 @@ router.get("/teachers", requireRole("admin"), requirePlanificateurOrDirecteur, a
     const teachers = await db
       .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
       .from(usersTable)
-      .where(eq(usersTable.role, "teacher"));
+      .where(and(eq(usersTable.role, "teacher"), eq(usersTable.tenantId, req.tenantId!)));
 
     if (teachers.length === 0) { res.json([]); return; }
 

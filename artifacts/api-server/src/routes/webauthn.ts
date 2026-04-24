@@ -22,7 +22,7 @@ const rpID = process.env.WEBAUTHN_RP_ID || REPLIT_DOMAIN || "localhost";
 const expectedOrigin =
   process.env.WEBAUTHN_ORIGIN ||
   (REPLIT_DOMAIN ? `https://${REPLIT_DOMAIN}` : "http://localhost:8081");
-const rpName = "CPEC-Digital";
+const rpName = "M15 EduTech";
 
 // ── In-memory challenge store for authentication (user not logged in yet) ──
 const authChallenges = new Map<string, { challenge: string; expiresAt: number }>();

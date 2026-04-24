@@ -130,7 +130,7 @@ function generateReceipt(payment: Payment, studentName: string) {
   doc.setFontSize(8);
   doc.setFont("helvetica", "italic");
   doc.setTextColor(100, 100, 100);
-  doc.text("Ce reçu est généré automatiquement. CPEC-Digital — Système de Gestion Académique.", w / 2, 190, { align: "center" });
+  doc.text("Ce reçu est généré automatiquement. M15 EduTech — Système de Gestion Académique.", w / 2, 190, { align: "center" });
 
   doc.save(`Recu-${payment.reference ?? payment.id}.pdf`);
 }

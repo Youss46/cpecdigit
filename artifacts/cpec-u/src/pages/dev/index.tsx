@@ -324,7 +324,7 @@ export default function DevDashboard() {
               <ShieldCheck className="w-8 h-8 text-violet-400" />
             </div>
             <h1 className="text-2xl font-bold text-white">Espace Développeur</h1>
-            <p className="text-sm text-zinc-500 mt-1">Accès restreint — CPEC-Digital</p>
+            <p className="text-sm text-zinc-500 mt-1">Accès restreint — M15 EduTech</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
@@ -370,7 +370,7 @@ export default function DevDashboard() {
               <ShieldCheck className="w-4 h-4 text-violet-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">CPEC-Digital</p>
+              <p className="text-sm font-semibold text-white">M15 EduTech</p>
               <p className="text-[11px] text-zinc-500">Espace Développeur</p>
             </div>
           </div>

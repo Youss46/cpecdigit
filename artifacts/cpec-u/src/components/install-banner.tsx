@@ -41,8 +41,8 @@ export function InstallButton() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <img src={logo} alt="CPEC-Digital" className="w-7 h-7 rounded-lg" />
-              Installer CPEC-Digital
+              <img src={logo} alt="M15 EduTech" className="w-7 h-7 rounded-lg" />
+              Installer M15 EduTech
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -79,7 +79,7 @@ export function InstallButton() {
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted text-xs text-muted-foreground">
               <img src={logo} alt="" className="w-8 h-8 rounded-lg shrink-0" />
               <div>
-                <p className="font-medium text-foreground">CPEC-Digital</p>
+                <p className="font-medium text-foreground">M15 EduTech</p>
                 <p>Lancez l'app depuis votre écran d'accueil comme une application native.</p>
               </div>
             </div>
@@ -109,9 +109,9 @@ export function InstallBannerMobile() {
     <>
       <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
         <div className="m-3 rounded-2xl bg-card border border-border shadow-lg p-4 flex items-center gap-3">
-          <img src={logo} alt="CPEC-Digital" className="w-10 h-10 rounded-xl shrink-0" />
+          <img src={logo} alt="M15 EduTech" className="w-10 h-10 rounded-xl shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold leading-tight">CPEC-Digital</p>
+            <p className="text-sm font-semibold leading-tight">M15 EduTech</p>
             <p className="text-xs text-muted-foreground">Installer l'application sur cet appareil</p>
           </div>
           <button
@@ -133,8 +133,8 @@ export function InstallBannerMobile() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <img src={logo} alt="CPEC-Digital" className="w-7 h-7 rounded-lg" />
-              Installer CPEC-Digital
+              <img src={logo} alt="M15 EduTech" className="w-7 h-7 rounded-lg" />
+              Installer M15 EduTech
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">

@@ -84,7 +84,7 @@ export function CpecLogo({ size = 280 }: { size?: number }) {
       <rect x="169" y="47" width="7"  height="7"  rx="1.5" fill="#fbbf24" opacity="0.65" />
       <rect x="220" y="42" width="8"  height="8"  rx="1.5" fill="#60a5fa" opacity="0.6" />
 
-      {/* ── CPEC label inside badge ── */}
+      {/* ── M15 label inside badge ── */}
       <text
         x="150" y="210"
         textAnchor="middle"
@@ -94,13 +94,13 @@ export function CpecLogo({ size = 280 }: { size?: number }) {
         letterSpacing="7"
         fill="rgba(255,255,255,0.82)"
       >
-        CPEC
+        M15
       </text>
 
       {/* ── Divider ── */}
       <line x1="95" y1="220" x2="205" y2="220" stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
 
-      {/* ── CPEC-Digital text below ── */}
+      {/* ── M15 EduTech text below ── */}
       <text
         x="150" y="304"
         textAnchor="middle"
@@ -108,8 +108,9 @@ export function CpecLogo({ size = 280 }: { size?: number }) {
         fontWeight="800"
         fontSize="42"
       >
-        <tspan fill="#0e2d6b">CPEC</tspan>
-        <tspan fill="#16a34a">-Digital</tspan>
+        <tspan fill="#0e2d6b">M15</tspan>
+        <tspan fill="#16a34a"> Edu</tspan>
+        <tspan fill="#1778c2">Tech</tspan>
       </text>
 
       {/* ── Tagline ── */}

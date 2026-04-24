@@ -1,13 +1,15 @@
-import { pgTable, serial, text, varchar, timestamp, boolean, pgEnum, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, varchar, timestamp, boolean, pgEnum, integer, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { tenantsTable } from "./tenants";
 
-export const roleEnum = pgEnum("user_role", ["admin", "teacher", "student", "parent"]);
+export const roleEnum = pgEnum("user_role", ["admin", "teacher", "student", "parent", "super_admin"]);
 export const adminSubRoleEnum = pgEnum("admin_sub_role", ["scolarite", "planificateur", "directeur", "hebergement"]);
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
+  tenantId: integer("tenant_id").references(() => tenantsTable.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 255 }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   passwordHash: text("password_hash").notNull(),
   role: roleEnum("role").notNull().default("student"),
@@ -19,7 +21,9 @@ export const usersTable = pgTable("users", {
   requiresActivationKey: boolean("requires_activation_key").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  unique("users_email_tenant_unique").on(table.email, table.tenantId),
+]);
 
 export const studentProfilesTable = pgTable("student_profiles", {
   id: serial("id").primaryKey(),

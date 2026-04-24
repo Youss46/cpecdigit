@@ -145,8 +145,10 @@ router.get("/bibliotheque", requireAuth, async (req, res) => {
 
     const { semesterId, subjectId } = req.query;
 
+    const tid = req.tenantId!;
+
     if (me.role === "teacher") {
-      const conditions: any[] = [eq(libraryResourcesTable.teacherId, userId)];
+      const conditions: any[] = [eq(libraryResourcesTable.teacherId, userId), eq(libraryResourcesTable.tenantId, tid)];
       if (semesterId) conditions.push(eq(libraryResourcesTable.semesterId, Number(semesterId)));
       if (subjectId) conditions.push(eq(libraryResourcesTable.subjectId, Number(subjectId)));
       const resources = await buildResourceList(and(...conditions));
@@ -155,10 +157,10 @@ router.get("/bibliotheque", requireAuth, async (req, res) => {
     }
 
     if (me.role === "admin") {
-      const conditions: any[] = [];
+      const conditions: any[] = [eq(libraryResourcesTable.tenantId, tid)];
       if (semesterId) conditions.push(eq(libraryResourcesTable.semesterId, Number(semesterId)));
       if (subjectId) conditions.push(eq(libraryResourcesTable.subjectId, Number(subjectId)));
-      const resources = await buildResourceList(conditions.length > 0 ? and(...conditions) : undefined);
+      const resources = await buildResourceList(and(...conditions));
       res.json({ resources });
       return;
     }
@@ -167,7 +169,7 @@ router.get("/bibliotheque", requireAuth, async (req, res) => {
       const classIds = await getStudentClassIds(userId);
       if (classIds.length === 0) { res.json({ resources: [] }); return; }
 
-      const conditions: any[] = [eq(libraryResourcesTable.suspended, false)];
+      const conditions: any[] = [eq(libraryResourcesTable.suspended, false), eq(libraryResourcesTable.tenantId, tid)];
       if (semesterId) conditions.push(eq(libraryResourcesTable.semesterId, Number(semesterId)));
       if (subjectId) conditions.push(eq(libraryResourcesTable.subjectId, Number(subjectId)));
 
@@ -200,7 +202,7 @@ router.get("/bibliotheque", requireAuth, async (req, res) => {
       const classIds = await getStudentClassIds(studentId);
       if (classIds.length === 0) { res.json({ resources: [] }); return; }
 
-      const conditions: any[] = [eq(libraryResourcesTable.suspended, false)];
+      const conditions: any[] = [eq(libraryResourcesTable.suspended, false), eq(libraryResourcesTable.tenantId, tid)];
       if (semesterId) conditions.push(eq(libraryResourcesTable.semesterId, Number(semesterId)));
 
       const all = await buildResourceList(and(...conditions));
@@ -227,6 +229,7 @@ router.get("/bibliotheque/semesters", requireAuth, async (req, res) => {
     const userId = req.session!.userId!;
     const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
 
+    const tid = req.tenantId!;
     if (me?.role === "teacher") {
       const assignments = await db
         .select({ semesterId: teacherAssignmentsTable.semesterId })
@@ -234,10 +237,10 @@ router.get("/bibliotheque/semesters", requireAuth, async (req, res) => {
         .where(eq(teacherAssignmentsTable.teacherId, userId));
       const semIds = [...new Set(assignments.map(a => a.semesterId).filter(Boolean) as number[])];
       if (semIds.length === 0) { res.json({ semesters: [] }); return; }
-      const semesters = await db.select().from(semestersTable).where(inArray(semestersTable.id, semIds));
+      const semesters = await db.select().from(semestersTable).where(and(inArray(semestersTable.id, semIds), eq(semestersTable.tenantId, tid)));
       res.json({ semesters });
     } else {
-      const semesters = await db.select().from(semestersTable).orderBy(desc(semestersTable.createdAt));
+      const semesters = await db.select().from(semestersTable).where(eq(semestersTable.tenantId, tid)).orderBy(desc(semestersTable.createdAt));
       res.json({ semesters });
     }
   } catch (err) {
@@ -348,6 +351,7 @@ router.post("/bibliotheque/upload", requireRole("teacher"), (req, res) => {
           fileSize: req.file.size,
           description: description || null,
           availableFrom: availableFrom ? new Date(availableFrom) : null,
+          tenantId: req.tenantId!,
         })
         .returning();
 

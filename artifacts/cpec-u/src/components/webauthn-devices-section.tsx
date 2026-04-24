@@ -191,7 +191,7 @@ export function WebAuthnDevicesSection({ userEmail }: Props) {
         <div className="flex items-start gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40">
           <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400 mt-0.5 shrink-0" />
           <p className="text-xs text-indigo-700 dark:text-indigo-300">
-            La clé biométrique est stockée <strong>uniquement sur votre appareil</strong>. CPEC-Digital ne stocke que la clé publique.
+            La clé biométrique est stockée <strong>uniquement sur votre appareil</strong>. M15 EduTech ne stocke que la clé publique.
             Maximum 5 appareils par compte.
           </p>
         </div>

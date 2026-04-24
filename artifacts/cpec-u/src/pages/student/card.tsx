@@ -267,7 +267,7 @@ export default function StudentCard() {
                 </span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">Carte numérique officielle CPEC-Digital</p>
+            <p className="text-sm text-muted-foreground">Carte numérique officielle M15 EduTech</p>
           </div>
         </div>
 
@@ -386,7 +386,7 @@ export default function StudentCard() {
                       <GraduationCap className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <div className="text-white font-bold text-sm tracking-wide">CPEC-Digital</div>
+                      <div className="text-white font-bold text-sm tracking-wide">M15 EduTech</div>
                       <div className="text-yellow-300/90 text-[9px] font-semibold tracking-wider">INP-HB</div>
                     </div>
                   </div>
@@ -488,7 +488,7 @@ export default function StudentCard() {
                   <p className="text-sm font-semibold">QR Code de vérification</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Le QR code sur votre carte permet à toute personne de vérifier son authenticité
-                    sur la page de vérification officielle CPEC-Digital. Téléchargez le PDF pour voir le QR code.
+                    sur la page de vérification officielle M15 EduTech. Téléchargez le PDF pour voir le QR code.
                   </p>
                 </div>
               </CardContent>

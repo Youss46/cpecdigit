@@ -9,7 +9,7 @@ import {
   scheduleEntriesTable,
   attendanceSessionsTable,
 } from "@workspace/db";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull, inArray } from "drizzle-orm";
 import { requireRole } from "../lib/auth.js";
 
 const router = Router();
@@ -25,8 +25,8 @@ function requirePlanificateur(req: any, res: any, next: any) {
   next();
 }
 
-async function getEnriched() {
-  const rows = await db
+async function getEnriched(tenantId?: number) {
+  const query = db
     .select({
       id: teacherAssignmentsTable.id,
       teacherId: teacherAssignmentsTable.teacherId,
@@ -45,7 +45,10 @@ async function getEnriched() {
     .innerJoin(subjectsTable, eq(subjectsTable.id, teacherAssignmentsTable.subjectId))
     .innerJoin(classesTable, eq(classesTable.id, teacherAssignmentsTable.classId))
     .innerJoin(semestersTable, eq(semestersTable.id, teacherAssignmentsTable.semesterId));
-  return rows;
+  if (tenantId) {
+    return query.where(eq(classesTable.tenantId, tenantId));
+  }
+  return query;
 }
 
 async function computeHoursDone(assignmentId: number, ta: any) {
@@ -126,7 +129,7 @@ router.get("/by-teacher/:teacherId", requireRole("admin"), async (req, res) => {
 
 router.get("/", requireRole("admin", "teacher"), async (req, res) => {
   try {
-    const rows = await getEnriched();
+    const rows = await getEnriched(req.tenantId!);
     const withHours = await Promise.all(
       rows.map(async (r) => ({
         ...r,
@@ -179,7 +182,7 @@ router.post("/", requirePlanificateur, async (req, res) => {
       .insert(teacherAssignmentsTable)
       .values({ teacherId, subjectId, classId, semesterId, plannedHours: plannedHours ?? 30 })
       .returning();
-    const rows = await getEnriched();
+    const rows = await getEnriched(req.tenantId!);
     const result = rows.find((r) => r.id === row.id)!;
     res.status(201).json({ ...result, completedHours: 0 });
   } catch (err: any) {
@@ -205,7 +208,7 @@ router.put("/:id", requirePlanificateur, async (req, res) => {
       .where(eq(teacherAssignmentsTable.id, id))
       .returning();
     if (!row) return res.status(404).json({ error: "Not Found" });
-    const rows = await getEnriched();
+    const rows = await getEnriched(req.tenantId!);
     const result = rows.find((r) => r.id === row.id)!;
     const completedHours = await computeHoursDone(id, result);
     res.json({ ...result, completedHours });

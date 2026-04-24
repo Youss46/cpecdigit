@@ -145,7 +145,7 @@ export function WebAuthnRegisterPrompt({ userEmail, userName, onDone }: Props) {
                   <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/60">
                     <Smartphone className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" />
                     <p className="text-xs text-muted-foreground">
-                      La clé biométrique est stockée <strong>uniquement sur cet appareil</strong>. CPEC-Digital n'a jamais accès à vos données biométriques.
+                      La clé biométrique est stockée <strong>uniquement sur cet appareil</strong>. M15 EduTech n'a jamais accès à vos données biométriques.
                     </p>
                   </div>
 

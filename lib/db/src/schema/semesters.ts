@@ -2,9 +2,11 @@ import { pgTable, serial, varchar, boolean, timestamp, date, integer, unique } f
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { classesTable } from "./classes";
+import { tenantsTable } from "./tenants";
 
 export const semestersTable = pgTable("semesters", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenantsTable.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
   academicYear: varchar("academic_year", { length: 20 }).notNull(),
   published: boolean("published").notNull().default(false),

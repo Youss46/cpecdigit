@@ -141,7 +141,7 @@ export function ActivationKeyModal({ userId, activationKeyShown, isFirstLogin }:
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex gap-2">
                 <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>
-                  Aucune clé n'a pu être attribuée automatiquement. Contactez le développeur pour obtenir votre clé d'activation CPEC-Digital.
+                  Aucune clé n'a pu être attribuée automatiquement. Contactez le développeur pour obtenir votre clé d'activation M15 EduTech.
                 </span>
               </div>
 
@@ -187,7 +187,7 @@ export function ActivationKeyModal({ userId, activationKeyShown, isFirstLogin }:
               <Key className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-xl font-bold">Votre Clé d'Activation</h2>
-            <p className="text-sm text-white/70 mt-1">CPEC-Digital — Licence officielle</p>
+            <p className="text-sm text-white/70 mt-1">M15 EduTech — Licence officielle</p>
           </div>
 
           <div className="p-6 space-y-5">

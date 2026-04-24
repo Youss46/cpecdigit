@@ -53,6 +53,7 @@ function weightedGlobal(avgA: number | null, avgB: number | null, avgC: number |
 
 router.get("/admin/evaluations/periods", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const periods = await db
       .select({
         id: evaluationPeriodsTable.id,
@@ -65,6 +66,7 @@ router.get("/admin/evaluations/periods", requireRole("admin"), async (req, res) 
       })
       .from(evaluationPeriodsTable)
       .leftJoin(semestersTable, eq(evaluationPeriodsTable.semesterId, semestersTable.id))
+      .where(eq(evaluationPeriodsTable.tenantId, tenantId))
       .orderBy(sql`${evaluationPeriodsTable.createdAt} DESC`);
 
     const result = await Promise.all(periods.map(async (p) => {
@@ -88,6 +90,7 @@ router.get("/admin/evaluations/periods", requireRole("admin"), async (req, res) 
 
 router.post("/admin/evaluations/periods", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { semesterId, deadline, isActive } = req.body;
     if (!semesterId || !deadline) {
       return res.status(400).json({ error: "semesterId et deadline sont requis" });
@@ -98,6 +101,7 @@ router.post("/admin/evaluations/periods", requireRole("admin"), async (req, res)
         .update(evaluationPeriodsTable)
         .set({ isActive: false })
         .where(and(
+          eq(evaluationPeriodsTable.tenantId, tenantId),
           eq(evaluationPeriodsTable.semesterId, parseInt(semesterId)),
           eq(evaluationPeriodsTable.isActive, true)
         ));
@@ -106,6 +110,7 @@ router.post("/admin/evaluations/periods", requireRole("admin"), async (req, res)
     const [period] = await db
       .insert(evaluationPeriodsTable)
       .values({
+        tenantId,
         semesterId: parseInt(semesterId),
         deadline: new Date(deadline),
         isActive: isActive ?? false,

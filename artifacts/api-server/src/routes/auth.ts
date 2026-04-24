@@ -19,7 +19,15 @@ router.post("/login", async (req, res) => {
       return;
     }
 
-    const users = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    const tenantId = req.tenantId!;
+
+    const users = await db.select().from(usersTable)
+      .where(and(
+        eq(usersTable.email, email),
+        eq(usersTable.tenantId, tenantId)
+      ))
+      .limit(1);
+
     const user = users[0];
     if (!user) {
       res.status(401).json({ error: "Unauthorized", message: "Invalid credentials" });
@@ -32,7 +40,6 @@ router.post("/login", async (req, res) => {
       return;
     }
 
-    // Track first login for directeurs
     const isFirstLogin = user.role === "admin" && user.adminSubRole === "directeur" && !user.firstLoginAt;
     if (isFirstLogin) {
       await db.update(usersTable)
@@ -59,6 +66,7 @@ router.post("/login", async (req, res) => {
     req.session!.userId = user.id;
     req.session!.role = user.role;
     req.session!.name = user.name;
+    req.session!.tenantId = tenantId;
     req.session!.user = {
       id: user.id,
       role: user.role,
@@ -135,14 +143,12 @@ router.get("/me", requireAuth, async (req, res) => {
   }
 });
 
-// Mark activation key as shown for directeur
 router.post("/activation-shown", requireAuth, async (req, res) => {
   try {
     const userId = req.session!.userId!;
     await db.update(usersTable)
       .set({ activationKeyShown: true })
       .where(eq(usersTable.id, userId));
-    // Mark the key as shown
     await db.update(activationKeysTable)
       .set({ shownAt: new Date() })
       .where(and(
@@ -156,7 +162,6 @@ router.post("/activation-shown", requireAuth, async (req, res) => {
   }
 });
 
-// Validate a manually entered activation key and assign it to the current directeur
 router.post("/validate-activation-key", requireAuth, async (req, res) => {
   try {
     const userId = req.session!.userId!;
@@ -193,7 +198,6 @@ router.post("/validate-activation-key", requireAuth, async (req, res) => {
   }
 });
 
-// Get the activation key assigned to a directeur
 router.get("/my-activation-key", requireAuth, async (req, res) => {
   try {
     const userId = req.session!.userId!;
@@ -207,7 +211,6 @@ router.get("/my-activation-key", requireAuth, async (req, res) => {
       .limit(1);
     const key = keys[0];
     if (!key) {
-      // Try to auto-assign an available key
       const available = await db.select().from(activationKeysTable)
         .where(and(
           eq(activationKeysTable.status, "available"),

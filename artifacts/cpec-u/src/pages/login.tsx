@@ -29,12 +29,12 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 
 const SLIDES = [
-  { src: "images/login-bg.jpg", alt: "Étudiants CPEC-Digital", quote: "L'Excellence Académique au Quotidien." },
-  { src: "images/student-1.jpg", alt: "Étudiante CPEC-Digital", quote: "CPEC-Digital : L'expertise comptable à l'ère du numérique." },
-  { src: "images/student-2.jpg", alt: "Étudiant CPEC-Digital", quote: "Plus qu'un centre, un accélérateur de compétences." },
-  { src: "images/student-3.jpg", alt: "Étudiante CPEC-Digital", quote: "La comptabilité, une science au service de l'avenir." },
-  { src: "images/group-1.jpg", alt: "Promotion CPEC-Digital", quote: "L'excellence comptable commence au CPEC-Digital." },
-  { src: "images/group-2.jpg", alt: "Promotion CPEC-Digital", quote: "Maîtriser les chiffres, piloter l'avenir." },
+  { src: "images/login-bg.jpg", alt: "Étudiants M15 EduTech", quote: "L'Excellence Académique au Quotidien." },
+  { src: "images/student-1.jpg", alt: "Étudiante M15 EduTech", quote: "M15 EduTech : La gestion académique à l'ère du numérique." },
+  { src: "images/student-2.jpg", alt: "Étudiant M15 EduTech", quote: "Plus qu'une plateforme, un accélérateur de compétences." },
+  { src: "images/student-3.jpg", alt: "Étudiante M15 EduTech", quote: "La connaissance, une science au service de l'avenir." },
+  { src: "images/group-1.jpg", alt: "Promotion M15 EduTech", quote: "L'excellence académique commence avec M15 EduTech." },
+  { src: "images/group-2.jpg", alt: "Promotion M15 EduTech", quote: "Maîtriser les données, piloter l'avenir." },
 ];
 
 const SLIDE_DURATION = 4000;
@@ -276,7 +276,7 @@ export default function Login() {
               </div>
               <CardTitle className="text-3xl font-serif text-center">Connexion</CardTitle>
               <CardDescription className="text-center text-base">
-                Accédez à votre espace sécurisé CPEC-Digital
+                Accédez à votre espace sécurisé M15 EduTech
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -518,7 +518,7 @@ export default function Login() {
               <Mail className="w-5 h-5 text-primary shrink-0" />
               <div>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Email</p>
-                <p className="text-sm font-semibold">scolarite@cpec-u.ci</p>
+                <p className="text-sm font-semibold">support@m15edutech.ci</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">

@@ -147,7 +147,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
-  let data = { title: 'CPEC-Digital', body: 'Vous avez une nouvelle notification.', type: 'info' };
+  let data = { title: 'M15 EduTech', body: 'Vous avez une nouvelle notification.', type: 'info' };
   try {
     data = { ...data, ...event.data.json() };
   } catch (_) {

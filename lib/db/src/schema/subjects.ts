@@ -4,9 +4,11 @@ import { z } from "zod/v4";
 import { classesTable } from "./classes";
 import { semestersTable } from "./semesters";
 import { teachingUnitsTable } from "./teaching_units";
+import { tenantsTable } from "./tenants";
 
 export const subjectsTable = pgTable("subjects", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenantsTable.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
   coefficient: real("coefficient").notNull().default(1),
   credits: real("credits").default(1),

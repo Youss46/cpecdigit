@@ -52,9 +52,11 @@ function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "cpec-u-salt").digest("hex");
 }
 
-async function notifyParentsOfResults(semesterName: string, academicYear: string): Promise<void> {
+async function notifyParentsOfResults(semesterName: string, academicYear: string, tenantId?: number): Promise<void> {
   try {
-    const parents = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "parent"));
+    const conditions: any[] = [eq(usersTable.role, "parent")];
+    if (tenantId) conditions.push(eq(usersTable.tenantId, tenantId));
+    const parents = await db.select({ id: usersTable.id }).from(usersTable).where(and(...conditions));
     const title = "Résultats disponibles";
     const message = `Les résultats du semestre "${semesterName}" (${academicYear}) sont publiés. Connectez-vous à l'Espace Parents pour les consulter.`;
     for (const parent of parents) {
@@ -87,8 +89,9 @@ async function applyClassFeeToStudent(studentId: number, classId: number) {
 // ─── Users ───────────────────────────────────────────────────────────────────
 router.get("/users", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { role, search } = req.query;
-    const conditions: any[] = [];
+    const conditions: any[] = [eq(usersTable.tenantId, tenantId)];
     if (role) conditions.push(eq(usersTable.role, role as any));
 
     let usersByText: typeof usersTable.$inferSelect[] = [];
@@ -104,6 +107,7 @@ router.get("/users", requireRole("admin"), async (req, res) => {
         .from(studentProfilesTable)
         .innerJoin(usersTable, eq(usersTable.id, studentProfilesTable.studentId))
         .where(and(
+          eq(usersTable.tenantId, tenantId),
           ilike(studentProfilesTable.matricule, term),
           ...(role ? [eq(usersTable.role, role as any)] : [])
         ));
@@ -111,13 +115,12 @@ router.get("/users", requireRole("admin"), async (req, res) => {
       const extraIds = [...matriculeIds].filter(id => !byText.some(u => u.id === id));
       let byMatriculeUsers: typeof usersTable.$inferSelect[] = [];
       if (extraIds.length) {
-        byMatriculeUsers = await db.select().from(usersTable).where(inArray(usersTable.id, extraIds));
+        byMatriculeUsers = await db.select().from(usersTable)
+          .where(and(eq(usersTable.tenantId, tenantId), inArray(usersTable.id, extraIds)));
       }
       usersByText = [...byText, ...byMatriculeUsers];
     } else {
-      usersByText = conditions.length
-        ? await db.select().from(usersTable).where(and(...conditions))
-        : await db.select().from(usersTable);
+      usersByText = await db.select().from(usersTable).where(and(...conditions));
     }
     const users = usersByText;
 
@@ -251,6 +254,7 @@ router.post("/users", requireRole("admin"), async (req, res) => {
 
     const passwordHash = hashPassword(password);
     const [user] = await db.insert(usersTable).values({
+      tenantId: req.tenantId!,
       email: email.trim(), name: resolvedName, passwordHash, role,
       adminSubRole: role === "admin" ? (adminSubRole ?? null) : null,
       mustChangePassword: true,
@@ -293,8 +297,9 @@ router.post("/users", requireRole("admin"), async (req, res) => {
 
 router.get("/users/:id", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+    const [user] = await db.select().from(usersTable).where(and(eq(usersTable.id, id), eq(usersTable.tenantId, tenantId)));
     if (!user) { res.status(404).json({ error: "Not Found" }); return; }
     const [enroll] = await db.select({ classId: classEnrollmentsTable.classId, className: classesTable.name })
       .from(classEnrollmentsTable).innerJoin(classesTable, eq(classesTable.id, classEnrollmentsTable.classId))
@@ -308,6 +313,7 @@ router.get("/users/:id", requireRole("admin"), async (req, res) => {
 
 router.put("/users/:id", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
     const { email, name, password, role, adminSubRole, classId } = req.body;
     const updates: any = {};
@@ -319,7 +325,7 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
     if (role && role !== "admin") updates.adminSubRole = null;
     updates.updatedAt = new Date();
 
-    const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
+    const [user] = await db.update(usersTable).set(updates).where(and(eq(usersTable.id, id), eq(usersTable.tenantId, tenantId))).returning();
     if (!user) { res.status(404).json({ error: "Not Found" }); return; }
 
     if (classId !== undefined) {
@@ -343,6 +349,7 @@ router.put("/users/:id", requireRole("admin"), async (req, res) => {
 
 router.delete("/users/:id", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
     const currentUser = req.session.user!;
 
@@ -354,7 +361,7 @@ router.delete("/users/:id", requireRole("admin"), async (req, res) => {
 
     // Restrictions selon le sous-rôle (le Directeur peut tout supprimer sauf lui-même)
     if (currentUser.adminSubRole === "planificateur" || currentUser.adminSubRole === "scolarite") {
-      const [target] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+      const [target] = await db.select().from(usersTable).where(and(eq(usersTable.id, id), eq(usersTable.tenantId, tenantId)));
       if (target && target.role === "admin") {
         res.status(403).json({ error: "Action non autorisée : suppression d'un administrateur interdite." });
         return;
@@ -369,7 +376,7 @@ router.delete("/users/:id", requireRole("admin"), async (req, res) => {
       }
     }
 
-    await db.delete(usersTable).where(eq(usersTable.id, id));
+    await db.delete(usersTable).where(and(eq(usersTable.id, id), eq(usersTable.tenantId, tenantId)));
     res.json({ message: "User deleted" });
   } catch (err) {
     console.error(err);
@@ -420,22 +427,28 @@ router.put("/students/:id/profile", requireRole("admin"), async (req, res) => {
 // ─── Classes ─────────────────────────────────────────────────────────────────
 router.get("/classes", requireRole("admin", "teacher"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { asc } = await import("drizzle-orm");
-    const classes = await db.select().from(classesTable).orderBy(asc(classesTable.orderIndex), asc(classesTable.id));
-    const enrollCounts = await db
+    const classes = await db.select().from(classesTable)
+      .where(eq(classesTable.tenantId, tenantId))
+      .orderBy(asc(classesTable.orderIndex), asc(classesTable.id));
+    const classIds = classes.map(c => c.id);
+    const enrollCounts = classIds.length ? await db
       .select({ classId: classEnrollmentsTable.classId, cnt: count(classEnrollmentsTable.studentId) })
       .from(classEnrollmentsTable)
-      .groupBy(classEnrollmentsTable.classId);
+      .where(inArray(classEnrollmentsTable.classId, classIds))
+      .groupBy(classEnrollmentsTable.classId) : [];
     const countMap = new Map(enrollCounts.map((e) => [e.classId, Number(e.cnt)]));
 
-    const genderRows = allRows(await db.execute(sql`
+    const genderRows = classIds.length ? allRows(await db.execute(sql`
       SELECT ce.class_id,
         COUNT(CASE WHEN sp.sexe = 'M' THEN 1 END)::int AS garcons,
         COUNT(CASE WHEN sp.sexe = 'F' THEN 1 END)::int AS filles
       FROM class_enrollments ce
       LEFT JOIN student_profiles sp ON sp.student_id = ce.student_id
+      WHERE ce.class_id = ANY(${classIds})
       GROUP BY ce.class_id
-    `));
+    `)) : [];
     const genderMap = new Map(genderRows.map((r: any) => [Number(r.class_id), { garcons: Number(r.garcons ?? 0), filles: Number(r.filles ?? 0) }]));
 
     const result = classes.map((c) => ({
@@ -453,6 +466,7 @@ router.get("/classes", requireRole("admin", "teacher"), async (req, res) => {
 
 router.post("/classes", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const cu = req.session?.user as any;
     if (cu?.adminSubRole === "scolarite") {
       res.status(403).json({ error: "Forbidden", message: "L'Assistant(e) de Direction ne peut pas créer de classe." });
@@ -460,10 +474,9 @@ router.post("/classes", requireRole("admin"), async (req, res) => {
     }
     const { name, description, filiere } = req.body;
     if (!name) { res.status(400).json({ error: "Bad Request", message: "Name is required" }); return; }
-    // New class gets orderIndex = max + 1
-    const existing = await db.select({ o: classesTable.orderIndex }).from(classesTable);
+    const existing = await db.select({ o: classesTable.orderIndex }).from(classesTable).where(eq(classesTable.tenantId, tenantId));
     const maxOrder = existing.length > 0 ? Math.max(...existing.map((c) => c.o)) : 0;
-    const [cls] = await db.insert(classesTable).values({ name, description, filiere: filiere?.trim() || null, orderIndex: maxOrder + 1 }).returning();
+    const [cls] = await db.insert(classesTable).values({ tenantId, name, description, filiere: filiere?.trim() || null, orderIndex: maxOrder + 1 }).returning();
     res.status(201).json({ ...cls, studentCount: 0 });
   } catch (err) {
     console.error(err);
@@ -580,7 +593,8 @@ async function enrichSubjects(subjects: any[]) {
 
 router.get("/subjects", requireRole("admin", "teacher"), async (req, res) => {
   try {
-    const subjects = await db.select().from(subjectsTable);
+    const tenantId = req.tenantId!;
+    const subjects = await db.select().from(subjectsTable).where(eq(subjectsTable.tenantId, tenantId));
     res.json(await enrichSubjects(subjects));
   } catch (err) {
     console.error(err);
@@ -590,6 +604,7 @@ router.get("/subjects", requireRole("admin", "teacher"), async (req, res) => {
 
 router.post("/subjects", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const cu = req.session?.user as any;
     if (cu?.adminSubRole === "scolarite") {
       res.status(403).json({ error: "Forbidden", message: "L'Assistant(e) de Direction ne peut pas créer de matière." });
@@ -597,7 +612,7 @@ router.post("/subjects", requireRole("admin"), async (req, res) => {
     }
     const { name, coefficient, credits, description, ueId, classId, semesterId } = req.body;
     if (!name || coefficient === undefined) { res.status(400).json({ error: "Bad Request", message: "Name and coefficient are required" }); return; }
-    const [subj] = await db.insert(subjectsTable).values({ name, coefficient, credits: credits ?? null, description, ueId: ueId ?? null, classId: classId ?? null, semesterId: semesterId ?? null }).returning();
+    const [subj] = await db.insert(subjectsTable).values({ tenantId, name, coefficient, credits: credits ?? null, description, ueId: ueId ?? null, classId: classId ?? null, semesterId: semesterId ?? null }).returning();
     const [enriched] = await enrichSubjects([subj]);
     res.status(201).json(enriched);
   } catch (err) {
@@ -634,12 +649,14 @@ router.delete("/subjects/:id", requireRole("admin"), async (req, res) => {
 // ─── Teaching Units (UE) ──────────────────────────────────────────────────────
 router.get("/teaching-units", requireRole("admin", "teacher"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { classId, semesterId } = req.query;
-    let ues = await db.select().from(teachingUnitsTable);
-    if (classId) ues = ues.filter(u => u.classId === parseInt(classId as string));
-    if (semesterId) ues = ues.filter(u => u.semesterId === parseInt(semesterId as string));
-    const classes = await db.select().from(classesTable);
-    const semesters = await db.select().from(semestersTable);
+    const conditions: any[] = [eq(teachingUnitsTable.tenantId, tenantId)];
+    if (classId) conditions.push(eq(teachingUnitsTable.classId, parseInt(classId as string)));
+    if (semesterId) conditions.push(eq(teachingUnitsTable.semesterId, parseInt(semesterId as string)));
+    const ues = await db.select().from(teachingUnitsTable).where(and(...conditions));
+    const classes = await db.select().from(classesTable).where(eq(classesTable.tenantId, tenantId));
+    const semesters = await db.select().from(semestersTable).where(eq(semestersTable.tenantId, tenantId));
     const classMap = new Map(classes.map((c) => [c.id, c.name]));
     const semesterMap = new Map(semesters.map((s) => [s.id, s.name]));
     res.json(ues.map(u => ({
@@ -655,6 +672,7 @@ router.get("/teaching-units", requireRole("admin", "teacher"), async (req, res) 
 
 router.post("/teaching-units", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const cu = req.session?.user as any;
     if (cu?.adminSubRole === "scolarite") {
       res.status(403).json({ error: "Forbidden" }); return;
@@ -663,7 +681,7 @@ router.post("/teaching-units", requireRole("admin"), async (req, res) => {
     if (!code || !name || coefficient === undefined) {
       res.status(400).json({ error: "Bad Request", message: "code, name and coefficient are required" }); return;
     }
-    const [ue] = await db.insert(teachingUnitsTable).values({ code, name, category: category ?? null, credits: credits ?? coefficient, coefficient, classId: classId ?? null, semesterId: semesterId ?? null }).returning();
+    const [ue] = await db.insert(teachingUnitsTable).values({ tenantId, code, name, category: category ?? null, credits: credits ?? coefficient, coefficient, classId: classId ?? null, semesterId: semesterId ?? null }).returning();
     const cls = classId ? await db.select({ name: classesTable.name }).from(classesTable).where(eq(classesTable.id, classId)).limit(1) : [];
     const sem = semesterId ? await db.select({ name: semestersTable.name }).from(semestersTable).where(eq(semestersTable.id, semesterId)).limit(1) : [];
     res.status(201).json({ ...ue, className: cls[0]?.name ?? null, semesterName: sem[0]?.name ?? null });
@@ -702,6 +720,7 @@ router.delete("/teaching-units/:id", requireRole("admin"), async (req, res) => {
 // ─── Semesters ────────────────────────────────────────────────────────────────
 router.get("/semesters", requireRole("admin", "teacher", "student"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const rows = await db
       .select({
         id: semestersTable.id,
@@ -719,6 +738,7 @@ router.get("/semesters", requireRole("admin", "teacher", "student"), async (req,
       })
       .from(semestersTable)
       .leftJoin(classesTable, eq(semestersTable.classId, classesTable.id))
+      .where(eq(semestersTable.tenantId, tenantId))
       .orderBy(semestersTable.createdAt);
     res.json(rows);
   } catch (err) {
@@ -729,6 +749,7 @@ router.get("/semesters", requireRole("admin", "teacher", "student"), async (req,
 
 router.post("/semesters", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { name, academicYear, startDate, endDate, classId, semesterNumber, niveauLmd } = req.body;
     if (!name || !academicYear) { res.status(400).json({ error: "Bad Request", message: "Name and academicYear are required" }); return; }
 
@@ -782,6 +803,7 @@ router.post("/semesters", requireRole("admin"), async (req, res) => {
     }
 
     const [sem] = await db.insert(semestersTable).values({
+      tenantId,
       name,
       academicYear,
       startDate: startDate ?? null,
@@ -890,7 +912,8 @@ router.post("/semesters/:id/publish", requireRole("admin"), async (req, res) => 
     });
     // Notify all enrolled students when results are published
     if (published) {
-      const allClasses = await db.select({ id: classesTable.id }).from(classesTable);
+      const tenantId = req.tenantId!;
+      const allClasses = await db.select({ id: classesTable.id }).from(classesTable).where(eq(classesTable.tenantId, tenantId));
       const classIds = allClasses.map(c => c.id);
       notifyStudentsOfClasses(
         classIds,
@@ -899,7 +922,7 @@ router.post("/semesters/:id/publish", requireRole("admin"), async (req, res) => 
         `Les résultats du semestre "${sem.name}" (${sem.academicYear}) sont désormais disponibles. Consultez votre espace étudiant.`
       ).catch(console.error);
       // Notify parents
-      notifyParentsOfResults(sem.name, sem.academicYear).catch(console.error);
+      notifyParentsOfResults(sem.name, sem.academicYear, tenantId).catch(console.error);
     }
     res.json(sem);
   } catch (err) {

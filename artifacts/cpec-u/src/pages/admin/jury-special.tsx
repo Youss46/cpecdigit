@@ -232,7 +232,7 @@ export default function JurySpecial() {
     <div class="sig-box"><div class="sig-line">Le Chef Scolarité</div></div>
     <div class="sig-box"><div class="sig-line">Le Secrétaire du Jury</div></div>
   </div>
-  <div class="footer">Document généré automatiquement par CPEC-Digital — Confidentiel</div>
+  <div class="footer">Document généré automatiquement par M15 EduTech — Confidentiel</div>
   <script>window.onload = () => window.print();</script>
 </body>
 </html>`;

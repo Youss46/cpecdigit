@@ -2,6 +2,7 @@ import { pgTable, serial, varchar, text, integer, boolean, timestamp, pgEnum, re
 import { usersTable } from "./users";
 import { subjectsTable } from "./subjects";
 import { semestersTable } from "./semesters";
+import { tenantsTable } from "./tenants";
 
 export const resourceTypeEnum = pgEnum("resource_type", [
   "pdf",
@@ -15,6 +16,7 @@ export const resourceTypeEnum = pgEnum("resource_type", [
 
 export const libraryResourcesTable = pgTable("library_resources", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenantsTable.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
   type: resourceTypeEnum("type").notNull(),
   subjectId: integer("subject_id").references(() => subjectsTable.id, { onDelete: "set null" }),
@@ -39,8 +41,6 @@ export const libraryDownloadsTable = pgTable("library_downloads", {
   downloadedAt: timestamp("downloaded_at").defaultNow().notNull(),
 });
 
-/* ── Quiz tables ─────────────────────────────────────────────────────────── */
-
 export const libraryQuizTable = pgTable("library_quiz", {
   id: serial("id").primaryKey(),
   resourceId: integer("resource_id").notNull().references(() => libraryResourcesTable.id, { onDelete: "cascade" }),
@@ -57,7 +57,7 @@ export const libraryQuizQuestionsTable = pgTable("library_quiz_questions", {
   id: serial("id").primaryKey(),
   quizId: integer("quiz_id").notNull().references(() => libraryQuizTable.id, { onDelete: "cascade" }),
   texte: text("texte").notNull(),
-  type: varchar("type", { length: 20 }).notNull().default("qcm"), // qcm | qcm_multi | vrai_faux | libre
+  type: varchar("type", { length: 20 }).notNull().default("qcm"),
   explication: text("explication"),
   points: integer("points").default(1).notNull(),
   ordre: integer("ordre").notNull(),
@@ -82,8 +82,6 @@ export const libraryQuizResultatsTable = pgTable("library_quiz_resultats", {
   reponsesDonnees: text("reponses_donnees").default("{}").notNull(),
   termineLe: timestamp("termine_le").defaultNow().notNull(),
 });
-
-/* ── Time tracking ───────────────────────────────────────────────────────── */
 
 export const libraryTimeTrackingTable = pgTable("library_time_tracking", {
   id: serial("id").primaryKey(),

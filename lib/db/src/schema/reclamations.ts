@@ -4,6 +4,7 @@ import {
 import { usersTable } from "./users";
 import { subjectsTable } from "./subjects";
 import { semestersTable } from "./semesters";
+import { tenantsTable } from "./tenants";
 
 export const reclamationTypeEnum = pgEnum("reclamation_type", [
   "erreur_saisie",
@@ -23,6 +24,7 @@ export const reclamationStatusEnum = pgEnum("reclamation_status", [
 
 export const reclamationPeriodsTable = pgTable("reclamation_periods", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").references(() => tenantsTable.id, { onDelete: "cascade" }),
   semesterId: integer("semester_id").notNull().references(() => semestersTable.id, { onDelete: "cascade" }),
   openDate: timestamp("open_date").notNull(),
   closeDate: timestamp("close_date").notNull(),
