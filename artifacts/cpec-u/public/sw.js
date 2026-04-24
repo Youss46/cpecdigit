@@ -1,5 +1,5 @@
-const CACHE_NAME = 'cpec-u-v9';
-const API_CACHE_NAME = 'cpec-u-api-v3';
+const CACHE_NAME = 'm15-edutech-v11';
+const API_CACHE_NAME = 'm15-edutech-api-v4';
 const API_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const SHELL_ASSETS = [
@@ -130,17 +130,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-first for everything else (JS, CSS, HTML, images).
+  // Falls back to cache only when offline. This prevents stale JS bundles
+  // from being served indefinitely after a deploy.
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
+    fetch(event.request)
+      .then(response => {
         if (response && response.status === 200 && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request).then(cached => cached ?? Response.error()))
   );
 });
 
