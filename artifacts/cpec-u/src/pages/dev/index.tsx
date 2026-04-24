@@ -1100,7 +1100,7 @@ export default function DevDashboard() {
                   </div>
                 )}
 
-                <form onSubmit={handleCreateSchool} className="space-y-5">
+                <form onSubmit={handleCreateSchool} className="space-y-5" autoComplete="off">
                   {/* School info */}
                   <div className="space-y-3">
                     <p className="text-xs text-zinc-500 uppercase tracking-wider">Informations de l'école</p>
@@ -1134,6 +1134,7 @@ export default function DevDashboard() {
                           type="email" value={saEmail} onChange={e => setSaEmail(e.target.value)}
                           placeholder="admin@ecole.ci"
                           className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600"
+                          autoComplete="new-password"
                           required
                         />
                       </div>
@@ -1145,6 +1146,7 @@ export default function DevDashboard() {
                           type={saShowPwd ? "text" : "password"} value={saPassword} onChange={e => setSaPassword(e.target.value)}
                           placeholder="Minimum 6 caractères"
                           className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 pr-9"
+                          autoComplete="new-password"
                           required
                         />
                         <button type="button" onClick={() => setSaShowPwd(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
