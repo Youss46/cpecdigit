@@ -143,6 +143,9 @@ export default function DevDashboard() {
   // Schools tab
   const [schools, setSchools] = useState<SchoolRecord[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
+  const [renewingSchoolId, setRenewingSchoolId] = useState<number | null>(null);
+  const [renewDurations, setRenewDurations] = useState<Record<number, string>>({});
+  const [renewLoading, setRenewLoading] = useState<number | null>(null);
   const [createSchoolForm, setCreateSchoolForm] = useState(false);
   const [sName, setSName] = useState("");
   const [saName, setSaName] = useState("");
@@ -311,6 +314,25 @@ export default function DevDashboard() {
     if (r.ok) {
       const updated = await r.json();
       setSchools(s => s.map(x => x.id === id ? { ...x, active: updated.active } : x));
+    }
+  };
+
+  const handleRenewLicense = async (schoolId: number) => {
+    const duration = renewDurations[schoolId] ?? "1year";
+    setRenewLoading(schoolId);
+    try {
+      const r = await devFetch(`${API}/schools/${schoolId}/renew-license`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ duration }),
+      });
+      if (r.ok) {
+        const { school, license } = await r.json();
+        setSchools(s => s.map(x => x.id === schoolId ? { ...x, active: school.active, license } : x));
+        setRenewingSchoolId(null);
+      }
+    } finally {
+      setRenewLoading(null);
     }
   };
 
@@ -1292,34 +1314,85 @@ export default function DevDashboard() {
                         <p className="text-[10px] text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                           <Key className="w-3 h-3" /> Licence
                         </p>
-                        {school.license ? (
-                          <>
-                            <div className="flex items-center gap-1.5">
-                              {!school.active ? (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/20">
-                                  Suspendue
-                                </span>
-                              ) : (
-                                <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border",
-                                  school.license.status === "assigned" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                                  school.license.status === "revoked" ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                                  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                )}>
-                                  {STATUS_CONFIG[school.license.status]?.label ?? school.license.status}
-                                </span>
-                              )}
-                              <span className="text-[10px] text-zinc-500">{DURATION_LABELS[school.license.duration] ?? school.license.duration}</span>
-                            </div>
-                            <p className="text-xs font-mono text-zinc-300">{formatKey(school.license.key)}</p>
-                            <p className="text-[10px] text-zinc-600">
-                              {school.license.expiresAt ? `Expire le ${formatDate(school.license.expiresAt)}` : "À vie — sans expiration"}
-                            </p>
-                          </>
-                        ) : (
+                        {school.license ? (() => {
+                          const expDate = school.license.expiresAt ? new Date(school.license.expiresAt) : null;
+                          const now = new Date();
+                          const isExpired = expDate && expDate <= now;
+                          const isExpiringSoon = !isExpired && expDate && (expDate.getTime() - now.getTime()) < 30 * 24 * 60 * 60 * 1000;
+                          return (
+                            <>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {isExpired ? (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-red-500/10 text-red-400 border-red-500/20">
+                                    ⛔ Expirée
+                                  </span>
+                                ) : isExpiringSoon ? (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/20">
+                                    ⚠️ Expire bientôt
+                                  </span>
+                                ) : !school.active ? (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/20">
+                                    Suspendue
+                                  </span>
+                                ) : (
+                                  <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border",
+                                    school.license.status === "assigned" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                                    school.license.status === "revoked" ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                                    "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  )}>
+                                    {STATUS_CONFIG[school.license.status]?.label ?? school.license.status}
+                                  </span>
+                                )}
+                                <span className="text-[10px] text-zinc-500">{DURATION_LABELS[school.license.duration] ?? school.license.duration}</span>
+                              </div>
+                              <p className="text-xs font-mono text-zinc-300">{formatKey(school.license.key)}</p>
+                              <p className={cn("text-[10px]", isExpired ? "text-red-500" : isExpiringSoon ? "text-amber-500" : "text-zinc-600")}>
+                                {expDate ? `Expire le ${formatDate(school.license.expiresAt)}` : "À vie — sans expiration"}
+                              </p>
+                            </>
+                          );
+                        })() : (
                           <p className="text-xs text-zinc-600 italic">Aucune licence assignée</p>
                         )}
                       </div>
                     </div>
+
+                    {/* Renewal panel */}
+                    {renewingSchoolId === school.id ? (
+                      <div className="mt-3 bg-zinc-800/60 border border-violet-500/20 rounded-xl p-3 flex items-center gap-2">
+                        <select
+                          value={renewDurations[school.id] ?? "1year"}
+                          onChange={e => setRenewDurations(d => ({ ...d, [school.id]: e.target.value }))}
+                          className="flex-1 bg-zinc-900 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-violet-500"
+                        >
+                          {Object.entries(DURATION_LABELS).map(([val, label]) => (
+                            <option key={val} value={val}>{label}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleRenewLicense(school.id)}
+                          disabled={renewLoading === school.id}
+                          className="px-3 py-1.5 text-xs font-medium bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {renewLoading === school.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Confirmer"}
+                        </button>
+                        <button
+                          onClick={() => setRenewingSchoolId(null)}
+                          className="p-1.5 text-zinc-500 hover:text-white rounded-lg"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex justify-end">
+                        <button
+                          onClick={() => { setRenewingSchoolId(school.id); setRenewDurations(d => ({ ...d, [school.id]: d[school.id] ?? "1year" })); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-violet-400 border border-violet-500/30 hover:bg-violet-500/10 rounded-lg transition-colors"
+                        >
+                          <RefreshCw className="w-3 h-3" /> Renouveler la licence
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

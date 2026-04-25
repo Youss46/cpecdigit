@@ -2,7 +2,7 @@ import { Router } from "express";
 import crypto from "crypto";
 import { db } from "@workspace/db";
 import { activationKeysTable, usersTable, tenantsTable } from "@workspace/db";
-import { eq, desc, and, isNull } from "drizzle-orm";
+import { eq, desc, and, isNull, ne } from "drizzle-orm";
 
 const router = Router();
 
@@ -395,6 +395,85 @@ router.patch("/schools/:id/toggle", requireDev, async (req, res) => {
       .where(eq(tenantsTable.id, id))
       .returning();
     res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /api/dev/schools/:id/renew-license — extend or create license for a school
+router.post("/schools/:id/renew-license", requireDev, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { duration } = req.body;
+
+    const validDurations = ["lifetime", "1year", "2years", "5years", "10years"];
+    if (!duration || !validDurations.includes(duration)) {
+      return res.status(400).json({ error: "Durée invalide" });
+    }
+
+    const [school] = await db.select().from(tenantsTable).where(eq(tenantsTable.id, id)).limit(1);
+    if (!school) return res.status(404).json({ error: "École introuvable" });
+
+    const [admin] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(and(eq(usersTable.tenantId, id), eq(usersTable.adminSubRole, "directeur")))
+      .limit(1);
+
+    let existingKey = null;
+    if (admin) {
+      const [key] = await db.select().from(activationKeysTable)
+        .where(eq(activationKeysTable.assignedToUserId, String(admin.id)))
+        .limit(1);
+      existingKey = key ?? null;
+    }
+
+    let updatedKey;
+    if (existingKey) {
+      // Extend from current expiry (if future) or from today
+      let newExpiry: Date | null = null;
+      if (duration !== "lifetime") {
+        const base = existingKey.expiresAt && existingKey.expiresAt > new Date()
+          ? new Date(existingKey.expiresAt)
+          : new Date();
+        switch (duration) {
+          case "1year":   base.setFullYear(base.getFullYear() + 1); break;
+          case "2years":  base.setFullYear(base.getFullYear() + 2); break;
+          case "5years":  base.setFullYear(base.getFullYear() + 5); break;
+          case "10years": base.setFullYear(base.getFullYear() + 10); break;
+        }
+        newExpiry = base;
+      }
+      const [row] = await db.update(activationKeysTable)
+        .set({ expiresAt: newExpiry, duration: duration as any, status: "assigned" })
+        .where(eq(activationKeysTable.id, existingKey.id))
+        .returning();
+      updatedKey = row;
+    } else {
+      // Create a new license for this school
+      const key = generateKey();
+      const expiresAt = computeExpiry(duration);
+      const [row] = await db.insert(activationKeysTable).values({
+        key,
+        duration: duration as any,
+        expiresAt,
+        notes: `Licence renouvelée — ${school.name}`,
+        assignedToUserId: admin ? String(admin.id) : null,
+        assignedAt: new Date(),
+        status: "assigned",
+        tenantId: id,
+      }).returning();
+      updatedKey = row;
+    }
+
+    // Reactivate the school if it was suspended due to expiry
+    const [updatedSchool] = await db.update(tenantsTable)
+      .set({ active: true })
+      .where(eq(tenantsTable.id, id))
+      .returning();
+
+    res.json({ school: updatedSchool, license: updatedKey });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });

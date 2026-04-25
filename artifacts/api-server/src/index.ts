@@ -7,6 +7,7 @@ import { usersTable, tenantsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { startFeeReminderScheduler } from "./lib/fee-reminder-scheduler.js";
 import { startRecommendationScheduler } from "./lib/recommendation-scheduler.js";
+import { startLicenseExpiryScheduler } from "./lib/license-expiry-scheduler.js";
 
 const rawPort = process.env["PORT"];
 
@@ -84,4 +85,5 @@ httpServer.listen(port, () => {
   seedInitialAdmin();
   startFeeReminderScheduler();
   startRecommendationScheduler();
+  startLicenseExpiryScheduler();
 });
