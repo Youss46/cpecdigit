@@ -76,6 +76,30 @@ Token-based, no session cookies. The frontend computes `SHA-256("dev-token:" + p
 - Interactive components like multi-step wizards for evaluations and grade disputes, and data visualization (radar charts, line charts, bar charts) for academic tracking and comparative reports.
 - Color-coded scores and alerts are used for quick visual interpretation in evaluation and academic tracking modules.
 
+## Deployment Architecture
+
+### Frontend → Vercel
+- **Config file**: `artifacts/cpec-u/vercel.json`
+- **Vercel project root directory**: `artifacts/cpec-u`
+- **Build command**: `cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @workspace/cpec-u run build`
+- **Output directory**: `dist/public`
+- **API proxy**: Vercel rewrites `/api/*` → `https://$BACKEND_HOST/api/*` so the browser never makes cross-origin requests — no CORS headaches, session cookies work as same-origin.
+- **Required Vercel env var**: `BACKEND_HOST` — set to the Railway hostname (e.g. `my-app.railway.app`, no `https://`).
+- **SPA routing**: All non-asset routes fall through to `index.html`.
+
+### Backend → Railway
+- **Config file**: `railway.toml` (project root)
+- **Build command**: `pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build`
+- **Start command**: `pnpm --filter @workspace/api-server run start`
+- **Health check**: `GET /api/healthz`
+- **Required Railway env vars**: `DATABASE_URL`, `SESSION_SECRET`, `DEV_MASTER_KEY`, `PORT` (auto-set by Railway), optionally `CORS_ORIGINS` (comma-separated allowed origins).
+
+### Fetch Interceptor (Replit-only)
+The `window.fetch` interceptor in `main.tsx` that rewrites `/api/*` → `/srv/*` is **gated to the Replit hosted environment** (`*.replit.dev`, `*.repl.co` hostnames). It does not run on Vercel or localhost.
+
+### Monolithic / Self-Hosted Mode
+Both packages can still be built together and the backend will serve the frontend static files from `artifacts/cpec-u/dist/public` if that directory exists at runtime.
+
 ## External Dependencies
 - **PostgreSQL**: The primary database for all application data, managed by Drizzle ORM.
 - **Web-Push (VAPID)**: For sending push notifications to users.

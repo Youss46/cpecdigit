@@ -29,9 +29,37 @@ declare module "express-session" {
 
 const app: Express = express();
 
-app.use(cors({ origin: true, credentials: true }));
+// CORS: in production use the CORS_ORIGINS env var (comma-separated list of
+// allowed origins). Falls back to allowing all origins in dev so local / Replit
+// tooling continues to work without extra config.
+const isProd = process.env.NODE_ENV === "production";
+const rawOrigins = process.env.CORS_ORIGINS ?? "";
+const allowedOrigins = rawOrigins
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow server-to-server calls (no Origin header) and non-prod envs.
+      if (!isProd || !origin || allowedOrigins.length === 0) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS: origin "${origin}" not allowed`));
+    },
+    credentials: true,
+  }),
+);
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Trust Railway's / Vercel's reverse-proxy so req.secure is reliable
+if (isProd) app.set("trust proxy", 1);
 
 app.use(
   session({
@@ -39,11 +67,15 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false,
+      // Require HTTPS in production (Railway + Vercel both serve over HTTPS)
+      secure: isProd,
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      // "lax" is safe with the Vercel → Railway proxy pattern because the
+      // browser sees all requests as same-origin (Vercel domain).
+      sameSite: "lax",
     },
-  })
+  }),
 );
 
 // Mount the same handlers on both /api and /srv. Replit's external load
@@ -55,12 +87,17 @@ app.use(["/api/uploads", "/srv/uploads"], express.static(UPLOADS_DIR));
 app.use(["/api", "/srv"], tenantMiddleware);
 app.use(["/api", "/srv"], router);
 
-if (process.env.NODE_ENV === "production") {
+// Serve the bundled frontend only when it was co-built alongside the backend
+// (monolithic / self-hosted deploy). On Railway the frontend lives on Vercel,
+// so the dist directory won't be present — skip silently in that case.
+if (isProd) {
   const frontendDist = path.join(__dirname, "../../cpec-u/dist/public");
-  app.use(express.static(frontendDist));
-  app.get("/{*splat}", (_req, res) => {
-    res.sendFile(path.join(frontendDist, "index.html"));
-  });
+  if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.get("/{*splat}", (_req, res) => {
+      res.sendFile(path.join(frontendDist, "index.html"));
+    });
+  }
 }
 
 export default app;

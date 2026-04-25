@@ -2,12 +2,16 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
-// Replit's external load balancer blocks all `/api/*` paths (likely because it
-// reserves them for its own workspace API). Transparently rewrite every
-// `/api/*` request to `/srv/*`. The Vite dev proxy and a server-side mount
-// rewrite `/srv/*` back to `/api/*` before reaching Express. This keeps every
-// existing fetch/queryKey untouched while bypassing Replit's filter.
-if (typeof window !== "undefined" && typeof window.fetch === "function") {
+// Replit's external load balancer blocks all `/api/*` paths. Transparently
+// rewrite every `/api/*` request to `/srv/*` — but ONLY when running inside
+// the Replit hosted environment. On Vercel/Railway or localhost the standard
+// `/api/*` paths work fine and must not be rewritten.
+const _isReplitHosted =
+  typeof window !== "undefined" &&
+  (window.location.hostname.endsWith(".replit.dev") ||
+    window.location.hostname.endsWith(".repl.co"));
+
+if (_isReplitHosted && typeof window.fetch === "function") {
   const _fetch = window.fetch.bind(window);
   const rewrite = (u: string): string => {
     if (u.startsWith("/api/")) return "/srv/" + u.slice(5);
