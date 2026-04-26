@@ -440,7 +440,7 @@ export default function Login() {
                           className="text-primary underline underline-offset-2 cursor-pointer hover:text-primary/80 transition-colors"
                           onClick={() => setContactDialogOpen(true)}
                         >
-                          Contacter l'administration
+                          Réinitialiser mon mot de passe
                         </span>
                       </p>
                     </motion.div>
