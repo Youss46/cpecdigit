@@ -20,7 +20,7 @@ export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool, { schema });
 
 export async function runMigrations() {
-  const migrationsFolder = path.join(__dirname, "../drizzle");
+  const migrationsFolder = path.join(process.cwd(), "lib/db/drizzle");
   try {
     await migrate(db, { migrationsFolder });
     console.log("✓ Migrations appliquées avec succès");
