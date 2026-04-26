@@ -2,7 +2,7 @@ import http from "http";
 import crypto from "crypto";
 import app from "./app";
 import { initSocketIO } from "./lib/socket.js";
-import { db } from "@workspace/db";
+import { db, runMigrations } from "@workspace/db";
 import { usersTable, tenantsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { startFeeReminderScheduler } from "./lib/fee-reminder-scheduler.js";
@@ -80,10 +80,20 @@ async function seedInitialAdmin() {
 const httpServer = http.createServer(app);
 initSocketIO(httpServer);
 
-httpServer.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-  seedInitialAdmin();
-  startFeeReminderScheduler();
-  startRecommendationScheduler();
-  startLicenseExpiryScheduler();
+async function start() {
+  if (process.env.RUN_MIGRATIONS === "true") {
+    await runMigrations();
+  }
+  httpServer.listen(port, () => {
+    console.log(`Server listening on port ${port}`);
+    seedInitialAdmin();
+    startFeeReminderScheduler();
+    startRecommendationScheduler();
+    startLicenseExpiryScheduler();
+  });
+}
+
+start().catch((err) => {
+  console.error("Échec du démarrage du serveur :", err);
+  process.exit(1);
 });
