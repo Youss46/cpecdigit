@@ -1,9 +1,10 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { db } from "@workspace/db";
-import { usersTable, classEnrollmentsTable, classesTable, activationKeysTable, tenantsTable } from "@workspace/db";
-import { eq, and, isNull } from "drizzle-orm";
+import { usersTable, classEnrollmentsTable, classesTable, activationKeysTable, tenantsTable, passwordResetTokensTable } from "@workspace/db";
+import { eq, and, isNull, lt } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
+import { sendPasswordResetEmail } from "../lib/resend.js";
 
 const router = Router();
 
@@ -329,6 +330,116 @@ router.post("/change-password", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("Change password error:", err);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// POST /auth/forgot-password — request a password reset link
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== "string") {
+      res.status(400).json({ error: "Email requis" });
+      return;
+    }
+
+    // Always respond with 200 so we don't reveal whether the email exists
+    const [user] = await db.select().from(usersTable)
+      .where(eq(usersTable.email, email.trim().toLowerCase()))
+      .limit(1);
+
+    if (!user) {
+      res.json({ message: "Si cet email existe, un lien de réinitialisation a été envoyé." });
+      return;
+    }
+
+    // Clean up expired tokens for this user
+    await db.delete(passwordResetTokensTable)
+      .where(and(
+        eq(passwordResetTokensTable.userId, user.id),
+        lt(passwordResetTokensTable.expiresAt, new Date()),
+      ));
+
+    // Generate a secure random token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.insert(passwordResetTokensTable).values({
+      userId: user.id,
+      token,
+      expiresAt,
+    });
+
+    // Build the reset URL (use FRONTEND_URL env var in prod, Origin header in dev)
+    const origin = process.env.FRONTEND_URL ||
+      req.headers.origin ||
+      `${req.protocol}://${req.headers.host}`;
+    const resetUrl = `${origin}/reset-password?token=${token}`;
+
+    // Fetch school name for the email
+    const [tenant] = await db.select({ name: tenantsTable.name })
+      .from(tenantsTable)
+      .where(eq(tenantsTable.id, user.tenantId!))
+      .limit(1);
+
+    await sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      resetUrl,
+      schoolName: tenant?.name ?? "M15 EduTech",
+    });
+
+    res.json({ message: "Si cet email existe, un lien de réinitialisation a été envoyé." });
+  } catch (err) {
+    console.error("forgot-password error:", err);
+    // Don't leak internal error details — still return 200
+    res.json({ message: "Si cet email existe, un lien de réinitialisation a été envoyé." });
+  }
+});
+
+// POST /auth/reset-password — set a new password using a valid token
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      res.status(400).json({ error: "Token et nouveau mot de passe requis" });
+      return;
+    }
+    if (newPassword.length < 6) {
+      res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères" });
+      return;
+    }
+
+    const [record] = await db.select().from(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.token, token))
+      .limit(1);
+
+    if (!record) {
+      res.status(400).json({ error: "Lien invalide ou déjà utilisé" });
+      return;
+    }
+    if (record.usedAt) {
+      res.status(400).json({ error: "Ce lien a déjà été utilisé" });
+      return;
+    }
+    if (record.expiresAt < new Date()) {
+      res.status(400).json({ error: "Ce lien a expiré. Veuillez en demander un nouveau." });
+      return;
+    }
+
+    // Update password and mark token as used
+    await Promise.all([
+      db.update(usersTable)
+        .set({ passwordHash: hashPassword(newPassword), mustChangePassword: false })
+        .where(eq(usersTable.id, record.userId)),
+      db.update(passwordResetTokensTable)
+        .set({ usedAt: new Date() })
+        .where(eq(passwordResetTokensTable.id, record.id)),
+    ]);
+
+    res.json({ message: "Mot de passe mis à jour avec succès" });
+  } catch (err) {
+    console.error("reset-password error:", err);
+    res.status(500).json({ error: "Erreur interne" });
   }
 });
 

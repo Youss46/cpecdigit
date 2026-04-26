@@ -79,6 +79,7 @@ import AtRiskPage from "@/pages/admin/at-risk";
 import StudentSuiviPage from "@/pages/student/suivi";
 import AdminScolarite from "@/pages/admin/scolarite";
 import SettingsPage from "@/pages/settings";
+import ResetPassword from "@/pages/reset-password";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,6 +107,7 @@ function Router() {
       <Route path="/" component={Login} />
       <Route path="/login" component={Login} />
       <Route path="/change-password" component={ChangePassword} />
+      <Route path="/reset-password" component={ResetPassword} />
 
       {/* Admin Routes */}
       <Route path="/admin" component={AdminDashboard} />

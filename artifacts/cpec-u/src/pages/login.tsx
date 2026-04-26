@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Phone, HelpCircle, Eye, EyeOff, Fingerprint, Loader2, ChevronDown } from "lucide-react";
+import { Mail, HelpCircle, Eye, EyeOff, Fingerprint, Loader2, ChevronDown, Send, CheckCircle, AlertTriangle } from "lucide-react";
 import {
   useWebAuthnAuthenticate,
   hasWebAuthnForEmail,
@@ -58,6 +58,9 @@ export default function Login() {
   const [welcomeUser, setWelcomeUser] = useState<{ name: string; initial: string; subRole: string } | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotStatus, setForgotStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
+  const [forgotError, setForgotError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // WebAuthn state
@@ -122,6 +125,28 @@ export default function Login() {
   useEffect(() => {
     if (!showBiometricBtn) setShowPasswordForm(true);
   }, [showBiometricBtn]);
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) return;
+    setForgotStatus("loading");
+    setForgotError("");
+    try {
+      const r = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() }),
+      });
+      if (r.ok) {
+        setForgotStatus("sent");
+      } else {
+        setForgotStatus("error");
+        setForgotError("Une erreur est survenue. Veuillez réessayer.");
+      }
+    } catch {
+      setForgotStatus("error");
+      setForgotError("Erreur réseau. Vérifiez votre connexion et réessayez.");
+    }
+  };
 
   const buildRedirect = (user: any) => () => {
     const subRole = user.adminSubRole;
@@ -509,40 +534,90 @@ export default function Login() {
         )}
       </AnimatePresence>
 
-      {/* Contact Administration Dialog */}
-      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+      {/* Forgot Password Dialog */}
+      <Dialog open={contactDialogOpen} onOpenChange={(open) => {
+        setContactDialogOpen(open);
+        if (!open) { setForgotEmail(""); setForgotStatus("idle"); setForgotError(""); }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HelpCircle className="w-5 h-5 text-primary" />
-              Réinitialisation du mot de passe
+              Mot de passe oublié
             </DialogTitle>
             <DialogDescription>
-              Pour réinitialiser votre mot de passe, veuillez contacter le service de scolarité.
+              Saisissez votre adresse email pour recevoir un lien de réinitialisation.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
-              <Mail className="w-5 h-5 text-primary shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Email</p>
-                <p className="text-sm font-semibold">support@m15edutech.ci</p>
+
+          {forgotStatus !== "sent" ? (
+            <div className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="forgotEmail" className="text-sm font-medium">Adresse email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="forgotEmail"
+                    type="email"
+                    placeholder="votre@email.ci"
+                    className="pl-9"
+                    value={forgotEmail}
+                    onChange={e => { setForgotEmail(e.target.value); setForgotError(""); }}
+                    disabled={forgotStatus === "loading"}
+                    onKeyDown={e => { if (e.key === "Enter") handleForgotPassword(); }}
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {forgotError && (
+                <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
+                  <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-700">{forgotError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setContactDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button
+                  className="flex-1"
+                  disabled={forgotStatus === "loading" || !forgotEmail.trim()}
+                  onClick={handleForgotPassword}
+                >
+                  {forgotStatus === "loading" ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Envoi…</>
+                  ) : (
+                    <><Send className="w-4 h-4 mr-2" />Envoyer le lien</>
+                  )}
+                </Button>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
-              <Phone className="w-5 h-5 text-primary shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Téléphone</p>
-                <p className="text-sm font-semibold">+225 27 22 41 03 88</p>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="pt-4 pb-2 text-center space-y-4"
+            >
+              <div className="mx-auto w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-7 h-7 text-green-500" />
               </div>
-            </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Horaires d'accueil : Lun–Ven, 8h–17h
-            </p>
-          </div>
-          <Button onClick={() => setContactDialogOpen(false)} className="w-full">
-            Fermer
-          </Button>
+              <div className="space-y-1">
+                <p className="font-semibold text-slate-800">Email envoyé !</p>
+                <p className="text-sm text-muted-foreground">
+                  Si <span className="font-medium text-slate-700">{forgotEmail}</span> correspond à un compte,
+                  vous recevrez un lien valable <strong>1 heure</strong>.
+                </p>
+                <p className="text-xs text-muted-foreground pt-1">
+                  Pensez à vérifier vos spams si vous ne le trouvez pas.
+                </p>
+              </div>
+              <Button className="w-full" onClick={() => setContactDialogOpen(false)}>
+                Fermer
+              </Button>
+            </motion.div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

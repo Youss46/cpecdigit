@@ -34,3 +34,4 @@ export * from "./parent_links";
 export * from "./reclamations";
 export * from "./bibliotheque";
 export * from "./webauthn";
+export * from "./password_reset_tokens";
