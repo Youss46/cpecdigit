@@ -26,10 +26,13 @@ async function getResendCredentials(): Promise<{ apiKey: string; fromEmail: stri
 
         const settings = data?.items?.[0]?.settings;
         if (settings?.api_key) {
-          return {
-            apiKey: settings.api_key,
-            fromEmail: settings.from_email ?? process.env.RESEND_FROM_EMAIL ?? "noreply@m15edutech.ci",
-          };
+          // RESEND_FROM_EMAIL env var always wins (production with verified domain).
+          // Otherwise fall back to Resend's sandbox sender that works without
+          // domain verification — useful for Replit dev / testing.
+          const fromEmail =
+            process.env.RESEND_FROM_EMAIL ??
+            "onboarding@resend.dev";
+          return { apiKey: settings.api_key, fromEmail };
         }
       } catch {
         // fall through to env var
