@@ -375,17 +375,11 @@ router.post("/forgot-password", async (req, res) => {
       `${req.protocol}://${req.headers.host}`;
     const resetUrl = `${origin}/reset-password?token=${token}`;
 
-    // Fetch school name for the email
-    const [tenant] = await db.select({ name: tenantsTable.name })
-      .from(tenantsTable)
-      .where(eq(tenantsTable.id, user.tenantId!))
-      .limit(1);
-
     await sendPasswordResetEmail({
       to: user.email,
       name: user.name,
       resetUrl,
-      schoolName: tenant?.name ?? "M15 EduTech",
+      schoolName: "M15 EduTech",
     });
 
     res.json({ message: "Si cet email existe, un lien de réinitialisation a été envoyé." });

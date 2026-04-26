@@ -135,7 +135,7 @@ export async function sendPasswordResetEmail(opts: {
         <tr>
           <td style="background:#f9fafb;border-top:1px solid #e5e7eb;border-radius:0 0 12px 12px;padding:20px 40px;text-align:center;">
             <p style="margin:0;font-size:11px;color:#9ca3af;">
-              © ${new Date().getFullYear()} M15 EduTech — ${opts.schoolName}<br />
+              © ${new Date().getFullYear()} M15 EduTech<br />
               Cet email a été envoyé automatiquement, merci de ne pas y répondre.
             </p>
           </td>
