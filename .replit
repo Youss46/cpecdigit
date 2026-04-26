@@ -62,6 +62,6 @@ localPort = 8082
 [userenv.shared]
 VAPID_PUBLIC_KEY = "BJNuG033eUOGvSPRBepp0mQX3Mc5dxJF7JP5lItp3sAZcbiXC5lLAhAQdU3Um5nkf6MsYl82NMqZYD8EZ6Wp-V4"
 VAPID_PRIVATE_KEY = "-I6Sf0Oka9rfjWRfRxCE9bLkWEWEgM74CGE6ozyx9Kk"
-VAPID_EMAIL = "mailto:admin@cpec-u.fr"
+VAPID_EMAIL = "mailto:support@m15-edutech.ci"
 DEV_MASTER_KEY = "@Youss054626"
 RESEND_FROM_EMAIL = "support@m15-edutech.ci"
