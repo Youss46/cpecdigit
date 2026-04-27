@@ -3,7 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>M15 EduTech — Gestion Académique</title>
+
+    <!-- SEO primaire -->
+    <title>M15 EduTech - Plateforme SaaS de gestion académique</title>
+    <meta name="description" content="M15 EduTech simplifie la gestion académique des universités et grandes écoles d'Afrique francophone : notes, présences, bulletins et plus." />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="M15 EduTech" />
+    <meta name="keywords" content="gestion académique, SaaS éducation, université Afrique, logiciel scolaire, notes, absences, bulletins, Côte d'Ivoire" />
+    <link rel="canonical" href="https://m15-edutech.ci" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://m15-edutech.ci" />
+    <meta property="og:title" content="M15 EduTech - Plateforme SaaS de gestion académique" />
+    <meta property="og:description" content="Gérez notes, présences, bulletins et communication pour vos établissements d'enseignement supérieur en Afrique francophone." />
+    <meta property="og:image" content="https://m15-edutech.ci/opengraph.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="M15 EduTech — Plateforme de gestion académique" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:site_name" content="M15 EduTech" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="M15 EduTech - Plateforme SaaS de gestion académique" />
+    <meta name="twitter:description" content="Gérez notes, présences, bulletins et communication pour vos établissements d'enseignement supérieur en Afrique francophone." />
+    <meta name="twitter:image" content="https://m15-edutech.ci/opengraph.jpg" />
+    <meta name="twitter:image:alt" content="M15 EduTech — Plateforme de gestion académique" />
 
     <!-- PWA -->
     <link rel="manifest" href="%BASE_URL%manifest.json" />
@@ -16,11 +42,53 @@
     <link rel="icon" type="image/png" sizes="512x512" href="%BASE_URL%icon-512.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%icon-192.png" />
 
-    <meta name="description" content="Plateforme SaaS de gestion académique multi-établissements — M15 EduTech" />
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Structured Data JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "M15 EduTech",
+      "alternateName": "M15 EduTech - Gestion académique",
+      "description": "Plateforme SaaS multi-tenant de gestion académique pour les universités, grandes écoles et instituts d'enseignement supérieur en Afrique francophone.",
+      "url": "https://m15-edutech.ci",
+      "applicationCategory": "EducationApplication",
+      "operatingSystem": "Web",
+      "inLanguage": "fr",
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": "XOF",
+        "availability": "https://schema.org/InStock"
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "M15 EduTech",
+        "url": "https://m15-edutech.ci",
+        "email": "support@m15-edutech.ci",
+        "areaServed": {
+          "@type": "Place",
+          "name": "Afrique francophone"
+        }
+      },
+      "featureList": [
+        "Gestion des notes et bulletins",
+        "Suivi des présences et absences",
+        "Carte étudiante numérique",
+        "Communication parents-établissement",
+        "Bibliothèque numérique",
+        "Tableau de bord multi-établissements"
+      ],
+      "audience": {
+        "@type": "EducationalAudience",
+        "educationalRole": "administrator",
+        "audienceType": "Établissements d'enseignement supérieur"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

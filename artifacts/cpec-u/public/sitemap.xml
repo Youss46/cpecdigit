@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Page d'accueil / Connexion -->
+  <url>
+    <loc>https://m15-edutech.ci/</loc>
+    <lastmod>2025-04-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://m15-edutech.ci/" />
+  </url>
+
+  <!-- Réinitialisation de mot de passe -->
+  <url>
+    <loc>https://m15-edutech.ci/reset-password</loc>
+    <lastmod>2025-04-27</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+</urlset>

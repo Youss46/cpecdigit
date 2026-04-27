@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Bloquer les espaces privés (tableaux de bord authentifiés)
+Disallow: /admin/
+Disallow: /student/
+Disallow: /teacher/
+Disallow: /parent/
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://m15-edutech.ci/sitemap.xml
