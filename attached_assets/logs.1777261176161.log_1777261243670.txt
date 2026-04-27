@@ -1,0 +1,63 @@
+2026-04-27T03:28:19.166513831Z [inf]  Starting Container
+2026-04-27T03:28:19.611689750Z [err]    internalPosition: undefined,
+2026-04-27T03:28:19.611691396Z [err]    constraint: undefined,
+2026-04-27T03:28:19.611697238Z [err]    internalQuery: undefined,
+2026-04-27T03:28:19.611701455Z [err]    where: undefined,
+2026-04-27T03:28:19.611705135Z [err]    schema: undefined,
+2026-04-27T03:28:19.611709835Z [err]    table: undefined,
+2026-04-27T03:28:19.611714190Z [err]    column: undefined,
+2026-04-27T03:28:19.611720537Z [inf]  
+2026-04-27T03:28:19.611721453Z [err]    dataType: undefined,
+2026-04-27T03:28:19.611725723Z [inf]  > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+2026-04-27T03:28:19.611729268Z [inf]  > NODE_ENV=production node dist/index.mjs
+2026-04-27T03:28:19.611733070Z [inf]  
+2026-04-27T03:28:19.611737449Z [err]  Warning: connect.session() MemoryStore is not
+2026-04-27T03:28:19.611741287Z [err]  designed for a production environment, as it will leak
+2026-04-27T03:28:19.611745878Z [err]  memory, and will not scale past a single process.
+2026-04-27T03:28:19.611749157Z [err]    ✗ Échec de la migration "0000_initial" : error: syntax error at or near ";"
+2026-04-27T03:28:19.611753073Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:66:13445
+2026-04-27T03:28:19.611756268Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-04-27T03:28:19.611759319Z [err]      at async fD (file:///app/artifacts/api-server/dist/index.mjs:112:358)
+2026-04-27T03:28:19.611762522Z [err]      at async Sae (file:///app/artifacts/api-server/dist/index.mjs:2286:2626) {
+2026-04-27T03:28:19.611765877Z [err]    length: 96,
+2026-04-27T03:28:19.611769778Z [err]    severity: 'ERROR',
+2026-04-27T03:28:19.611778858Z [err]    code: '42601',
+2026-04-27T03:28:19.611783643Z [err]    detail: undefined,
+2026-04-27T03:28:19.611787344Z [err]    hint: undefined,
+2026-04-27T03:28:19.611791091Z [err]    position: '119',
+2026-04-27T03:28:19.613783810Z [err]  Échec du démarrage du serveur : error: syntax error at or near ";"
+2026-04-27T03:28:19.613790291Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:66:13445
+2026-04-27T03:28:19.613794699Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-04-27T03:28:19.613807000Z [err]  }
+2026-04-27T03:28:19.613809007Z [err]    length: 96,
+2026-04-27T03:28:19.613816034Z [err]      at async fD (file:///app/artifacts/api-server/dist/index.mjs:112:358)
+2026-04-27T03:28:19.613816144Z [err]    code: '42601',
+2026-04-27T03:28:19.613817961Z [err]    severity: 'ERROR',
+2026-04-27T03:28:19.613818789Z [inf]  /app/artifacts/api-server:
+2026-04-27T03:28:19.613826677Z [err]    column: undefined,
+2026-04-27T03:28:19.613828133Z [err]    detail: undefined,
+2026-04-27T03:28:19.613828720Z [err]    file: 'pl_scanner.c',
+2026-04-27T03:28:19.613829791Z [err]      at async Sae (file:///app/artifacts/api-server/dist/index.mjs:2286:2626) {
+2026-04-27T03:28:19.613834969Z [err]    internalPosition: undefined,
+2026-04-27T03:28:19.613836235Z [err]    file: 'pl_scanner.c',
+2026-04-27T03:28:19.613838418Z [err]    line: '556',
+2026-04-27T03:28:19.613839549Z [err]    hint: undefined,
+2026-04-27T03:28:19.613841252Z [err]    dataType: undefined,
+2026-04-27T03:28:19.613846430Z [err]    internalQuery: undefined,
+2026-04-27T03:28:19.613850107Z [err]    line: '556',
+2026-04-27T03:28:19.613850224Z [err]    routine: 'plpgsql_yyerror'
+2026-04-27T03:28:19.613850257Z [err]    constraint: undefined,
+2026-04-27T03:28:19.613850489Z [err]    position: '119',
+2026-04-27T03:28:19.613855775Z [err]    where: undefined,
+2026-04-27T03:28:19.613858796Z [err]    schema: undefined,
+2026-04-27T03:28:19.613859796Z [err]    routine: 'plpgsql_yyerror'
+2026-04-27T03:28:19.613863239Z [err]  }
+2026-04-27T03:28:19.613868991Z [err]    table: undefined,
+2026-04-27T03:28:19.615128185Z [inf]   ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `NODE_ENV=production node dist/index.mjs`
+2026-04-27T03:28:19.615131894Z [inf]  Exit status 1
+2026-04-27T03:28:27.141816110Z [err]  2026-04-27 03:28:19.393 UTC [1059] ERROR:  syntax error at or near ";" at character 119
+2026-04-27T03:28:27.141821002Z [err]  2026-04-27 03:28:19.393 UTC [1059] STATEMENT:  DO $$ BEGIN
+2026-04-27T03:28:27.141825127Z [err]  	  CREATE TYPE "public"."admin_sub_role" AS ENUM('scolarite', 'planificateur', 'directeur', 'hebergement');;
+2026-04-27T03:28:27.141829147Z [err]  	EXCEPTION WHEN duplicate_object THEN NULL;
+2026-04-27T03:28:27.141833674Z [err]  	END $$;
+2026-04-27T03:37:42.674766766Z [inf]  Stopping Container
