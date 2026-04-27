@@ -85,7 +85,9 @@ if (_isReplitHosted && typeof window.fetch === "function") {
 if (typeof window !== "undefined") {
   (window as any).__cpecInstallPrompt = null;
   window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
+    // Do NOT call e.preventDefault() — this allows Chrome to show its native
+    // install UI (mini-infobar on Android, ⊕ icon in desktop address bar)
+    // while we also capture the event for our custom sidebar button.
     (window as any).__cpecInstallPrompt = e;
     window.dispatchEvent(new Event("cpec-install-ready"));
   });
