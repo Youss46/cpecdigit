@@ -33,11 +33,20 @@ const app: Express = express();
 // allowed origins). Falls back to allowing all origins in dev so local / Replit
 // tooling continues to work without extra config.
 const isProd = process.env.NODE_ENV === "production";
-const rawOrigins = process.env.CORS_ORIGINS ?? "";
+
+// Parse CORS_ORIGINS robustly: strip surrounding quotes, support both
+// comma and semicolon as separators, trim every entry.
+const rawOrigins = (process.env.CORS_ORIGINS ?? "")
+  .replace(/^["']|["']$/g, "")   // strip wrapping quotes Railway might add
+  .trim();
 const allowedOrigins = rawOrigins
-  .split(",")
-  .map((s) => s.trim())
+  .split(/[,;]+/)
+  .map((s) => s.trim().replace(/\/$/, ""))   // normalise: trim + drop trailing slash
   .filter(Boolean);
+
+console.log(
+  `[CORS] isProd=${isProd} allowedOrigins=${JSON.stringify(allowedOrigins)}`,
+);
 
 app.use(
   cors({
@@ -46,9 +55,11 @@ app.use(
       if (!isProd || !origin || allowedOrigins.length === 0) {
         return callback(null, true);
       }
-      if (allowedOrigins.includes(origin)) {
+      const normalised = origin.replace(/\/$/, "");
+      if (allowedOrigins.includes(normalised)) {
         return callback(null, true);
       }
+      console.warn(`[CORS] blocked origin="${origin}" allowed=${JSON.stringify(allowedOrigins)}`);
       callback(new Error(`CORS: origin "${origin}" not allowed`));
     },
     credentials: true,
