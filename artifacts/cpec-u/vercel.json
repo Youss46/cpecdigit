@@ -3,8 +3,12 @@
   "outputDirectory": "dist/public",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://$BACKEND_HOST/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://$BACKEND_HOST/api/:path*"
+    },
+    {
+      "source": "/srv/:path*",
+      "destination": "https://$BACKEND_HOST/srv/:path*"
     },
     {
       "source": "/(.*)",
