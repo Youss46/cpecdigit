@@ -42,7 +42,11 @@ function IosInstructions() {
 }
 
 function ChromeInstructions() {
-  const isAndroid = /Android/i.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  const isAndroid = /Android/i.test(ua);
+  const isEdge = /Edg\//.test(ua);
+  const browserName = isEdge ? "Edge" : "Chrome";
+
   return (
     <ol className="space-y-3">
       <li className="flex items-start gap-3">
@@ -55,12 +59,12 @@ function ChromeInstructions() {
                 <MoreVertical className="w-3 h-3" />
                 ⋮
               </span>{" "}
-              en haut à droite de Chrome.
+              en haut à droite de {browserName}.
             </>
           ) : (
             <>
               Cliquez sur l'icône <strong>⊕</strong> dans la barre d'adresse (à droite),
-              ou ouvrez le menu <strong>⋮</strong> de Chrome.
+              ou ouvrez le menu <strong>⋮</strong> de {browserName}.
             </>
           )}
         </p>
@@ -71,7 +75,7 @@ function ChromeInstructions() {
           Sélectionnez{" "}
           <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded bg-muted font-medium text-xs">
             <PlusSquare className="w-3 h-3" />
-            {isAndroid ? "Ajouter à l'écran d'accueil" : "Installer M15 EduTech…"}
+            {isAndroid ? "Ajouter à l'écran d'accueil" : `Installer M15 EduTech…`}
           </span>.
         </p>
       </li>
