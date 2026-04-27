@@ -72,11 +72,12 @@ async function buildAll() {
   });
 
   console.log("copying drizzle migrations...");
-  await cp(
-    path.resolve(__dirname, "../../lib/db/drizzle"),
-    path.resolve(distDir, "drizzle"),
-    { recursive: true }
-  );
+  const drizzleSrc = path.resolve(__dirname, "../../lib/db/drizzle");
+  const drizzleDest = path.resolve(distDir, "drizzle");
+  await cp(drizzleSrc, drizzleDest, { recursive: true });
+  const { readdir } = await import("fs/promises");
+  const copied = await readdir(drizzleDest);
+  console.log("drizzle files in dist:", copied.join(", "));
   console.log("done.");
 }
 
