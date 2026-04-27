@@ -18,29 +18,35 @@ export const db = drizzle(pool, { schema });
 /**
  * Idempotent migration runner.
  *
- * Drizzle's built-in migrate() uses plain CREATE TYPE / CREATE TABLE which
- * crash when objects already exist (e.g. after a partial deploy on Railway).
- * This runner:
- *   1. Splits the SQL on Drizzle's "--> statement-breakpoint" markers.
- *   2. Wraps every CREATE TYPE in a DO-block that swallows "duplicate_object".
- *   3. Turns every CREATE TABLE into CREATE TABLE IF NOT EXISTS.
- *   4. Tracks applied migrations in __drizzle_migrations (Drizzle's own table)
- *      so re-running is safe.
+ * Executes each SQL statement individually (no transaction wrapping) and
+ * silently ignores PostgreSQL "already exists" errors:
+ *   42710 — duplicate_object  (CREATE TYPE, ADD CONSTRAINT)
+ *   42P07 — duplicate_table   (CREATE TABLE, CREATE INDEX)
+ *   42701 — duplicate_column  (ALTER TABLE ADD COLUMN)
+ *
+ * This means re-running against a database that was partially migrated is
+ * always safe — objects that already exist are skipped, new ones are created.
  */
+
+// PostgreSQL error codes that mean "this object already exists — skip it."
+const ALREADY_EXISTS = new Set(["42710", "42P07", "42701"]);
+
 export async function runMigrations() {
   const migrationsFolder = path.join(process.cwd(), "dist/drizzle");
   const client = await pool.connect();
 
   try {
+    // Ensure the migrations tracking table exists.
     await client.query(`
       CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
-        id        SERIAL PRIMARY KEY,
-        hash      TEXT    NOT NULL,
+        id         SERIAL PRIMARY KEY,
+        hash       TEXT   NOT NULL,
         created_at BIGINT
-      );
+      )
     `);
 
-    let journal: { entries: { tag: string; when: number }[] };
+    // Read the Drizzle journal to know which SQL files to apply and in what order.
+    let journal: { entries: { tag: string }[] };
     try {
       const raw = await fs.readFile(
         path.join(migrationsFolder, "meta/_journal.json"),
@@ -55,15 +61,17 @@ export async function runMigrations() {
     for (const entry of journal.entries) {
       const tag = entry.tag;
 
+      // Skip migrations that have already been applied.
       const { rows } = await client.query(
         `SELECT id FROM "__drizzle_migrations" WHERE hash = $1`,
         [tag],
       );
       if (rows.length > 0) {
-        console.log(`  ↩ Migration "${tag}" déjà appliquée, ignorée.`);
+        console.log(`  ↩  "${tag}" already applied — skipping.`);
         continue;
       }
 
+      // Load the SQL file for this migration.
       let sql: string;
       try {
         sql = await fs.readFile(
@@ -71,54 +79,44 @@ export async function runMigrations() {
           "utf-8",
         );
       } catch {
-        console.warn(`  ⚠ Fichier SQL introuvable pour "${tag}", ignoré.`);
+        console.warn(`  ⚠  SQL file not found for "${tag}" — skipping.`);
         continue;
       }
 
+      // Split on Drizzle's statement-breakpoint markers and strip whitespace.
       const statements = sql
         .split("--> statement-breakpoint")
-        .map((s) => s.trim())
+        .map((s) => s.trim().replace(/;+$/, "")) // strip trailing semicolons
         .filter(Boolean);
 
-      await client.query("BEGIN");
-      try {
-        for (const stmt of statements) {
-          let query = stmt;
+      console.log(`  Running migration "${tag}" (${statements.length} statements)…`);
 
-          if (/^CREATE TYPE/i.test(stmt)) {
-            const bare = stmt.replace(/;+$/, "");
-            query = `DO $$ BEGIN\n  ${bare};\nEXCEPTION WHEN duplicate_object THEN NULL;\nEND $$;`;
-          } else if (/^CREATE TABLE(?!\s+IF NOT EXISTS)/i.test(stmt)) {
-            query = stmt.replace(/^CREATE TABLE\s+/i, "CREATE TABLE IF NOT EXISTS ");
-          } else if (/^CREATE UNIQUE INDEX(?!\s+IF NOT EXISTS)/i.test(stmt)) {
-            query = stmt.replace(
-              /^CREATE UNIQUE INDEX\s+/i,
-              "CREATE UNIQUE INDEX IF NOT EXISTS ",
-            );
-          } else if (/^CREATE INDEX(?!\s+IF NOT EXISTS)/i.test(stmt)) {
-            query = stmt.replace(
-              /^CREATE INDEX\s+/i,
-              "CREATE INDEX IF NOT EXISTS ",
-            );
+      for (let i = 0; i < statements.length; i++) {
+        const stmt = statements[i];
+        try {
+          await client.query(stmt);
+        } catch (err: any) {
+          if (ALREADY_EXISTS.has(err.code)) {
+            // Object already exists from a previous partial run — safe to skip.
+            console.log(`    [${i + 1}] skipped (already exists): ${stmt.slice(0, 72)}…`);
+          } else {
+            // Real error — report it with context and abort.
+            console.error(`    [${i + 1}] FAILED: ${stmt.slice(0, 200)}`);
+            console.error(`    PostgreSQL error ${err.code}: ${err.message}`);
+            throw err;
           }
-
-          await client.query(query);
         }
-
-        await client.query(
-          `INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES ($1, $2)`,
-          [tag, Date.now()],
-        );
-        await client.query("COMMIT");
-        console.log(`  ✓ Migration "${tag}" appliquée.`);
-      } catch (err) {
-        await client.query("ROLLBACK");
-        console.error(`  ✗ Échec de la migration "${tag}" :`, err);
-        throw err;
       }
+
+      // Mark this migration as applied only after all statements succeed.
+      await client.query(
+        `INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES ($1, $2)`,
+        [tag, Date.now()],
+      );
+      console.log(`  ✓  Migration "${tag}" applied.`);
     }
 
-    console.log("✓ Toutes les migrations sont à jour.");
+    console.log("✓ All migrations are up to date.");
   } finally {
     client.release();
   }
