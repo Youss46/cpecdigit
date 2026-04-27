@@ -71,9 +71,11 @@ app.use(
       secure: isProd,
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      // "lax" is safe with the Vercel → Railway proxy pattern because the
-      // browser sees all requests as same-origin (Vercel domain).
-      sameSite: "lax",
+      // "none" allows cookies to be sent in cross-origin requests
+      // (e.g. browser on www.m15-edutech.ci → api.m15-edutech.ci).
+      // SameSite=None requires Secure=true which is already set in prod.
+      // In dev we use "lax" to avoid requiring HTTPS locally.
+      sameSite: isProd ? "none" : "lax",
     },
   }),
 );
