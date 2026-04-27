@@ -5,7 +5,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 
-const logo = `${import.meta.env.BASE_URL}images/logo.png`;
+const logo = `${import.meta.env.BASE_URL}icon-192.png`;
 
 // ─── Shared manual-install modal content ─────────────────────────────────────
 
