@@ -1,0 +1,121 @@
+2026-04-26T23:51:39.233444016Z [inf]  Starting Container
+2026-04-26T23:51:39.912703764Z [inf]  
+2026-04-26T23:51:39.912708778Z [inf]  > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+2026-04-26T23:51:39.912712961Z [inf]  > NODE_ENV=production node dist/index.mjs
+2026-04-26T23:51:39.912716749Z [inf]  
+2026-04-26T23:51:39.912720401Z [err]  Warning: connect.session() MemoryStore is not
+2026-04-26T23:51:39.912723675Z [err]  designed for a production environment, as it will leak
+2026-04-26T23:51:39.912726627Z [err]  memory, and will not scale past a single process.
+2026-04-26T23:51:39.912729421Z [err]  Erreur lors des migrations : Error: Can't find meta/_journal.json file
+2026-04-26T23:51:39.912733653Z [err]      at tO (file:///app/artifacts/api-server/dist/index.mjs:75:39101)
+2026-04-26T23:51:39.912736564Z [err]      at rO (file:///app/artifacts/api-server/dist/index.mjs:75:39586)
+2026-04-26T23:51:39.912739697Z [err]      at hD (file:///app/artifacts/api-server/dist/index.mjs:103:54672)
+2026-04-26T23:51:39.912742863Z [err]      at Aae (file:///app/artifacts/api-server/dist/index.mjs:2277:2632)
+2026-04-26T23:51:39.912746035Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:2277:2724
+2026-04-26T23:51:39.912749015Z [err]      at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+2026-04-26T23:51:39.912752128Z [err]      at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+2026-04-26T23:51:39.912755410Z [err]      at async loadESM (node:internal/process/esm_loader:34:7)
+2026-04-26T23:51:39.912758720Z [err]      at async handleMainPromise (node:internal/modules/run_main:106:12)
+2026-04-26T23:51:39.912762645Z [err]  Échec du démarrage du serveur : Error: Can't find meta/_journal.json file
+2026-04-26T23:51:39.912766440Z [err]      at tO (file:///app/artifacts/api-server/dist/index.mjs:75:39101)
+2026-04-26T23:51:39.912769482Z [err]      at rO (file:///app/artifacts/api-server/dist/index.mjs:75:39586)
+2026-04-26T23:51:39.912772470Z [err]      at hD (file:///app/artifacts/api-server/dist/index.mjs:103:54672)
+2026-04-26T23:51:39.914289596Z [err]      at Aae (file:///app/artifacts/api-server/dist/index.mjs:2277:2632)
+2026-04-26T23:51:39.914292926Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:2277:2724
+2026-04-26T23:51:39.914296157Z [err]      at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+2026-04-26T23:51:39.914299025Z [err]      at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+2026-04-26T23:51:39.914302451Z [err]      at async loadESM (node:internal/process/esm_loader:34:7)
+2026-04-26T23:51:39.914305522Z [err]      at async handleMainPromise (node:internal/modules/run_main:106:12)
+2026-04-26T23:51:39.914308278Z [inf]  /app/artifacts/api-server:
+2026-04-26T23:51:39.914311123Z [inf]   ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `NODE_ENV=production node dist/index.mjs`
+2026-04-26T23:51:39.914313982Z [inf]  Exit status 1
+2026-04-26T23:51:40.337512745Z [inf]  
+2026-04-26T23:51:40.337519536Z [inf]  > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+2026-04-26T23:51:40.337523273Z [inf]  > NODE_ENV=production node dist/index.mjs
+2026-04-26T23:51:40.337526345Z [inf]  
+2026-04-26T23:51:40.943139257Z [err]  Warning: connect.session() MemoryStore is not
+2026-04-26T23:51:40.943143545Z [err]  designed for a production environment, as it will leak
+2026-04-26T23:51:40.943147457Z [err]  memory, and will not scale past a single process.
+2026-04-26T23:51:40.943150931Z [err]  Erreur lors des migrations : Error: Can't find meta/_journal.json file
+2026-04-26T23:51:40.943316345Z [err]      at hD (file:///app/artifacts/api-server/dist/index.mjs:103:54672)
+2026-04-26T23:51:40.943321090Z [err]      at tO (file:///app/artifacts/api-server/dist/index.mjs:75:39101)
+2026-04-26T23:51:40.943321475Z [err]      at Aae (file:///app/artifacts/api-server/dist/index.mjs:2277:2632)
+2026-04-26T23:51:40.943327174Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:2277:2724
+2026-04-26T23:51:40.943328389Z [err]      at rO (file:///app/artifacts/api-server/dist/index.mjs:75:39586)
+2026-04-26T23:51:40.943333035Z [err]      at hD (file:///app/artifacts/api-server/dist/index.mjs:103:54672)
+2026-04-26T23:51:40.943337547Z [err]      at Aae (file:///app/artifacts/api-server/dist/index.mjs:2277:2632)
+2026-04-26T23:51:40.943341007Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:2277:2724
+2026-04-26T23:51:40.943344179Z [err]      at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+2026-04-26T23:51:40.943347633Z [err]      at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+2026-04-26T23:51:40.943350442Z [err]      at async loadESM (node:internal/process/esm_loader:34:7)
+2026-04-26T23:51:40.943353748Z [err]      at async handleMainPromise (node:internal/modules/run_main:106:12)
+2026-04-26T23:51:40.943356807Z [err]  Échec du démarrage du serveur : Error: Can't find meta/_journal.json file
+2026-04-26T23:51:40.943360078Z [err]      at tO (file:///app/artifacts/api-server/dist/index.mjs:75:39101)
+2026-04-26T23:51:40.943364599Z [err]      at rO (file:///app/artifacts/api-server/dist/index.mjs:75:39586)
+2026-04-26T23:51:40.944534201Z [err]      at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+2026-04-26T23:51:40.944538514Z [err]      at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+2026-04-26T23:51:40.944542615Z [err]      at async loadESM (node:internal/process/esm_loader:34:7)
+2026-04-26T23:51:40.944555026Z [err]      at async handleMainPromise (node:internal/modules/run_main:106:12)
+2026-04-26T23:51:40.944560337Z [inf]  /app/artifacts/api-server:
+2026-04-26T23:51:40.944564962Z [inf]   ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `NODE_ENV=production node dist/index.mjs`
+2026-04-26T23:51:40.944569023Z [inf]  Exit status 1
+2026-04-26T23:51:41.978988274Z [inf]  
+2026-04-26T23:51:41.978991998Z [inf]  > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+2026-04-26T23:51:41.978995396Z [inf]  > NODE_ENV=production node dist/index.mjs
+2026-04-26T23:51:41.978998912Z [inf]  
+2026-04-26T23:51:42.306022244Z [err]  Warning: connect.session() MemoryStore is not
+2026-04-26T23:51:42.306028168Z [err]  designed for a production environment, as it will leak
+2026-04-26T23:51:42.306032671Z [err]  memory, and will not scale past a single process.
+2026-04-26T23:51:42.309651885Z [err]  Erreur lors des migrations : Error: Can't find meta/_journal.json file
+2026-04-26T23:51:42.309657311Z [err]      at tO (file:///app/artifacts/api-server/dist/index.mjs:75:39101)
+2026-04-26T23:51:42.309661711Z [err]      at rO (file:///app/artifacts/api-server/dist/index.mjs:75:39586)
+2026-04-26T23:51:42.309665008Z [err]      at hD (file:///app/artifacts/api-server/dist/index.mjs:103:54672)
+2026-04-26T23:51:42.309668108Z [err]      at Aae (file:///app/artifacts/api-server/dist/index.mjs:2277:2632)
+2026-04-26T23:51:42.309671768Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:2277:2724
+2026-04-26T23:51:42.309674769Z [err]      at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+2026-04-26T23:51:42.309677837Z [err]      at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+2026-04-26T23:51:42.309681120Z [err]      at async loadESM (node:internal/process/esm_loader:34:7)
+2026-04-26T23:51:42.309684273Z [err]      at async handleMainPromise (node:internal/modules/run_main:106:12)
+2026-04-26T23:51:42.309687595Z [err]  Échec du démarrage du serveur : Error: Can't find meta/_journal.json file
+2026-04-26T23:51:42.309693406Z [err]      at tO (file:///app/artifacts/api-server/dist/index.mjs:75:39101)
+2026-04-26T23:51:42.309697336Z [err]      at rO (file:///app/artifacts/api-server/dist/index.mjs:75:39586)
+2026-04-26T23:51:42.309700969Z [err]      at hD (file:///app/artifacts/api-server/dist/index.mjs:103:54672)
+2026-04-26T23:51:42.309704601Z [err]      at Aae (file:///app/artifacts/api-server/dist/index.mjs:2277:2632)
+2026-04-26T23:51:42.309707818Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:2277:2724
+2026-04-26T23:51:42.309712126Z [err]      at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+2026-04-26T23:51:42.309716333Z [err]      at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+2026-04-26T23:51:42.309719738Z [err]      at async loadESM (node:internal/process/esm_loader:34:7)
+2026-04-26T23:51:42.311394698Z [err]      at async handleMainPromise (node:internal/modules/run_main:106:12)
+2026-04-26T23:51:42.335984273Z [inf]  /app/artifacts/api-server:
+2026-04-26T23:51:42.335988990Z [inf]   ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `NODE_ENV=production node dist/index.mjs`
+2026-04-26T23:51:42.335992542Z [inf]  Exit status 1
+2026-04-26T23:51:43.519431418Z [inf]  
+2026-04-26T23:51:43.519439433Z [inf]  
+2026-04-26T23:51:43.519439520Z [inf]  > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+2026-04-26T23:51:43.519444115Z [inf]  > NODE_ENV=production node dist/index.mjs
+2026-04-26T23:51:43.961954608Z [err]  Warning: connect.session() MemoryStore is not
+2026-04-26T23:51:43.961959151Z [err]  designed for a production environment, as it will leak
+2026-04-26T23:51:43.961963568Z [err]  memory, and will not scale past a single process.
+2026-04-26T23:51:43.961967537Z [err]  Erreur lors des migrations : Error: Can't find meta/_journal.json file
+2026-04-26T23:51:43.961971417Z [err]      at tO (file:///app/artifacts/api-server/dist/index.mjs:75:39101)
+2026-04-26T23:51:43.961975363Z [err]      at rO (file:///app/artifacts/api-server/dist/index.mjs:75:39586)
+2026-04-26T23:51:43.961980295Z [err]      at hD (file:///app/artifacts/api-server/dist/index.mjs:103:54672)
+2026-04-26T23:51:43.961984326Z [err]      at Aae (file:///app/artifacts/api-server/dist/index.mjs:2277:2632)
+2026-04-26T23:51:43.961988629Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:2277:2724
+2026-04-26T23:51:43.961992791Z [err]      at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+2026-04-26T23:51:43.961996938Z [err]      at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+2026-04-26T23:51:43.962000849Z [err]      at async loadESM (node:internal/process/esm_loader:34:7)
+2026-04-26T23:51:43.962005692Z [err]      at async handleMainPromise (node:internal/modules/run_main:106:12)
+2026-04-26T23:51:43.962009747Z [err]  Échec du démarrage du serveur : Error: Can't find meta/_journal.json file
+2026-04-26T23:51:43.962013870Z [err]      at tO (file:///app/artifacts/api-server/dist/index.mjs:75:39101)
+2026-04-26T23:51:43.962017751Z [err]      at rO (file:///app/artifacts/api-server/dist/index.mjs:75:39586)
+2026-04-26T23:51:43.962021816Z [err]      at hD (file:///app/artifacts/api-server/dist/index.mjs:103:54672)
+2026-04-26T23:51:43.962025925Z [err]      at Aae (file:///app/artifacts/api-server/dist/index.mjs:2277:2632)
+2026-04-26T23:51:43.962029924Z [err]      at file:///app/artifacts/api-server/dist/index.mjs:2277:2724
+2026-04-26T23:51:43.963600262Z [err]      at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+2026-04-26T23:51:43.963604430Z [err]      at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+2026-04-26T23:51:43.963608621Z [err]      at async loadESM (node:internal/process/esm_loader:34:7)
+2026-04-26T23:51:43.963611640Z [err]      at async handleMainPromise (node:internal/modules/run_main:106:12)
+2026-04-26T23:51:43.972660519Z [inf]  /app/artifacts/api-server:
+2026-04-26T23:51:43.972665048Z [inf]   ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `NODE_ENV=production node dist/index.mjs`
+2026-04-26T23:51:43.972668116Z [inf]  Exit status 1
