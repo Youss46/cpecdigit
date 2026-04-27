@@ -1,13 +1,12 @@
 {
-  "name": "M15 EduTech — Gestion Académique",
-  "short_name": "M15 EduTech",
+  "name": "M15 EduTech",
+  "short_name": "M15",
   "description": "Plateforme SaaS de gestion académique multi-établissements",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "theme_color": "#1B3A6B",
   "background_color": "#1B3A6B",
+  "theme_color": "#1B3A6B",
   "lang": "fr",
   "icons": [
     {
@@ -17,12 +16,6 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
@@ -34,23 +27,5 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "screenshots": [
-    {
-      "src": "/opengraph.jpg",
-      "sizes": "1280x720",
-      "type": "image/jpeg",
-      "form_factor": "wide",
-      "label": "Tableau de bord M15 EduTech"
-    },
-    {
-      "src": "/login-screenshot.png",
-      "sizes": "650x589",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Connexion M15 EduTech"
-    }
-  ],
-  "categories": ["education", "productivity"],
-  "prefer_related_applications": false
+  ]
 }

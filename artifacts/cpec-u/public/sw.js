@@ -1,4 +1,4 @@
-const CACHE_NAME = 'm15-edutech-v12';
+const CACHE_NAME = 'm15-edutech-v13';
 const API_CACHE_NAME = 'm15-edutech-api-v5';
 const API_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
