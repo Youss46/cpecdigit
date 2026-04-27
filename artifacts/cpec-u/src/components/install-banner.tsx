@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download, X, Share, Plus, MoreVertical, PlusSquare } from "lucide-react";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import {
@@ -149,12 +149,25 @@ export function InstallButton() {
 
 // ─── Mobile bottom banner ─────────────────────────────────────────────────────
 
+const BANNER_DISMISSED_KEY = "m15_pwa_banner_dismissed";
+
 export function InstallBannerMobile() {
   const { state, install } = useInstallPrompt();
   const [showModal, setShowModal] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(
+    () => sessionStorage.getItem(BANNER_DISMISSED_KEY) === "1"
+  );
 
-  if (state === "installed" || state === "idle" || dismissed) return null;
+  // Show banner after 4-second delay so it doesn't distract on initial load
+  // and gives Chrome time to fire beforeinstallprompt first.
+  useEffect(() => {
+    if (state === "installed" || state === "idle" || dismissed) return;
+    const timer = setTimeout(() => setBannerVisible(true), 4000);
+    return () => clearTimeout(timer);
+  }, [state, dismissed]);
+
+  if (!bannerVisible || state === "installed" || state === "idle" || dismissed) return null;
 
   const isManual = state === "manual";
   const isIos = state === "ios";
@@ -165,6 +178,11 @@ export function InstallBannerMobile() {
       return;
     }
     await install();
+  };
+
+  const handleDismiss = () => {
+    sessionStorage.setItem(BANNER_DISMISSED_KEY, "1");
+    setDismissed(true);
   };
 
   return (
@@ -187,7 +205,7 @@ export function InstallBannerMobile() {
             Installer
           </button>
           <button
-            onClick={() => setDismissed(true)}
+            onClick={handleDismiss}
             className="shrink-0 text-muted-foreground hover:text-foreground p-1"
           >
             <X className="w-4 h-4" />
@@ -210,6 +228,13 @@ export function InstallBannerMobile() {
                 : "Pour installer l'application sur cet appareil :"}
             </p>
             {isIos ? <IosInstructions /> : <ChromeInstructions />}
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted text-xs text-muted-foreground">
+              <img src={logo} alt="" className="w-8 h-8 rounded-lg shrink-0" />
+              <div>
+                <p className="font-medium text-foreground">M15 EduTech</p>
+                <p>Lancez l'app depuis votre écran d'accueil comme une application native.</p>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
