@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, X, Share, Plus } from "lucide-react";
+import { Download, X, Share, Plus, MoreVertical, PlusSquare } from "lucide-react";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -7,16 +7,97 @@ import {
 
 const logo = `${import.meta.env.BASE_URL}images/logo.png`;
 
+// ─── Shared manual-install modal content ─────────────────────────────────────
+
+function IosInstructions() {
+  return (
+    <ol className="space-y-3">
+      <li className="flex items-start gap-3">
+        <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+        <p className="text-sm">
+          Appuyez sur l'icône{" "}
+          <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded bg-muted font-medium text-xs">
+            <Share className="w-3 h-3" />
+            Partager
+          </span>{" "}
+          en bas de Safari.
+        </p>
+      </li>
+      <li className="flex items-start gap-3">
+        <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+        <p className="text-sm">
+          Faites défiler et appuyez sur{" "}
+          <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded bg-muted font-medium text-xs">
+            <Plus className="w-3 h-3" />
+            Sur l'écran d'accueil
+          </span>.
+        </p>
+      </li>
+      <li className="flex items-start gap-3">
+        <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+        <p className="text-sm">Confirmez en appuyant sur <strong>Ajouter</strong>.</p>
+      </li>
+    </ol>
+  );
+}
+
+function ChromeInstructions() {
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  return (
+    <ol className="space-y-3">
+      <li className="flex items-start gap-3">
+        <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+        <p className="text-sm">
+          {isAndroid ? (
+            <>
+              Appuyez sur{" "}
+              <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded bg-muted font-medium text-xs">
+                <MoreVertical className="w-3 h-3" />
+                ⋮
+              </span>{" "}
+              en haut à droite de Chrome.
+            </>
+          ) : (
+            <>
+              Cliquez sur l'icône <strong>⊕</strong> dans la barre d'adresse (à droite),
+              ou ouvrez le menu <strong>⋮</strong> de Chrome.
+            </>
+          )}
+        </p>
+      </li>
+      <li className="flex items-start gap-3">
+        <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+        <p className="text-sm">
+          Sélectionnez{" "}
+          <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded bg-muted font-medium text-xs">
+            <PlusSquare className="w-3 h-3" />
+            {isAndroid ? "Ajouter à l'écran d'accueil" : "Installer M15 EduTech…"}
+          </span>.
+        </p>
+      </li>
+      <li className="flex items-start gap-3">
+        <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+        <p className="text-sm">Confirmez en appuyant sur <strong>Installer</strong> ou <strong>Ajouter</strong>.</p>
+      </li>
+    </ol>
+  );
+}
+
+// ─── Sidebar install button (desktop) ────────────────────────────────────────
+
 export function InstallButton() {
   const { state, install } = useInstallPrompt();
-  const [showIosModal, setShowIosModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [installing, setInstalling] = useState(false);
 
   if (state === "installed" || state === "idle") return null;
 
+  const isManual = state === "manual";
+  const isIos = state === "ios";
+
   const handleClick = async () => {
-    if (state === "ios") {
-      setShowIosModal(true);
+    if (isManual || isIos) {
+      setShowModal(true);
       return;
     }
     setInstalling(true);
@@ -37,7 +118,7 @@ export function InstallButton() {
         </span>
       </button>
 
-      <Dialog open={showIosModal} onOpenChange={setShowIosModal}>
+      <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -47,35 +128,11 @@ export function InstallButton() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Pour installer l'application sur votre iPhone ou iPad, suivez ces étapes :
+              {isIos
+                ? "Pour installer l'application sur votre iPhone ou iPad :"
+                : "Pour installer l'application sur cet appareil :"}
             </p>
-            <ol className="space-y-3">
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
-                <p className="text-sm">
-                  Appuyez sur l'icône{" "}
-                  <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded bg-muted font-medium text-xs">
-                    <Share className="w-3 h-3" />
-                    Partager
-                  </span>{" "}
-                  en bas de Safari.
-                </p>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-                <p className="text-sm">
-                  Faites défiler et appuyez sur{" "}
-                  <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded bg-muted font-medium text-xs">
-                    <Plus className="w-3 h-3" />
-                    Sur l'écran d'accueil
-                  </span>.
-                </p>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
-                <p className="text-sm">Confirmez en appuyant sur <strong>Ajouter</strong>.</p>
-              </li>
-            </ol>
+            {isIos ? <IosInstructions /> : <ChromeInstructions />}
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted text-xs text-muted-foreground">
               <img src={logo} alt="" className="w-8 h-8 rounded-lg shrink-0" />
               <div>
@@ -90,16 +147,21 @@ export function InstallButton() {
   );
 }
 
+// ─── Mobile bottom banner ─────────────────────────────────────────────────────
+
 export function InstallBannerMobile() {
   const { state, install } = useInstallPrompt();
-  const [showIosModal, setShowIosModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   if (state === "installed" || state === "idle" || dismissed) return null;
 
+  const isManual = state === "manual";
+  const isIos = state === "ios";
+
   const handleInstall = async () => {
-    if (state === "ios") {
-      setShowIosModal(true);
+    if (isManual || isIos) {
+      setShowModal(true);
       return;
     }
     await install();
@@ -112,7 +174,11 @@ export function InstallBannerMobile() {
           <img src={logo} alt="M15 EduTech" className="w-10 h-10 rounded-xl shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold leading-tight">M15 EduTech</p>
-            <p className="text-xs text-muted-foreground">Installer l'application sur cet appareil</p>
+            <p className="text-xs text-muted-foreground">
+              {isManual || isIos
+                ? "Voir comment installer l'application"
+                : "Installer l'application sur cet appareil"}
+            </p>
           </div>
           <button
             onClick={handleInstall}
@@ -129,7 +195,7 @@ export function InstallBannerMobile() {
         </div>
       </div>
 
-      <Dialog open={showIosModal} onOpenChange={setShowIosModal}>
+      <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -139,35 +205,11 @@ export function InstallBannerMobile() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Pour installer l'application sur votre iPhone ou iPad :
+              {isIos
+                ? "Pour installer l'application sur votre iPhone ou iPad :"
+                : "Pour installer l'application sur cet appareil :"}
             </p>
-            <ol className="space-y-3">
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
-                <p className="text-sm">
-                  Appuyez sur l'icône{" "}
-                  <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded bg-muted font-medium text-xs">
-                    <Share className="w-3 h-3" />
-                    Partager
-                  </span>{" "}
-                  en bas de Safari.
-                </p>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-                <p className="text-sm">
-                  Appuyez sur{" "}
-                  <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded bg-muted font-medium text-xs">
-                    <Plus className="w-3 h-3" />
-                    Sur l'écran d'accueil
-                  </span>.
-                </p>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
-                <p className="text-sm">Confirmez avec <strong>Ajouter</strong>.</p>
-              </li>
-            </ol>
+            {isIos ? <IosInstructions /> : <ChromeInstructions />}
           </div>
         </DialogContent>
       </Dialog>
