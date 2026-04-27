@@ -86,7 +86,8 @@ export async function runMigrations() {
           let query = stmt;
 
           if (/^CREATE TYPE/i.test(stmt)) {
-            query = `DO $$ BEGIN\n  ${stmt};\nEXCEPTION WHEN duplicate_object THEN NULL;\nEND $$;`;
+            const bare = stmt.replace(/;+$/, "");
+            query = `DO $$ BEGIN\n  ${bare};\nEXCEPTION WHEN duplicate_object THEN NULL;\nEND $$;`;
           } else if (/^CREATE TABLE(?!\s+IF NOT EXISTS)/i.test(stmt)) {
             query = stmt.replace(/^CREATE TABLE\s+/i, "CREATE TABLE IF NOT EXISTS ");
           } else if (/^CREATE UNIQUE INDEX(?!\s+IF NOT EXISTS)/i.test(stmt)) {
