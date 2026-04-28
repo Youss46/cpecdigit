@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Download, X } from "lucide-react";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
-const logo = `${import.meta.env.BASE_URL}icon-192.png`;
+const logo = `${import.meta.env.BASE_URL}icon-192-v2.png`;
 
 // ─── Sidebar install button (desktop) ────────────────────────────────────────
 

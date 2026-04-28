@@ -1,4 +1,4 @@
-const CACHE_NAME = 'm15-edutech-v18';
+const CACHE_NAME = 'm15-edutech-v19';
 const API_CACHE_NAME = 'm15-edutech-api-v5';
 const API_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -11,9 +11,9 @@ const LEGACY_API_PREFIX = '/api/';
 const SHELL_ASSETS = [
   '/',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png',
+  '/icon-192-v2.png',
+  '/icon-512-v2.png',
+  '/apple-touch-icon-v2.png',
   '/images/logo.png',
 ];
 
@@ -195,7 +195,7 @@ self.addEventListener('push', (event) => {
     data.body = event.data.text();
   }
 
-  const iconUrl = self.registration.scope + 'icon-192.png';
+  const iconUrl = self.registration.scope + 'icon-192-v2.png';
 
   const targetUrl = data.url
     ? (data.url.startsWith('http') ? data.url : self.registration.scope.replace(/\/$/, '') + data.url)

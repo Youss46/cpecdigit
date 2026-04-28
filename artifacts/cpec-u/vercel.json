@@ -11,7 +11,7 @@
       "destination": "https://$BACKEND_HOST/srv/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\.[a-zA-Z0-9]+$).*)",
       "destination": "/index.html"
     }
   ],
@@ -32,21 +32,21 @@
       ]
     },
     {
-      "source": "/icon-192.png",
+      "source": "/icon-192-v2.png",
       "headers": [
         { "key": "Content-Type", "value": "image/png" },
         { "key": "Cache-Control", "value": "public, max-age=86400" }
       ]
     },
     {
-      "source": "/icon-512.png",
+      "source": "/icon-512-v2.png",
       "headers": [
         { "key": "Content-Type", "value": "image/png" },
         { "key": "Cache-Control", "value": "public, max-age=86400" }
       ]
     },
     {
-      "source": "/apple-touch-icon.png",
+      "source": "/apple-touch-icon-v2.png",
       "headers": [
         { "key": "Content-Type", "value": "image/png" },
         { "key": "Cache-Control", "value": "public, max-age=86400" }
