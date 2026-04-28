@@ -1,4 +1,4 @@
-const CACHE_NAME = 'm15-edutech-v15';
+const CACHE_NAME = 'm15-edutech-v16';
 const API_CACHE_NAME = 'm15-edutech-api-v5';
 const API_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -88,28 +88,34 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  let request = event.request;
-  let url = new URL(request.url);
+  const request = event.request;
+  const url = new URL(request.url);
 
-  // Replit's external load balancer blocks /api/* paths. Rewrite any direct
+  // Replit's external load balancer blocks /api/* paths. Rewrite direct
   // browser fetches (img src, iframe src, etc.) that bypassed the in-page
   // window.fetch interceptor so they reach the backend via /srv/*.
+  //
+  // Only rewrite GET/HEAD here — these have no body and are safe to clone.
+  // POST/PUT/etc. always go through window.fetch (patched in main.tsx),
+  // so they don't hit this branch in practice. We let them pass through
+  // untouched to avoid the "duplex member must be specified for a request
+  // with a streaming body" error when reconstructing a Request with a body.
   if (url.pathname.startsWith(LEGACY_API_PREFIX)) {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return;
+    }
     const rewritten = new URL(url.toString());
     rewritten.pathname = API_PREFIX + url.pathname.slice(LEGACY_API_PREFIX.length);
-    request = new Request(rewritten.toString(), {
+    event.respondWith(fetch(rewritten.toString(), {
       method: request.method,
       headers: request.headers,
-      body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
       mode: request.mode === 'navigate' ? 'same-origin' : request.mode,
       credentials: request.credentials,
       cache: request.cache,
       redirect: request.redirect,
       referrer: request.referrer,
       integrity: request.integrity,
-    });
-    url = rewritten;
-    event.respondWith(fetch(request));
+    }));
     return;
   }
 
