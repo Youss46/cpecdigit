@@ -1,4 +1,4 @@
-const CACHE_NAME = 'm15-edutech-v14';
+const CACHE_NAME = 'm15-edutech-v15';
 const API_CACHE_NAME = 'm15-edutech-api-v5';
 const API_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -66,7 +66,11 @@ function isCacheableApi(pathname) {
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL_ASSETS))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(SHELL_ASSETS.map(url =>
+        cache.add(url).catch(() => {})
+      ))
+    )
   );
   self.skipWaiting();
 });
