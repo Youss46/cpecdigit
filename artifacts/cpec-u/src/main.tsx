@@ -85,15 +85,17 @@ if (_isReplitHosted && typeof window.fetch === "function") {
 if (typeof window !== "undefined") {
   (window as any).__cpecInstallPrompt = null;
   window.addEventListener("beforeinstallprompt", (e) => {
-    // Do NOT call e.preventDefault() — this allows Chrome to show its native
-    // install UI (mini-infobar on Android, ⊕ icon in desktop address bar)
-    // while we also capture the event for our custom sidebar button.
+    // Suppress Chrome's native mini-infobar so we can show our own button
+    // and call prompt() programmatically when the user clicks it.
+    e.preventDefault();
     (window as any).__cpecInstallPrompt = e;
     window.dispatchEvent(new Event("cpec-install-ready"));
+    console.log("[PWA] beforeinstallprompt captured — install button will appear");
   });
   window.addEventListener("appinstalled", () => {
     (window as any).__cpecInstallPrompt = null;
     window.dispatchEvent(new Event("cpec-app-installed"));
+    console.log("[PWA] App installed");
   });
 }
 
@@ -102,7 +104,12 @@ createRoot(document.getElementById("root")!).render(<App />);
 // ─── Service Worker ───────────────────────────────────────────────────────
 if ("serviceWorker" in navigator) {
   const swUrl = `${import.meta.env.BASE_URL}sw.js`;
-  navigator.serviceWorker.register(swUrl, { scope: import.meta.env.BASE_URL }).catch((err) => {
-    console.warn("Service worker registration failed:", err);
-  });
+  navigator.serviceWorker
+    .register(swUrl, { scope: import.meta.env.BASE_URL })
+    .then((reg) => {
+      console.log("[PWA] Service worker registered, scope:", reg.scope);
+    })
+    .catch((err) => {
+      console.warn("[PWA] Service worker registration failed:", err);
+    });
 }
