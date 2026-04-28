@@ -5,7 +5,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-export type InstallState = "idle" | "installable" | "manual" | "ios" | "installed";
+export type InstallState = "idle" | "installable" | "installed";
 
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -22,27 +22,11 @@ export function useInstallPrompt() {
       return;
     }
 
-    // iOS Safari: browser doesn't support beforeinstallprompt so we show
-    // manual instructions (Share → Add to Home Screen).
-    const isIos =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-
-    if (isIos) {
-      setState("ios");
-      return;
-    }
-
-    // Is this a Chromium-based browser that CAN install PWAs?
-    const isChromium =
-      /Chrome|Chromium|Edg|SamsungBrowser/.test(navigator.userAgent) &&
-      !/OPR|Opera/.test(navigator.userAgent);
-
     // Pick up a prompt event captured before React mounted (stored in main.tsx).
     const existing = (window as any).__cpecInstallPrompt as BeforeInstallPromptEvent | null;
     if (existing) {
       setDeferredPrompt(existing);
       setState("installable");
-      return;
     }
 
     // Also listen for future prompt events (e.g. re-navigation).
@@ -63,21 +47,9 @@ export function useInstallPrompt() {
     window.addEventListener("cpec-install-ready", onReady);
     window.addEventListener("cpec-app-installed", onInstalled);
 
-    // Fallback: Chrome fires beforeinstallprompt at most once per ~90-day
-    // window. If it hasn't fired after 4 s (user dismissed the prompt
-    // before, engagement score not met, etc.) we still want to show install
-    // instructions so the user can install via the browser's ⋮ menu.
-    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
-    if (isChromium) {
-      fallbackTimer = setTimeout(() => {
-        setState((prev) => (prev === "idle" ? "manual" : prev));
-      }, 4000);
-    }
-
     return () => {
       window.removeEventListener("cpec-install-ready", onReady);
       window.removeEventListener("cpec-app-installed", onInstalled);
-      if (fallbackTimer !== null) clearTimeout(fallbackTimer);
     };
   }, []);
 
@@ -85,10 +57,12 @@ export function useInstallPrompt() {
     if (!deferredPrompt) return false;
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
+    (window as any).__cpecInstallPrompt = null;
+    setDeferredPrompt(null);
     if (outcome === "accepted") {
-      (window as any).__cpecInstallPrompt = null;
       setState("installed");
-      setDeferredPrompt(null);
+    } else {
+      setState("idle");
     }
     return outcome === "accepted";
   };
