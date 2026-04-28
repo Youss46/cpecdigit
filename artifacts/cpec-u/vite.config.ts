@@ -48,10 +48,13 @@ export default defineConfig({
     headers: {
       "Cache-Control": "no-store",
     },
-    hmr: {
-      clientPort: 443,
-      protocol: "wss",
-    },
+    hmr: process.env.REPLIT_DEV_DOMAIN
+      ? {
+          clientPort: 443,
+          protocol: "wss",
+          host: process.env.REPLIT_DEV_DOMAIN,
+        }
+      : true,
     proxy: {
       "/api": {
         target: `http://localhost:${process.env.API_PORT ?? "3001"}`,
