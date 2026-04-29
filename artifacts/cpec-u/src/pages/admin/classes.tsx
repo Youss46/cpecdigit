@@ -355,6 +355,7 @@ export default function AdminClasses() {
       );
       // Refetch en arrière-plan pour synchroniser avec le serveur
       queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       toast({ title: "Classe créée avec succès" });
       setIsDialogOpen(false);
     } catch {
@@ -369,6 +370,7 @@ export default function AdminClasses() {
         old ? old.filter((c) => c.id !== id) : []
       );
       queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       toast({ title: "Classe supprimée" });
       if (selectedClass?.id === id) setSelectedClass(null);
     } catch {
@@ -391,6 +393,7 @@ export default function AdminClasses() {
         old ? old.map((c) => c.id === editingClass.id ? { ...c, ...updated } : c) : old
       );
       queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       toast({ title: "Classe modifiée avec succès" });
       setEditingClass(null);
     } catch {

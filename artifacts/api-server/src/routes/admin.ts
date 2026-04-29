@@ -3281,6 +3281,7 @@ router.get("/absences/alert-count", requireRole("admin"), async (req, res) => {
 
 router.get("/stats", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const progression = await db.execute(sql`
       SELECT
         c.id as class_id,
@@ -3290,6 +3291,7 @@ router.get("/stats", requireRole("admin"), async (req, res) => {
       FROM classes c
       LEFT JOIN schedule_entries se ON se.class_id = c.id
       LEFT JOIN cahier_de_texte cdt ON cdt.class_id = c.id
+      WHERE c.tenant_id = ${tenantId}
       GROUP BY c.id, c.name
       ORDER BY c.name
     `);
@@ -3310,6 +3312,7 @@ router.get("/stats", requireRole("admin"), async (req, res) => {
         FROM payments
         GROUP BY student_id
       ) p_agg ON p_agg.student_id = ce.student_id
+      WHERE c.tenant_id = ${tenantId}
       GROUP BY c.id, c.name
       ORDER BY c.name
     `);
