@@ -315,6 +315,7 @@ export default function AdminClasses() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null);
   const [pendingDeleteClass, setPendingDeleteClass] = useState<{ id: number; name: string } | null>(null);
+  const [editingClass, setEditingClass] = useState<{ id: number; name: string; filiere: string; description: string } | null>(null);
   const { data: classes, isLoading } = useListClasses();
   const { data: subjects } = useListSubjects();
   const { data: currentUser } = useGetCurrentUser();
@@ -327,6 +328,7 @@ export default function AdminClasses() {
   const createClass = useCreateClass();
   const deleteClass = useDeleteClass();
   const moveClass = useMoveClass();
+  const updateClassMutation = useUpdateClassConfig();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -363,7 +365,6 @@ export default function AdminClasses() {
   const handleDelete = async (id: number) => {
     try {
       await deleteClass.mutateAsync({ id });
-      // Suppression optimiste immédiate
       queryClient.setQueryData<any[]>(["/api/admin/classes"], (old) =>
         old ? old.filter((c) => c.id !== id) : []
       );
@@ -372,6 +373,28 @@ export default function AdminClasses() {
       if (selectedClass?.id === id) setSelectedClass(null);
     } catch {
       toast({ title: "Erreur", variant: "destructive" });
+    }
+  };
+
+  const handleEdit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingClass) return;
+    const formData = new FormData(e.currentTarget);
+    try {
+      const updated = await updateClassMutation.mutateAsync({
+        id: editingClass.id,
+        name: formData.get("name") as string,
+        filiere: (formData.get("filiere") as string) || null,
+        description: (formData.get("description") as string) || null,
+      });
+      queryClient.setQueryData<any[]>(["/api/admin/classes"], (old) =>
+        old ? old.map((c) => c.id === editingClass.id ? { ...c, ...updated } : c) : old
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      toast({ title: "Classe modifiée avec succès" });
+      setEditingClass(null);
+    } catch {
+      toast({ title: "Erreur lors de la modification", variant: "destructive" });
     }
   };
 
@@ -435,9 +458,9 @@ export default function AdminClasses() {
                   {idx + 1}
                 </div>
 
-                {/* Actions (hover) — hidden for scolarité */}
+                {/* Boutons de déplacement — toujours visibles */}
                 {!isScolarite && (
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center gap-0.5">
+                <div className="absolute top-3 right-3 flex flex-col items-center gap-0.5">
                   <Button
                     variant="ghost" size="icon"
                     className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -455,14 +478,6 @@ export default function AdminClasses() {
                     title="Descendre"
                   >
                     <ChevronDown className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost" size="icon"
-                    className="h-7 w-7 text-destructive hover:bg-destructive/10 mt-1"
-                    onClick={(e) => { e.stopPropagation(); setPendingDeleteClass({ id: cls.id, name: cls.name }); }}
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
                 )}
@@ -512,11 +527,64 @@ export default function AdminClasses() {
                     </div>
                   )}
                 </div>
+
+                {/* Actions toujours visibles — Modifier / Supprimer */}
+                {!isScolarite && (
+                  <div
+                    className="mt-3 pt-3 border-t border-border flex items-center gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-7 gap-1.5 text-xs flex-1"
+                      onClick={() => setEditingClass({ id: cls.id, name: cls.name, filiere: cls.filiere ?? "", description: cls.description ?? "" })}
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Modifier
+                    </Button>
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-7 gap-1.5 text-xs flex-1 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setPendingDeleteClass({ id: cls.id, name: cls.name })}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Supprimer
+                    </Button>
+                  </div>
+                )}
               </div>
             ))
           )}
         </div>
       </div>
+
+      {/* Dialog de modification de classe */}
+      <Dialog open={editingClass !== null} onOpenChange={(open) => { if (!open) setEditingClass(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier la classe</DialogTitle>
+          </DialogHeader>
+          {editingClass && (
+            <form onSubmit={handleEdit} className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nom de la classe</Label>
+                <Input id="edit-name" name="name" required defaultValue={editingClass.name} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-filiere">Filière <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+                <Input id="edit-filiere" name="filiere" placeholder="Ex : Comptabilité et Gestion Financière" defaultValue={editingClass.filiere} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea id="edit-description" name="description" rows={2} defaultValue={editingClass.description} />
+              </div>
+              <Button type="submit" className="w-full" disabled={updateClassMutation.isPending}>
+                {updateClassMutation.isPending ? "Enregistrement..." : "Enregistrer les modifications"}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {selectedClass && (
         <ClassStudentsSheet
