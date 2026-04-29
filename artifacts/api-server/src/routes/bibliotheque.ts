@@ -1147,7 +1147,7 @@ router.get("/bibliotheque/recommendations", requireRole("student"), async (req, 
 
       if (supportIds.length > 0) {
         supports = (await db.execute(sql`
-          SELECT id, title, type FROM library_resources WHERE id = ANY(${supportIds})
+          SELECT id, title, type FROM library_resources WHERE id = ANY(ARRAY[${sql.raw(supportIds.join(','))}]::int[])
         `) as any).rows ?? [];
       }
 
@@ -1160,7 +1160,7 @@ router.get("/bibliotheque/recommendations", requireRole("student"), async (req, 
              ORDER BY termine_le DESC LIMIT 1) as last_score_pct
           FROM library_quiz lq
           JOIN library_resources lr ON lr.id = lq.resource_id
-          WHERE lq.id = ANY(${quizIds})
+          WHERE lq.id = ANY(ARRAY[${sql.raw(quizIds.join(','))}]::int[])
         `) as any).rows ?? [];
       }
 
@@ -1224,7 +1224,7 @@ router.post("/bibliotheque/send-reminder", requireRole("teacher", "admin"), asyn
         SELECT DISTINCT u.id
         FROM class_enrollments ce
         JOIN users u ON u.id = ce.student_id
-        WHERE ce.class_id = ANY(${classIds})
+        WHERE ce.class_id = ANY(ARRAY[${sql.raw(classIds.join(','))}]::int[])
           AND u.id NOT IN (
             SELECT student_id FROM library_downloads WHERE resource_id = ${resourceId}
           )
@@ -1398,7 +1398,7 @@ router.get("/bibliotheque/quiz-has", requireAuth, async (req, res) => {
     if (!idList.length) { res.json({ resourceIdsWithQuiz: [] }); return; }
 
     const rows = (await db.execute(
-      sql`SELECT DISTINCT resource_id FROM library_quiz WHERE resource_id = ANY(${idList}) AND actif = true`
+      sql`SELECT DISTINCT resource_id FROM library_quiz WHERE resource_id = ANY(ARRAY[${sql.raw(idList.join(','))}]::int[]) AND actif = true`
     ) as any).rows ?? [];
     res.json({ resourceIdsWithQuiz: rows.map((r: any) => r.resource_id) });
   } catch (err) {

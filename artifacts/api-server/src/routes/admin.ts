@@ -441,16 +441,17 @@ router.get("/classes", requireRole("admin", "teacher"), async (req, res) => {
       .groupBy(classEnrollmentsTable.classId) : [];
     const countMap = new Map(enrollCounts.map((e) => [e.classId, Number(e.cnt)]));
 
-    const genderRows = classIds.length ? allRows(await db.execute(sql`
-      SELECT ce.class_id,
-        COUNT(CASE WHEN sp.sexe = 'M' THEN 1 END)::int AS garcons,
-        COUNT(CASE WHEN sp.sexe = 'F' THEN 1 END)::int AS filles
-      FROM class_enrollments ce
-      LEFT JOIN student_profiles sp ON sp.student_id = ce.student_id
-      WHERE ce.class_id = ANY(${classIds})
-      GROUP BY ce.class_id
-    `)) : [];
-    const genderMap = new Map(genderRows.map((r: any) => [Number(r.class_id), { garcons: Number(r.garcons ?? 0), filles: Number(r.filles ?? 0) }]));
+    const genderRows = classIds.length ? await db
+      .select({
+        classId: classEnrollmentsTable.classId,
+        garcons: sql<number>`COUNT(CASE WHEN ${studentProfilesTable.sexe} = 'M' THEN 1 END)::int`,
+        filles: sql<number>`COUNT(CASE WHEN ${studentProfilesTable.sexe} = 'F' THEN 1 END)::int`,
+      })
+      .from(classEnrollmentsTable)
+      .leftJoin(studentProfilesTable, eq(studentProfilesTable.studentId, classEnrollmentsTable.studentId))
+      .where(inArray(classEnrollmentsTable.classId, classIds))
+      .groupBy(classEnrollmentsTable.classId) : [];
+    const genderMap = new Map(genderRows.map((r) => [Number(r.classId), { garcons: Number(r.garcons ?? 0), filles: Number(r.filles ?? 0) }]));
 
     const result = classes.map((c) => ({
       ...c,
