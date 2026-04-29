@@ -340,15 +340,20 @@ export default function AdminClasses() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     try {
-      await createClass.mutateAsync({
+      const newClass = await createClass.mutateAsync({
         data: {
           name: formData.get("name") as string,
           filiere: (formData.get("filiere") as string) || undefined,
           description: formData.get("description") as string || undefined,
         } as any,
       });
-      toast({ title: "Classe créée avec succès" });
+      // Mise à jour optimiste immédiate : ajoute la nouvelle classe sans attendre le refetch
+      queryClient.setQueryData<any[]>(["/api/admin/classes"], (old) =>
+        old ? [...old, { studentCount: 0, garcons: 0, filles: 0, ...newClass }] : [newClass]
+      );
+      // Refetch en arrière-plan pour synchroniser avec le serveur
       queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      toast({ title: "Classe créée avec succès" });
       setIsDialogOpen(false);
     } catch {
       toast({ title: "Erreur lors de la création", variant: "destructive" });
@@ -358,8 +363,12 @@ export default function AdminClasses() {
   const handleDelete = async (id: number) => {
     try {
       await deleteClass.mutateAsync({ id });
-      toast({ title: "Classe supprimée" });
+      // Suppression optimiste immédiate
+      queryClient.setQueryData<any[]>(["/api/admin/classes"], (old) =>
+        old ? old.filter((c) => c.id !== id) : []
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      toast({ title: "Classe supprimée" });
       if (selectedClass?.id === id) setSelectedClass(null);
     } catch {
       toast({ title: "Erreur", variant: "destructive" });
