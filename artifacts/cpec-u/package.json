@@ -80,7 +80,6 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
-    "sharp": "^0.34.5",
     "tailwindcss": "catalog:",
     "vite": "catalog:"
   }
