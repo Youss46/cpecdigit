@@ -384,6 +384,67 @@ router.post("/schools", requireDev, async (req, res) => {
   }
 });
 
+// PATCH /api/dev/schools/:id — update school name
+router.patch("/schools/:id", requireDev, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { name } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "Le nom est requis" });
+    const [updated] = await db.update(tenantsTable)
+      .set({ name: name.trim() })
+      .where(eq(tenantsTable.id, id))
+      .returning();
+    if (!updated) return res.status(404).json({ error: "École introuvable" });
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// PATCH /api/dev/schools/:id/admin — update directeur info (name, email, optional password)
+router.patch("/schools/:id/admin", requireDev, async (req, res) => {
+  try {
+    const schoolId = parseInt(req.params.id);
+    const { name, email, password } = req.body;
+    if (!name?.trim() && !email?.trim() && !password) {
+      return res.status(400).json({ error: "Au moins un champ à modifier est requis" });
+    }
+
+    const [admin] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(and(eq(usersTable.tenantId, schoolId), eq(usersTable.adminSubRole, "directeur")))
+      .limit(1);
+    if (!admin) return res.status(404).json({ error: "Directeur introuvable pour cette école" });
+
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if (name?.trim()) updates.name = name.trim();
+    if (email?.trim()) {
+      const emailLower = email.trim().toLowerCase();
+      const conflict = await db.select({ id: usersTable.id }).from(usersTable)
+        .where(eq(usersTable.email, emailLower)).limit(1);
+      if (conflict[0] && conflict[0].id !== admin.id) {
+        return res.status(409).json({ error: "Cet email est déjà utilisé par un autre compte" });
+      }
+      updates.email = emailLower;
+    }
+    if (password) {
+      if (password.length < 6) return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères" });
+      updates.passwordHash = crypto.createHash("sha256").update(password + "cpec-u-salt").digest("hex");
+    }
+
+    const [updated] = await db.update(usersTable)
+      .set(updates)
+      .where(eq(usersTable.id, admin.id))
+      .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, firstLoginAt: usersTable.firstLoginAt });
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // PATCH /api/dev/schools/:id/toggle — activate or deactivate a school
 router.patch("/schools/:id/toggle", requireDev, async (req, res) => {
   try {

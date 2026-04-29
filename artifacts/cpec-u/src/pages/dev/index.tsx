@@ -8,7 +8,7 @@ import {
   Key, Plus, Trash2, ShieldCheck, LogOut, Copy, RotateCcw,
   Ban, CheckCircle, Infinity, Calendar, Clock,
   UserCog, RefreshCw, Eye, EyeOff, X, CalendarPlus,
-  UserPlus, Lock, Mail, User, Loader2, School, Power, PowerOff,
+  UserPlus, Lock, Mail, User, Loader2, School, Power, PowerOff, Pencil, Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -144,6 +144,17 @@ export default function DevDashboard() {
   const [schools, setSchools] = useState<SchoolRecord[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
   const [renewingSchoolId, setRenewingSchoolId] = useState<number | null>(null);
+
+  // Edit school name inline
+  const [editingSchoolName, setEditingSchoolName] = useState<{ id: number; value: string } | null>(null);
+  const [editSchoolNameLoading, setEditSchoolNameLoading] = useState(false);
+
+  // Edit admin (directeur) inline
+  const [editingAdmin, setEditingAdmin] = useState<{ schoolId: number; name: string; email: string } | null>(null);
+  const [editAdminPwd, setEditAdminPwd] = useState("");
+  const [editAdminShowPwd, setEditAdminShowPwd] = useState(false);
+  const [editAdminLoading, setEditAdminLoading] = useState(false);
+  const [editAdminError, setEditAdminError] = useState("");
   const [renewDurations, setRenewDurations] = useState<Record<number, string>>({});
   const [renewLoading, setRenewLoading] = useState<number | null>(null);
   const [createSchoolForm, setCreateSchoolForm] = useState(false);
@@ -333,6 +344,61 @@ export default function DevDashboard() {
       }
     } finally {
       setRenewLoading(null);
+    }
+  };
+
+  const handleUpdateSchoolName = async (id: number) => {
+    if (!editingSchoolName || editingSchoolName.id !== id) return;
+    const name = editingSchoolName.value.trim();
+    if (!name) return;
+    setEditSchoolNameLoading(true);
+    try {
+      const r = await devFetch(`${API}/schools/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (r.ok) {
+        const updated = await r.json();
+        setSchools(s => s.map(x => x.id === id ? { ...x, name: updated.name } : x));
+        setEditingSchoolName(null);
+      }
+    } finally {
+      setEditSchoolNameLoading(false);
+    }
+  };
+
+  const handleUpdateAdmin = async () => {
+    if (!editingAdmin) return;
+    setEditAdminLoading(true);
+    setEditAdminError("");
+    try {
+      const body: Record<string, string> = {
+        name: editingAdmin.name,
+        email: editingAdmin.email,
+      };
+      if (editAdminPwd) body.password = editAdminPwd;
+      const r = await devFetch(`${API}/schools/${editingAdmin.schoolId}/admin`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setSchools(s => s.map(x =>
+          x.id === editingAdmin.schoolId
+            ? { ...x, admin: x.admin ? { ...x.admin, name: d.name, email: d.email } : x.admin }
+            : x
+        ));
+        setEditingAdmin(null);
+        setEditAdminPwd("");
+      } else {
+        setEditAdminError(d.error ?? "Erreur lors de la mise à jour");
+      }
+    } catch {
+      setEditAdminError("Erreur réseau");
+    } finally {
+      setEditAdminLoading(false);
     }
   };
 
@@ -1261,16 +1327,53 @@ export default function DevDashboard() {
                         )}>
                           <School className={cn("w-5 h-5", school.active ? "text-violet-400" : "text-zinc-500")} />
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-white truncate">{school.name}</p>
-                            <span className={cn(
-                              "text-[10px] px-2 py-0.5 rounded-full border font-medium",
-                              school.active ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
-                            )}>
-                              {school.active ? "Active" : "Désactivée"}
-                            </span>
-                          </div>
+                        <div className="min-w-0 flex-1">
+                          {editingSchoolName?.id === school.id ? (
+                            <form
+                              onSubmit={e => { e.preventDefault(); handleUpdateSchoolName(school.id); }}
+                              className="flex items-center gap-2"
+                            >
+                              <Input
+                                value={editingSchoolName.value}
+                                onChange={e => setEditingSchoolName({ id: school.id, value: e.target.value })}
+                                className="h-7 text-sm bg-zinc-800 border-zinc-600 text-white focus:border-violet-500 py-0 px-2"
+                                autoFocus
+                              />
+                              <button
+                                type="submit"
+                                disabled={editSchoolNameLoading}
+                                className="p-1 rounded text-violet-400 hover:text-violet-300 disabled:opacity-50"
+                                title="Enregistrer"
+                              >
+                                {editSchoolNameLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingSchoolName(null)}
+                                className="p-1 rounded text-zinc-500 hover:text-zinc-300"
+                                title="Annuler"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </form>
+                          ) : (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-white truncate">{school.name}</p>
+                              <button
+                                onClick={() => setEditingSchoolName({ id: school.id, value: school.name })}
+                                className="p-0.5 rounded text-zinc-600 hover:text-violet-400 transition-colors"
+                                title="Modifier le nom"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <span className={cn(
+                                "text-[10px] px-2 py-0.5 rounded-full border font-medium",
+                                school.active ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                              )}>
+                                {school.active ? "Active" : "Désactivée"}
+                              </span>
+                            </div>
+                          )}
                           <p className="text-xs text-zinc-500 mt-0.5">Créée le {formatDate(school.createdAt)}</p>
                         </div>
                       </div>
@@ -1291,10 +1394,86 @@ export default function DevDashboard() {
                     <div className="mt-4 grid grid-cols-2 gap-3">
                       {/* Admin */}
                       <div className="bg-zinc-800/50 rounded-xl p-3 space-y-1">
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider flex items-center gap-1">
-                          <UserCog className="w-3 h-3" /> Super Admin
-                        </p>
-                        {school.admin ? (
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                            <UserCog className="w-3 h-3" /> Super Admin
+                          </p>
+                          {school.admin && editingAdmin?.schoolId !== school.id && (
+                            <button
+                              onClick={() => {
+                                setEditingAdmin({ schoolId: school.id, name: school.admin!.name, email: school.admin!.email });
+                                setEditAdminPwd("");
+                                setEditAdminError("");
+                                setEditAdminShowPwd(false);
+                              }}
+                              className="p-0.5 rounded text-zinc-600 hover:text-violet-400 transition-colors"
+                              title="Modifier le directeur"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+
+                        {editingAdmin?.schoolId === school.id ? (
+                          <div className="space-y-2 pt-1">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-zinc-500">Nom</Label>
+                              <Input
+                                value={editingAdmin.name}
+                                onChange={e => setEditingAdmin(a => a ? { ...a, name: e.target.value } : a)}
+                                className="h-7 text-xs bg-zinc-900 border-zinc-700 text-white px-2 py-0"
+                                autoFocus
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-zinc-500">Email</Label>
+                              <Input
+                                type="email"
+                                value={editingAdmin.email}
+                                onChange={e => setEditingAdmin(a => a ? { ...a, email: e.target.value } : a)}
+                                className="h-7 text-xs bg-zinc-900 border-zinc-700 text-white px-2 py-0"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-zinc-500">Nouveau mot de passe <span className="text-zinc-600">(optionnel)</span></Label>
+                              <div className="relative">
+                                <Input
+                                  type={editAdminShowPwd ? "text" : "password"}
+                                  value={editAdminPwd}
+                                  onChange={e => setEditAdminPwd(e.target.value)}
+                                  placeholder="Laisser vide pour ne pas changer"
+                                  className="h-7 text-xs bg-zinc-900 border-zinc-700 text-white px-2 py-0 pr-7 placeholder:text-zinc-700"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setEditAdminShowPwd(v => !v)}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                                >
+                                  {editAdminShowPwd ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                </button>
+                              </div>
+                            </div>
+                            {editAdminError && (
+                              <p className="text-[10px] text-red-400">{editAdminError}</p>
+                            )}
+                            <div className="flex gap-1.5 pt-0.5">
+                              <button
+                                onClick={handleUpdateAdmin}
+                                disabled={editAdminLoading}
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-violet-600 hover:bg-violet-500 text-white rounded transition-colors disabled:opacity-50"
+                              >
+                                {editAdminLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                Enregistrer
+                              </button>
+                              <button
+                                onClick={() => { setEditingAdmin(null); setEditAdminPwd(""); setEditAdminError(""); }}
+                                className="px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 rounded border border-zinc-700 hover:border-zinc-600 transition-colors"
+                              >
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        ) : school.admin ? (
                           <>
                             <p className="text-sm font-medium text-white">{school.admin.name}</p>
                             <p className="text-xs text-zinc-400">{school.admin.email}</p>
