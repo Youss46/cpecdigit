@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { db } from "@workspace/db";
 import { activationKeysTable, usersTable, tenantsTable } from "@workspace/db";
 import { eq, desc, and, isNull, ne } from "drizzle-orm";
+import { invalidatedUsers } from "../lib/auth.js";
 
 const router = Router();
 
@@ -438,6 +439,12 @@ router.patch("/schools/:id/admin", requireDev, async (req, res) => {
       .set(updates)
       .where(eq(usersTable.id, admin.id))
       .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, firstLoginAt: usersTable.firstLoginAt });
+
+    // Invalider la session active du directeur si email ou mot de passe a changé
+    if (updates.email || updates.passwordHash) {
+      invalidatedUsers.add(admin.id);
+    }
+
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -556,6 +563,7 @@ router.post("/reset-password", requireDev, async (req, res) => {
       .where(eq(usersTable.id, parseInt(userId)))
       .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email });
     if (!row) return res.status(404).json({ error: "Utilisateur introuvable" });
+    invalidatedUsers.add(parseInt(userId));
     res.json({ message: `Mot de passe réinitialisé pour ${row.name}`, user: row });
   } catch (err) {
     console.error(err);

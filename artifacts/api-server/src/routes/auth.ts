@@ -323,7 +323,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
     }
 
     await db.update(usersTable)
-      .set({ passwordHash: hashPassword(newPassword), mustChangePassword: false })
+      .set({ passwordHash: hashPassword(newPassword), mustChangePassword: false, updatedAt: new Date() })
       .where(eq(usersTable.id, user.id));
 
     res.json({ message: "Mot de passe mis à jour avec succès" });
