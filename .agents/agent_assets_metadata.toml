@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "70hlFVKBMPy3497xctkzt"
+uri = "file://CPEC-U_Presentation_M15EduTech.pptx"
+type = "slides"
+title = "CPEC-U · M15 EduTech — Présentation PowerPoint"
