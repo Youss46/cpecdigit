@@ -469,6 +469,29 @@ router.patch("/schools/:id/toggle", requireDev, async (req, res) => {
   }
 });
 
+// DELETE /api/dev/schools/:id — permanently delete a school and all its data
+router.delete("/schools/:id", requireDev, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [school] = await db.select({ id: tenantsTable.id, name: tenantsTable.name })
+      .from(tenantsTable).where(eq(tenantsTable.id, id)).limit(1);
+    if (!school) return res.status(404).json({ error: "École introuvable" });
+
+    // Invalider les sessions actives de tous les utilisateurs de cette école
+    const users = await db.select({ id: usersTable.id })
+      .from(usersTable).where(eq(usersTable.tenantId, id));
+    for (const u of users) invalidatedUsers.add(u.id);
+
+    // La suppression du tenant cascade à tous ses utilisateurs et données liées (ON DELETE CASCADE)
+    await db.delete(tenantsTable).where(eq(tenantsTable.id, id));
+
+    res.json({ message: `École "${school.name}" supprimée définitivement.` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // POST /api/dev/schools/:id/renew-license — extend or create license for a school
 router.post("/schools/:id/renew-license", requireDev, async (req, res) => {
   try {

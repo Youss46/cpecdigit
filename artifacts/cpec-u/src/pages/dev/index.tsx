@@ -8,7 +8,7 @@ import {
   Key, Plus, Trash2, ShieldCheck, LogOut, Copy, RotateCcw,
   Ban, CheckCircle, Infinity, Calendar, Clock,
   UserCog, RefreshCw, Eye, EyeOff, X, CalendarPlus,
-  UserPlus, Lock, Mail, User, Loader2, School, Power, PowerOff, Pencil, Save,
+  UserPlus, Lock, Mail, User, Loader2, School, Power, PowerOff, Pencil, Save, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -144,6 +144,10 @@ export default function DevDashboard() {
   const [schools, setSchools] = useState<SchoolRecord[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
   const [renewingSchoolId, setRenewingSchoolId] = useState<number | null>(null);
+
+  // Delete school confirmation
+  const [deletingSchoolId, setDeletingSchoolId] = useState<number | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Edit school name inline
   const [editingSchoolName, setEditingSchoolName] = useState<{ id: number; value: string } | null>(null);
@@ -399,6 +403,19 @@ export default function DevDashboard() {
       setEditAdminError("Erreur réseau");
     } finally {
       setEditAdminLoading(false);
+    }
+  };
+
+  const handleDeleteSchool = async (id: number) => {
+    setDeleteLoading(true);
+    try {
+      const r = await devFetch(`${API}/schools/${id}`, { method: "DELETE" });
+      if (r.ok) {
+        setSchools(s => s.filter(x => x.id !== id));
+        setDeletingSchoolId(null);
+      }
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -1562,10 +1579,39 @@ export default function DevDashboard() {
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
+                    ) : deletingSchoolId === school.id ? (
+                      <div className="mt-3 bg-red-950/40 border border-red-500/30 rounded-xl p-3 space-y-2">
+                        <p className="text-xs text-red-300 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                          Supprimer définitivement <span className="font-semibold">"{school.name}"</span> et toutes ses données (élèves, notes, paiements…) ? Cette action est irréversible.
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleDeleteSchool(school.id)}
+                            disabled={deleteLoading}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {deleteLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                            Confirmer la suppression
+                          </button>
+                          <button
+                            onClick={() => setDeletingSchoolId(null)}
+                            className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-600 rounded-lg transition-colors"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
                     ) : (
-                      <div className="mt-3 flex justify-end">
+                      <div className="mt-3 flex items-center justify-between">
                         <button
-                          onClick={() => { setRenewingSchoolId(school.id); setRenewDurations(d => ({ ...d, [school.id]: d[school.id] ?? "1year" })); }}
+                          onClick={() => { setDeletingSchoolId(school.id); setRenewingSchoolId(null); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/40 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" /> Supprimer l'école
+                        </button>
+                        <button
+                          onClick={() => { setRenewingSchoolId(school.id); setDeletingSchoolId(null); setRenewDurations(d => ({ ...d, [school.id]: d[school.id] ?? "1year" })); }}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-violet-400 border border-violet-500/30 hover:bg-violet-500/10 rounded-lg transition-colors"
                         >
                           <RefreshCw className="w-3 h-3" /> Renouveler la licence
