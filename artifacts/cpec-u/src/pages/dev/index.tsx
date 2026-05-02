@@ -9,6 +9,7 @@ import {
   Ban, CheckCircle, Infinity, Calendar, Clock,
   UserCog, RefreshCw, Eye, EyeOff, X, CalendarPlus,
   UserPlus, Lock, Mail, User, Loader2, School, Power, PowerOff, Pencil, Save, AlertTriangle,
+  Megaphone, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -115,7 +116,14 @@ export default function DevDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Tab navigation
-  const [activeTab, setActiveTab] = useState<"keys" | "directeurs" | "schools">("schools");
+  const [activeTab, setActiveTab] = useState<"keys" | "directeurs" | "schools" | "maintenance">("schools");
+
+  // Maintenance
+  const DEFAULT_MAINTENANCE_MSG = "Désolé pour le dérangement. Nous effectuons actuellement une maintenance de la plateforme. Cela ne devrait plus tarder.";
+  const [activeMaintenanceMsg, setActiveMaintenanceMsg] = useState<string | null>(null);
+  const [maintenanceInput, setMaintenanceInput] = useState(DEFAULT_MAINTENANCE_MSG);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+  const [maintenanceFetched, setMaintenanceFetched] = useState(false);
 
   // Directeurs & reset password
   const [directeurs, setDirecteurs] = useState<Directeur[]>([]);
@@ -506,9 +514,54 @@ export default function DevDashboard() {
     }
   };
 
-  const handleTabChange = (tab: "keys" | "directeurs" | "schools") => {
+  const handleTabChange = (tab: "keys" | "directeurs" | "schools" | "maintenance") => {
     setActiveTab(tab);
     if (tab === "directeurs" && directeurs.length === 0) fetchDirecteurs();
+    if (tab === "maintenance" && !maintenanceFetched) fetchMaintenanceMsg();
+  };
+
+  const fetchMaintenanceMsg = async () => {
+    try {
+      const r = await devFetch(`${API}/maintenance`);
+      if (r.ok) {
+        const d = await r.json();
+        setActiveMaintenanceMsg(d.message ?? null);
+        if (!d.message) setMaintenanceInput(DEFAULT_MAINTENANCE_MSG);
+      }
+    } finally {
+      setMaintenanceFetched(true);
+    }
+  };
+
+  const handlePublishMaintenance = async () => {
+    if (!maintenanceInput.trim()) return;
+    setMaintenanceLoading(true);
+    try {
+      const r = await devFetch(`${API}/maintenance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: maintenanceInput.trim() }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setActiveMaintenanceMsg(d.message);
+      }
+    } finally {
+      setMaintenanceLoading(false);
+    }
+  };
+
+  const handleClearMaintenance = async () => {
+    setMaintenanceLoading(true);
+    try {
+      const r = await devFetch(`${API}/maintenance`, { method: "DELETE" });
+      if (r.ok) {
+        setActiveMaintenanceMsg(null);
+        setMaintenanceInput(DEFAULT_MAINTENANCE_MSG);
+      }
+    } finally {
+      setMaintenanceLoading(false);
+    }
   };
 
   if (authenticated === null) {
@@ -629,6 +682,21 @@ export default function DevDashboard() {
             Écoles
             {schools.length > 0 && (
               <span className="ml-1 bg-violet-500/30 text-violet-300 text-xs px-1.5 py-0.5 rounded-full">{schools.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => handleTabChange("maintenance")}
+            className={cn(
+              "flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition-colors",
+              activeTab === "maintenance"
+                ? "bg-amber-600 text-white"
+                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+            )}
+          >
+            <Wrench className="w-4 h-4" />
+            Maintenance
+            {activeMaintenanceMsg && (
+              <span className="ml-1 w-2 h-2 rounded-full bg-amber-400 inline-block" />
             )}
           </button>
         </div>
@@ -1622,6 +1690,89 @@ export default function DevDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ─── Maintenance tab ─────────────────────────────────────── */}
+        {activeTab === "maintenance" && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+                <Wrench className="w-4 h-4 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-white">Message de maintenance</h2>
+                <p className="text-xs text-zinc-500">Ce message s'affiche sur tous les tableaux de bord utilisateurs.</p>
+              </div>
+            </div>
+
+            {/* Current active message */}
+            {activeMaintenanceMsg ? (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <Megaphone className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-1">Message actif</p>
+                    <p className="text-sm text-amber-100 leading-relaxed">{activeMaintenanceMsg}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <p className="text-xs text-zinc-500">Visible par tous les utilisateurs connectés</p>
+                  <button
+                    onClick={handleClearMaintenance}
+                    disabled={maintenanceLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 border border-red-500/25 hover:bg-red-500/10 hover:border-red-500/40 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {maintenanceLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                    Supprimer le message
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-3 text-sm text-zinc-500">
+                <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                Aucun message de maintenance actif. La plateforme fonctionne normalement.
+              </div>
+            )}
+
+            {/* Compose & publish */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                {activeMaintenanceMsg ? "Modifier le message" : "Publier un message"}
+              </p>
+              <textarea
+                value={maintenanceInput}
+                onChange={e => setMaintenanceInput(e.target.value)}
+                rows={4}
+                placeholder="Saisissez votre message de maintenance…"
+                className="w-full bg-zinc-800/60 border border-zinc-700 text-white text-sm rounded-xl px-4 py-3 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/10 resize-none leading-relaxed"
+              />
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setMaintenanceInput(DEFAULT_MAINTENANCE_MSG)}
+                  className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                >
+                  Réinitialiser le message par défaut
+                </button>
+                <button
+                  onClick={handlePublishMaintenance}
+                  disabled={maintenanceLoading || !maintenanceInput.trim()}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {maintenanceLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Megaphone className="w-3.5 h-3.5" />}
+                  {activeMaintenanceMsg ? "Mettre à jour" : "Publier"}
+                </button>
+              </div>
+            </div>
+
+            {/* Info box */}
+            <div className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl p-4 flex gap-3">
+              <AlertTriangle className="w-4 h-4 text-zinc-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Le message reste actif jusqu'à sa suppression explicite. Il s'actualise automatiquement toutes les 30 secondes sur les tableaux de bord utilisateurs, sans nécessiter de rechargement de page.
+              </p>
+            </div>
           </div>
         )}
 

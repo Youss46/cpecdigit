@@ -7,6 +7,30 @@ import { invalidatedUsers } from "../lib/auth.js";
 
 const router = Router();
 
+// ─── In-memory maintenance message ───────────────────────────────────────────
+let maintenanceMessage: string | null = null;
+
+// Public GET — accessible to all authenticated users (no requireDev)
+router.get("/maintenance", (_req, res) => {
+  res.json({ message: maintenanceMessage });
+});
+
+router.post("/maintenance", requireDev, (req, res) => {
+  const { message } = req.body;
+  if (!message || typeof message !== "string" || !message.trim()) {
+    return res.status(400).json({ error: "Le message est requis" });
+  }
+  maintenanceMessage = message.trim();
+  res.json({ message: maintenanceMessage });
+});
+
+router.delete("/maintenance", requireDev, (_req, res) => {
+  maintenanceMessage = null;
+  res.json({ message: null });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const DEV_PASSWORD = process.env.DEV_MASTER_KEY ?? "dev-change-me";
 
 // Derive a stable token from the password — no session needed

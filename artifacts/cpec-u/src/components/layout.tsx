@@ -55,6 +55,7 @@ import {
   ShieldAlert,
   Settings2,
   WifiOff,
+  Wrench,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -163,6 +164,15 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
     staleTime: 2 * 60 * 1000,
   });
   const adminReclamCount = (adminReclamData as any)?.count ?? 0;
+
+  // Maintenance message banner — polls every 30 s
+  const { data: maintenanceData } = useQuery({
+    queryKey: ["/api/dev/maintenance"],
+    queryFn: () => fetch("/api/dev/maintenance").then(r => r.json()),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+  const maintenanceMsg: string | null = (maintenanceData as any)?.message ?? null;
 
   const logoutMutation = useLogout({
     mutation: {
@@ -609,6 +619,12 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
         </header>
 
         <div className={`flex-1 p-4 md:p-8 ${noScroll ? "overflow-hidden flex flex-col min-h-0" : "overflow-auto"}`}>
+          {maintenanceMsg && (
+            <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-300/40 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-500/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+              <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <span className="leading-relaxed">{maintenanceMsg}</span>
+            </div>
+          )}
           {children}
         </div>
       </main>
