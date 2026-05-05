@@ -522,11 +522,16 @@ export default function TeacherDevoirs() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button variant="outline" onClick={resetForm}>Annuler</Button>
-                <Button onClick={handleSubmit} disabled={createMutation.isPending} className="gap-2">
-                  {createMutation.isPending ? "Création..." : "Publier le devoir"}
+              <div className="flex items-center justify-between pt-4 border-t">
+                <Button type="button" variant="outline" onClick={addQuestion} className="gap-1">
+                  <Plus className="w-3.5 h-3.5" /> Ajouter une question
                 </Button>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={resetForm}>Annuler</Button>
+                  <Button onClick={handleSubmit} disabled={createMutation.isPending} className="gap-2">
+                    {createMutation.isPending ? "Création..." : "Publier le devoir"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
