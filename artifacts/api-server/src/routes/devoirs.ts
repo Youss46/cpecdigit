@@ -348,6 +348,15 @@ router.patch("/:id/statut", requireRole("teacher", "admin"), async (req, res) =>
 
 // ─── STUDENT routes ──────────────────────────────────────────────────────────
 
+// GET /api/devoirs/ip — retourner l'IP partiellement masquée pour le watermark
+router.get("/ip", requireRole("student"), (req, res) => {
+  const raw = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || req.ip || "";
+  // Masquer les deux derniers octets IPv4 (192.168.1.42 → 192.168.x.x)
+  const masked = raw.replace(/^(\d+\.\d+)\.\d+\.\d+$/, "$1.x.x")
+                     .replace(/^(::ffff:)(\d+\.\d+)\.\d+\.\d+$/, "$1$2.x.x");
+  res.json({ ip: masked || "x.x.x.x" });
+});
+
 // POST /api/devoirs/:id/demarrer — démarrer une session
 router.post("/:id/demarrer", requireRole("student"), async (req, res) => {
   try {
@@ -420,10 +429,13 @@ router.post("/:id/demarrer", requireRole("student"), async (req, res) => {
     const ordreIds = orderedQuestions.map((q: any) => q.id);
     const finPrevue = new Date(now.getTime() + devoir.duree_minutes * 60 * 1000);
 
+    const rawIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || req.ip || "";
+    const ua = req.headers["user-agent"] || "";
+
     const { rows: [session] } = await pool.query(
-      `INSERT INTO devoir_sessions (devoir_id, etudiant_id, debut_le, fin_prevue, ordre_questions, tentative_numero)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [devoirId, etudiantId, now, finPrevue, JSON.stringify(ordreIds), tentativeNumero]
+      `INSERT INTO devoir_sessions (devoir_id, etudiant_id, debut_le, fin_prevue, ordre_questions, tentative_numero, ip_address, user_agent, watermark_actif)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE) RETURNING *`,
+      [devoirId, etudiantId, now, finPrevue, JSON.stringify(ordreIds), tentativeNumero, rawIp, ua]
     );
 
     // Mélange réponses si option active

@@ -66,9 +66,16 @@ export async function ensureDevoirsSchema() {
         ordre_questions  JSONB NOT NULL DEFAULT '[]',
         soumis_le        TIMESTAMPTZ,
         nb_incidents     INTEGER NOT NULL DEFAULT 0,
-        tentative_numero INTEGER NOT NULL DEFAULT 1
+        tentative_numero INTEGER NOT NULL DEFAULT 1,
+        ip_address       VARCHAR(45),
+        user_agent       TEXT,
+        watermark_actif  BOOLEAN NOT NULL DEFAULT TRUE
       )
     `);
+
+    await client.query(`ALTER TABLE devoir_sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)`);
+    await client.query(`ALTER TABLE devoir_sessions ADD COLUMN IF NOT EXISTS user_agent TEXT`);
+    await client.query(`ALTER TABLE devoir_sessions ADD COLUMN IF NOT EXISTS watermark_actif BOOLEAN NOT NULL DEFAULT TRUE`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS devoir_reponses_etudiants (

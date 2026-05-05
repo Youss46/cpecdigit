@@ -320,6 +320,30 @@ summary,
   to { width: 100%; }
 }
 
+/* ── Protection impression pour les devoirs en ligne ── */
+.devoir-exam-page * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media print {
+  .devoir-exam-page body,
+  .devoir-exam-page > * {
+    display: none !important;
+  }
+  .devoir-exam-print-block {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-size: 20px;
+    font-weight: bold;
+    color: #000;
+    font-family: sans-serif;
+    text-align: center;
+  }
+}
+
 @media print {
   /* Hide sidebar and mobile header */
   aside {

@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useReducer } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import { ShieldAlert, ChevronLeft, ChevronRight, CheckCircle2, Clock } from "lucide-react";
+import { WatermarkDevoir } from "@/components/WatermarkDevoir";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Reponse { id: number; texte: string; ordre: number; }
@@ -45,6 +46,10 @@ export default function DevoirSessionPage() {
   const [devoir, setDevoir] = useState<any>(null);
   const [pageVisible, setPageVisible] = useState(true);
   const [pageHideStart, setPageHideStart] = useState<Date | null>(null);
+  const [watermarkActive, setWatermarkActive] = useState(false);
+  const [ipMasquee, setIpMasquee] = useState("x.x.x.x");
+  // forceUpdate pour réinjection du watermark si supprimé
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
 
   const sessionRef = useRef<Session | null>(null);
   const currentIdxRef = useRef(0);
@@ -56,6 +61,20 @@ export default function DevoirSessionPage() {
   useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
   useEffect(() => { answersRef.current = answers; }, [answers]);
   useEffect(() => { incidentsRef.current = incidents; }, [incidents]);
+
+  // ── Fetch student profile (nom, matricule) ───────────────────────────────
+  const { data: studentProfile } = useQuery<any>({
+    queryKey: ["/api/student/me"],
+    queryFn: () => fetch("/api/student/me", { credentials: "include" }).then(r => r.json()),
+  });
+
+  // ── Fetch IP masquée ─────────────────────────────────────────────────────
+  useEffect(() => {
+    fetch("/api/devoirs/ip", { credentials: "include" })
+      .then(r => r.json())
+      .then(data => { if (data.ip) setIpMasquee(data.ip); })
+      .catch(() => {});
+  }, []);
 
   // ── Fetch devoir ────────────────────────────────────────────────────────
   const { data: devoirData } = useQuery<any>({
@@ -96,6 +115,7 @@ export default function DevoirSessionPage() {
       const secs = Math.max(0, Math.floor((fin.getTime() - Date.now()) / 1000));
       setTimeLeft(secs);
       setIncidents(data.session.nb_incidents ?? 0);
+      setWatermarkActive(true);
       setPhase("exam");
     },
     onError: () => toast({ title: "Erreur lors du démarrage", variant: "destructive" }),
@@ -124,8 +144,8 @@ export default function DevoirSessionPage() {
     },
     onSuccess: (data) => {
       if (data.ok) {
+        setWatermarkActive(false);
         setPhase("done");
-        // Redirect to results after 2s
         const ses = sessionRef.current;
         setTimeout(() => {
           if (ses) setLocation(`/student/devoirs/${devoirId}/resultats/${ses.id}`);
@@ -201,7 +221,6 @@ export default function DevoirSessionPage() {
       setIsFullscreen(fs);
       if (!fs && opts.pleinEcran && phase === "exam" && !submittedRef.current) {
         reportIncident("quitter_plein_ecran");
-        // Try to re-enter fullscreen
         setTimeout(() => {
           document.documentElement.requestFullscreen?.().catch(() => {});
         }, 500);
@@ -242,15 +261,14 @@ export default function DevoirSessionPage() {
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // Block copy/paste/cut/contextmenu
+    // Block copy/paste/cut
     const block = (e: Event) => {
       if (submittedRef.current) return;
       e.preventDefault();
       const type = (e as ClipboardEvent).type === "copy" ? "copier"
         : (e as ClipboardEvent).type === "paste" ? "coller"
-        : (e as ClipboardEvent).type === "cut" ? "couper"
-        : "clic_droit";
-      if (opts.blocageCopier || (type === "clic_droit" && opts.blocageClic)) {
+        : "couper";
+      if (opts.blocageCopier) {
         reportIncident(type);
       }
     };
@@ -264,17 +282,42 @@ export default function DevoirSessionPage() {
     document.addEventListener("cut", block);
     document.addEventListener("contextmenu", blockContextMenu);
 
-    // Block keyboard shortcuts
+    // Block keyboard shortcuts + capture détection
     const handleKeyDown = (e: KeyboardEvent) => {
       if (submittedRef.current) return;
+
+      // Capture écran Windows
+      if (e.key === "PrintScreen") {
+        e.preventDefault();
+        navigator.clipboard?.writeText("").catch(() => {});
+        reportIncident("TENTATIVE_CAPTURE_ECRAN");
+        toast({
+          title: "🔴 Tentative de capture détectée et enregistrée.",
+          variant: "destructive",
+          duration: 4000,
+        });
+        return;
+      }
+
+      // Capture Mac : Cmd+Shift+3, Cmd+Shift+4, Cmd+Shift+5
+      if (e.metaKey && e.shiftKey && ["3", "4", "5"].includes(e.key)) {
+        e.preventDefault();
+        reportIncident("TENTATIVE_CAPTURE_MAC");
+        toast({
+          title: "🔴 Tentative de capture détectée et enregistrée.",
+          variant: "destructive",
+          duration: 4000,
+        });
+        return;
+      }
+
       const blocked =
         (e.ctrlKey && ["c", "v", "u", "a", "x"].includes(e.key.toLowerCase())) ||
-        e.key === "PrintScreen" ||
         (e.altKey && e.key === "Tab") ||
         e.key === "F12";
       if (blocked) {
         e.preventDefault();
-        reportIncident("raccourci_clavier", undefined);
+        reportIncident("raccourci_clavier");
       }
     };
     document.addEventListener("keydown", handleKeyDown);
@@ -300,6 +343,27 @@ export default function DevoirSessionPage() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [phase, opts, reportIncident]);
+
+  // ── Watermark DOM integrity check ─────────────────────────────────────────
+  useEffect(() => {
+    if (phase !== "exam" || !watermarkActive) return;
+
+    const integrityInterval = setInterval(() => {
+      if (submittedRef.current) return;
+      const el = document.getElementById("watermark-devoir");
+      if (!el) {
+        reportIncident("SUPPRESSION_WATERMARK");
+        forceUpdate();
+        toast({
+          title: "🔴 Tentative de suppression du watermark détectée.",
+          variant: "destructive",
+          duration: 4000,
+        });
+      }
+    }, 2000);
+
+    return () => clearInterval(integrityInterval);
+  }, [phase, watermarkActive, reportIncident]);
 
   // ── Démarrage plein écran ────────────────────────────────────────────────
   function enterFullscreenAndStart() {
@@ -354,6 +418,12 @@ export default function DevoirSessionPage() {
     if (q.type === "numerique") return !!ans.reponseNumerique?.trim();
     return ans.reponseIds.length > 0;
   }).length;
+
+  // ── Étudiant info pour watermark ─────────────────────────────────────────
+  const etudiantInfo = {
+    nom: studentProfile?.name || "Étudiant",
+    matricule: studentProfile?.matricule ?? "",
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -423,6 +493,8 @@ export default function DevoirSessionPage() {
                 {devoir.options_antitiche?.blocageCopier && <li>• Copier/coller bloqué</li>}
                 {devoir.options_antitiche?.blocageClic && <li>• Clic droit bloqué</li>}
                 {devoir.options_antitiche?.melangeQuestions && <li>• Ordre des questions aléatoire</li>}
+                <li>• Watermark d'identification actif pendant l'examen</li>
+                <li>• Toute tentative de capture d'écran est enregistrée</li>
               </ul>
             </div>
           )}
@@ -454,6 +526,34 @@ export default function DevoirSessionPage() {
 
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col select-none" style={{ userSelect: "none" }}>
+        {/* ── Protection impression ── */}
+        <style>{`
+          @media print {
+            body > * { display: none !important; }
+            body::after {
+              content: "Document protégé — M15 EduTech. Impression non autorisée.";
+              display: flex !important;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              font-size: 22px;
+              font-weight: bold;
+              font-family: sans-serif;
+              text-align: center;
+              color: #000;
+            }
+          }
+        `}</style>
+
+        {/* ── Watermark ── */}
+        {watermarkActive && (
+          <WatermarkDevoir
+            etudiant={etudiantInfo}
+            devoirTitre={devoir?.titre ?? ""}
+            ip={ipMasquee}
+          />
+        )}
+
         {/* ── Top bar ── */}
         <div className="bg-white border-b shadow-sm px-4 py-3 flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center gap-3">
@@ -631,7 +731,7 @@ export default function DevoirSessionPage() {
         {/* ── Bottom surveillance banner ── */}
         <div className="bg-gray-800 text-white text-center py-2 px-4 text-xs flex items-center justify-center gap-2">
           <ShieldAlert className="w-3.5 h-3.5 text-orange-400" />
-          <span>Mode surveillance actif — Ne quittez pas cette page</span>
+          <span>Mode surveillance actif — Watermark actif — Ne quittez pas cette page</span>
           {incidents > 0 && (
             <span className="ml-2 bg-orange-500 px-2 py-0.5 rounded-full">
               {incidents} incident{incidents > 1 ? "s" : ""}
