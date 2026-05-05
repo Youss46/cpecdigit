@@ -80,6 +80,11 @@ import StudentSuiviPage from "@/pages/student/suivi";
 import AdminScolarite from "@/pages/admin/scolarite";
 import SettingsPage from "@/pages/settings";
 import ResetPassword from "@/pages/reset-password";
+import TeacherDevoirs from "@/pages/teacher/devoirs";
+import TeacherDevoirRapport from "@/pages/teacher/devoir-rapport";
+import StudentDevoirs from "@/pages/student/devoirs";
+import StudentDevoirSession from "@/pages/student/devoir-session";
+import StudentDevoirResultats from "@/pages/student/devoir-resultats";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -189,6 +194,11 @@ function Router() {
       <Route path="/student/reclamations" component={StudentReclamations} />
       <Route path="/teacher/reclamations" component={TeacherReclamations} />
       <Route path="/admin/reclamations" component={AdminReclamations} />
+      <Route path="/teacher/devoirs" component={TeacherDevoirs} />
+      <Route path="/teacher/devoirs/:id" component={TeacherDevoirRapport} />
+      <Route path="/student/devoirs" component={StudentDevoirs} />
+      <Route path="/student/devoirs/:id/resultats/:sessionId" component={StudentDevoirResultats} />
+      <Route path="/student/devoirs/:id" component={StudentDevoirSession} />
       <Route path="/settings" component={SettingsPage} />
 
       {/* Public: Bulletin verification (must come before /verify/:hash) */}

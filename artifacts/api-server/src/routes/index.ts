@@ -24,6 +24,7 @@ import parentRouter from "./parent.js";
 import webauthnRouter from "./webauthn.js";
 import reclamationsRouter from "./reclamations.js";
 import bibliothequeRouter from "./bibliotheque.js";
+import devoirsRouter from "./devoirs.js";
 
 const router: IRouter = Router();
 
@@ -52,5 +53,6 @@ router.use(parentRouter);
 router.use("/auth", webauthnRouter);
 router.use(reclamationsRouter);
 router.use(bibliothequeRouter);
+router.use("/devoirs", devoirsRouter);
 
 export default router;

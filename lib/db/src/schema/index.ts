@@ -35,3 +35,4 @@ export * from "./reclamations";
 export * from "./bibliotheque";
 export * from "./webauthn";
 export * from "./password_reset_tokens";
+export * from "./devoirs";

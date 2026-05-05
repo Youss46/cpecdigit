@@ -4,6 +4,7 @@ import app from "./app";
 import { initSocketIO } from "./lib/socket.js";
 import { db, runMigrations } from "@workspace/db";
 import { usersTable, tenantsTable } from "@workspace/db";
+import { ensureDevoirsSchema } from "./lib/migrate-devoirs.js";
 import { eq } from "drizzle-orm";
 import { startFeeReminderScheduler } from "./lib/fee-reminder-scheduler.js";
 import { startRecommendationScheduler } from "./lib/recommendation-scheduler.js";
@@ -84,6 +85,7 @@ async function start() {
   if (process.env.RUN_MIGRATIONS === "true") {
     await runMigrations();
   }
+  await ensureDevoirsSchema();
   httpServer.listen(port, () => {
     console.log(`Server listening on port ${port}`);
     seedInitialAdmin();

@@ -56,6 +56,7 @@ import {
   Settings2,
   WifiOff,
   Wrench,
+  ClipboardCheck,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -341,6 +342,7 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
           { name: "Mon Planning", href: "/teacher/schedule", icon: CalendarDays },
           { name: "Gestion des Présences", href: "/teacher/attendance", icon: ClipboardList },
           { name: "Saisie des Notes", href: "/teacher/grades", icon: PenTool },
+          { name: "Devoirs en ligne", href: "/teacher/devoirs", icon: ClipboardCheck },
           { name: "Rattrapage", href: "/teacher/rattrapage", icon: RotateCcw },
           { name: "Mes Évaluations", href: "/teacher/evaluations", icon: Star },
           { name: "Réclamations", href: "/teacher/reclamations", icon: Scale, badge: teacherReclamCount > 0 ? teacherReclamCount : undefined },
@@ -367,6 +369,7 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
           { name: "Mon Profil", href: "/student", icon: LayoutDashboard, badge: null },
           { name: "Mon Emploi du Temps", href: "/student/schedule", icon: CalendarDays, badge: null },
           { name: "Mes Résultats", href: "/student/grades", icon: FileText, badge: null },
+          { name: "Mes Devoirs", href: "/student/devoirs", icon: ClipboardCheck, badge: null },
           { name: "Mon Suivi Académique", href: "/student/suivi", icon: TrendingUp, badge: null },
           { name: "Mes Absences", href: "/student/absences", icon: CalendarOff, badge: null },
           { name: "Cahier de texte", href: "/student/cahier-de-texte", icon: BookText, badge: null },
