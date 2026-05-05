@@ -69,11 +69,6 @@ export default function TeacherDevoirs() {
     queryFn: () => fetch("/api/teacher/assignments", { credentials: "include" }).then(r => r.json()),
   });
 
-  const { data: classes = [] } = useQuery<any[]>({
-    queryKey: ["/api/admin/classes"],
-    queryFn: () => fetch("/api/admin/classes", { credentials: "include" }).then(r => r.json()),
-  });
-
   const { data: devoirs = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/devoirs"],
     queryFn: () => fetch("/api/devoirs", { credentials: "include" }).then(r => r.json()),
@@ -273,7 +268,7 @@ export default function TeacherDevoirs() {
                 </div>
                 <div>
                   <Label>Matière *</Label>
-                  <Select value={matiereId} onValueChange={setMatiereId}>
+                  <Select value={matiereId} onValueChange={v => { setMatiereId(v); setClasseIds([]); }}>
                     <SelectTrigger><SelectValue placeholder="Choisir une matière" /></SelectTrigger>
                     <SelectContent>
                       {uniqueSubjects.map((a: any) => (
@@ -314,25 +309,38 @@ export default function TeacherDevoirs() {
                 </div>
               </div>
 
-              {/* Classes cibles */}
+              {/* Classes cibles — filtrées selon la matière sélectionnée */}
               <div>
                 <Label className="mb-2 block">Classes cibles *</Label>
-                <div className="flex flex-wrap gap-2">
-                  {(classes as any[]).map((c: any) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => toggleClasse(c.id)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                        classeIds.includes(c.id)
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-gray-700 border-gray-300 hover:border-blue-400"
-                      }`}
-                    >
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
+                {!matiereId ? (
+                  <p className="text-sm text-gray-400 italic">Sélectionnez d'abord une matière pour voir les classes disponibles.</p>
+                ) : (() => {
+                  const classesForSubject = (assignments as any[])
+                    .filter((a: any) => a.subjectId === Number(matiereId))
+                    .map((a: any) => ({ id: a.classId, name: a.className }));
+                  const uniqueClasses = Array.from(new Map(classesForSubject.map(c => [c.id, c])).values());
+                  if (!uniqueClasses.length) {
+                    return <p className="text-sm text-orange-500 italic">Vous n'êtes pas affecté à cette matière dans aucune classe.</p>;
+                  }
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {uniqueClasses.map((c: any) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggleClasse(c.id)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                            classeIds.includes(c.id)
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-white text-gray-700 border-gray-300 hover:border-blue-400"
+                          }`}
+                        >
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
                 {classeIds.length > 0 && (
                   <p className="text-xs text-blue-600 mt-1">{classeIds.length} classe(s) sélectionnée(s)</p>
                 )}

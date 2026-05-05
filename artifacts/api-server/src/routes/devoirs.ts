@@ -148,6 +148,21 @@ router.post("/", requireRole("teacher", "admin"), async (req, res) => {
       return res.status(400).json({ error: "Champs obligatoires manquants" });
     }
 
+    // Vérifier que l'enseignant est affecté à cette matière pour chaque classe sélectionnée
+    if (req.session!.role !== "admin") {
+      const { rows: affectations } = await pool.query(
+        `SELECT class_id FROM teacher_assignments WHERE teacher_id = $1 AND subject_id = $2 AND class_id = ANY($3)`,
+        [enseignantId, matiereId, classeIds]
+      );
+      const classesAutorisees = affectations.map((a: any) => a.class_id);
+      const classesNonAutorisees = (classeIds as number[]).filter(id => !classesAutorisees.includes(id));
+      if (classesNonAutorisees.length > 0) {
+        return res.status(403).json({
+          error: `Vous n'êtes pas affecté à cette matière pour ${classesNonAutorisees.length} classe(s) sélectionnée(s).`,
+        });
+      }
+    }
+
     const dRes = await pool.query(
       `INSERT INTO devoirs (tenant_id, matiere_id, enseignant_id, titre, description, duree_minutes,
         date_debut, date_fin, nb_tentatives, note_sur, type_devoir, options_antitiche, statut)
