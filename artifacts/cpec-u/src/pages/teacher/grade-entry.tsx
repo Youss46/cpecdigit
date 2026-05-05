@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout";
-import { useGetTeacherAssignments, useGetTeacherGrades, useSubmitGradesBulk } from "@workspace/api-client-react";
+import { useGetTeacherAssignments, useGetTeacherGrades, useSubmitGradesBulk, customFetch } from "@workspace/api-client-react";
 import { useGetTeacherApprovals, useGetClassStudents, useSubmitGradesForReview, useGetGradeSubmissionStatus, useSendGradesToStudents } from "@workspace/api-client-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { WifiOff, Save, CheckCircle2, Send, Clock, BellRing, ShieldCheck } from "lucide-react";
+import { WifiOff, Save, CheckCircle2, Send, Clock, BellRing, ShieldCheck, Target, Pencil, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useOffline } from "@/lib/offline/offline-context";
 import { saveGradesOffline } from "@/lib/offline/offline-actions";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 
 const EVAL_LABELS = ["Éval 1", "Éval 2", "Éval 3", "Éval 4"] as const;
 const EVAL_COUNT = 4;
@@ -19,11 +21,18 @@ function gradeKey(studentId: number, evalNum: number): GradeKey {
   return `${studentId}_${evalNum}`;
 }
 
+type GradeMeta = {
+  source?: string;
+  devoirId?: number;
+  devoirTitre?: string;
+  originalValue?: number;
+};
+
 export default function GradeEntry() {
   const { data: assignments } = useGetTeacherAssignments();
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>("");
 
-  const selectedAssignment = assignments?.find(a => a.id.toString() === selectedAssignmentId);
+  const selectedAssignment = assignments?.find((a: any) => a.id.toString() === selectedAssignmentId);
 
   const { data: initialGrades, isLoading } = useGetTeacherGrades(
     {
@@ -39,26 +48,48 @@ export default function GradeEntry() {
     { query: { enabled: !!selectedAssignment } } as any
   );
 
+  // Pre-filled notes summary from devoirs
+  const { data: prefilledData } = useQuery({
+    queryKey: ["prefilled-notes", selectedAssignment?.subjectId, selectedAssignment?.semesterId, selectedAssignment?.classId],
+    queryFn: () => customFetch<{
+      count: number;
+      devoirs: { id: number; titre: string }[];
+      grades: { studentId: number; evalNumber: number; value: number; devoirId: number; devoirTitre: string }[];
+    }>(`/api/devoirs/prefilled-notes?subjectId=${selectedAssignment!.subjectId}&semesterId=${selectedAssignment!.semesterId}&classId=${selectedAssignment!.classId}`),
+    enabled: !!selectedAssignment,
+  });
+
+  const prefilledCount = prefilledData?.count ?? 0;
+  const prefilledDevoirs = prefilledData?.devoirs ?? [];
+
   // Build one row per student with their existing evaluations
   const studentRows = useMemo(() => {
     if (!selectedAssignment) return [];
-    // Group existing grades by studentId → Map<studentId, Map<evalNum, value>>
-    const existingMap = new Map<number, Map<number, number>>();
+    const existingMap = new Map<number, Map<number, { value: number; source?: string; devoirId?: number; devoirTitre?: string }>>();
     for (const g of (initialGrades ?? []) as any[]) {
       if (!existingMap.has(g.studentId)) existingMap.set(g.studentId, new Map());
-      existingMap.get(g.studentId)!.set(g.evaluationNumber ?? 1, g.value);
+      existingMap.get(g.studentId)!.set(g.evaluationNumber ?? 1, {
+        value: g.value,
+        source: g.source,
+        devoirId: g.devoirId,
+        devoirTitre: g.devoirTitre,
+      });
     }
     return (enrolledStudents as any[]).map((s: any) => ({
       studentId: s.id,
       studentName: s.name,
       subjectId: selectedAssignment.subjectId,
       semesterId: selectedAssignment.semesterId,
-      evalValues: existingMap.get(s.id) ?? new Map<number, number>(),
+      evalValues: existingMap.get(s.id) ?? new Map(),
     }));
   }, [enrolledStudents, initialGrades, selectedAssignment]);
 
   // localGrades: key = `studentId_evalNum`, value = string input
   const [localGrades, setLocalGrades] = useState<Record<GradeKey, string>>({});
+  // metadata per grade key
+  const [gradeMeta, setGradeMeta] = useState<Record<GradeKey, GradeMeta>>({});
+  // tracks keys manually edited by teacher (originally from devoir)
+  const [manuallyEdited, setManuallyEdited] = useState<Set<GradeKey>>(new Set());
 
   const { toast } = useToast();
   const submitBulk = useSubmitGradesBulk();
@@ -67,16 +98,15 @@ export default function GradeEntry() {
 
   const { isOnline } = useOffline();
 
-  // Check which of the teacher's assignments are approved by admin
   const { data: teacherApprovals = [] } = useGetTeacherApprovals();
   const approvedKey = (subjectId: number, classId: number, semesterId: number) =>
     `${subjectId}-${classId}-${semesterId}`;
-  const approvedSet = useMemo(() => new Set(teacherApprovals.map(a => approvedKey(a.subjectId, a.classId, a.semesterId))), [teacherApprovals]);
+  const approvedSet = useMemo(() => new Set(teacherApprovals.map((a: any) => approvedKey(a.subjectId, a.classId, a.semesterId))), [teacherApprovals]);
   const isLocked = selectedAssignment
     ? approvedSet.has(approvedKey(selectedAssignment.subjectId, selectedAssignment.classId, selectedAssignment.semesterId))
     : false;
   const currentApproval = selectedAssignment
-    ? teacherApprovals.find(a => a.subjectId === selectedAssignment.subjectId && a.classId === selectedAssignment.classId && a.semesterId === selectedAssignment.semesterId)
+    ? teacherApprovals.find((a: any) => a.subjectId === selectedAssignment.subjectId && a.classId === selectedAssignment.classId && a.semesterId === selectedAssignment.semesterId)
     : undefined;
 
   const submissionStatusParams = selectedAssignment && !isLocked
@@ -114,26 +144,51 @@ export default function GradeEntry() {
     }
   };
 
-  // Populate localGrades from server data when studentRows change
+  // Populate localGrades + gradeMeta from server data when studentRows change
   useEffect(() => {
     if (studentRows.length === 0) return;
     const map: Record<GradeKey, string> = {};
+    const meta: Record<GradeKey, GradeMeta> = {};
     for (const row of studentRows) {
       for (let e = 1; e <= EVAL_COUNT; e++) {
         const existing = row.evalValues.get(e);
-        map[gradeKey(row.studentId, e)] = existing !== undefined ? existing.toString() : "";
+        const k = gradeKey(row.studentId, e);
+        map[k] = existing !== undefined ? existing.value.toString() : "";
+        if (existing) {
+          meta[k] = {
+            source: existing.source,
+            devoirId: existing.devoirId,
+            devoirTitre: existing.devoirTitre,
+            originalValue: existing.value,
+          };
+        }
       }
     }
     setLocalGrades(map);
+    setGradeMeta(meta);
+    setManuallyEdited(new Set());
   }, [studentRows]);
 
   const handleGradeChange = (studentId: number, evalNum: number, raw: string) => {
     if (isLocked) return;
     if (raw !== "" && (parseFloat(raw) < 0 || parseFloat(raw) > 20)) return;
-    setLocalGrades(prev => ({ ...prev, [gradeKey(studentId, evalNum)]: raw }));
+    const k = gradeKey(studentId, evalNum);
+    setLocalGrades(prev => ({ ...prev, [k]: raw }));
+    // Mark as manually edited if it was a devoir pre-fill
+    if (gradeMeta[k]?.source === "devoir_en_ligne") {
+      setManuallyEdited(prev => {
+        const next = new Set(prev);
+        const origStr = gradeMeta[k]?.originalValue?.toString() ?? "";
+        if (raw !== origStr) {
+          next.add(k);
+        } else {
+          next.delete(k);
+        }
+        return next;
+      });
+    }
   };
 
-  // Compute average for a student from current local inputs
   const getStudentAverage = (studentId: number): string => {
     const vals: number[] = [];
     for (let e = 1; e <= EVAL_COUNT; e++) {
@@ -151,16 +206,19 @@ export default function GradeEntry() {
     const gradesToSubmit: any[] = [];
     for (const row of studentRows) {
       for (let e = 1; e <= EVAL_COUNT; e++) {
-        const val = localGrades[gradeKey(row.studentId, e)];
+        const k = gradeKey(row.studentId, e);
+        const val = localGrades[k];
         if (val !== "" && val !== undefined) {
           const parsed = parseFloat(val);
           if (!isNaN(parsed) && parsed >= 0 && parsed <= 20) {
+            const isModifiedDevoir = gradeMeta[k]?.source === "devoir_en_ligne" && manuallyEdited.has(k);
             gradesToSubmit.push({
               studentId: row.studentId,
               subjectId: row.subjectId,
               semesterId: row.semesterId,
               evaluationNumber: e,
               value: parsed,
+              source: isModifiedDevoir ? "modifiee_manuellement" : (gradeMeta[k]?.source ?? undefined),
             });
           }
         }
@@ -222,12 +280,12 @@ export default function GradeEntry() {
 
         <Card className="p-4 shadow-sm border-border bg-card sticky top-4 z-20">
           <label className="text-sm font-semibold text-muted-foreground block mb-2">Choisir la classe et matière</label>
-          <Select value={selectedAssignmentId} onValueChange={v => { setSelectedAssignmentId(v); setLocalGrades({}); }}>
+          <Select value={selectedAssignmentId} onValueChange={v => { setSelectedAssignmentId(v); setLocalGrades({}); setGradeMeta({}); setManuallyEdited(new Set()); }}>
             <SelectTrigger className="h-14 text-lg">
               <SelectValue placeholder="Sélectionner une affectation..." />
             </SelectTrigger>
             <SelectContent>
-              {assignments?.map(a => {
+              {assignments?.map((a: any) => {
                 const approved = approvedSet.has(approvedKey(a.subjectId, a.classId, a.semesterId));
                 return (
                   <SelectItem key={a.id} value={a.id.toString()} className="py-3">
@@ -245,6 +303,32 @@ export default function GradeEntry() {
             </SelectContent>
           </Select>
         </Card>
+
+        {/* Bannière notes pré-remplies depuis les devoirs en ligne */}
+        {selectedAssignment && prefilledCount > 0 && !isLocked && (
+          <div className="flex items-start gap-4 bg-violet-50 border border-violet-300 rounded-xl p-4 shadow-sm">
+            <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-violet-100 border-2 border-violet-400">
+              <Target className="w-5 h-5 text-violet-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-violet-900 text-sm">
+                {prefilledCount} note{prefilledCount > 1 ? "s" : ""} importée{prefilledCount > 1 ? "s" : ""} automatiquement depuis les devoirs en ligne
+              </p>
+              <p className="text-xs text-violet-700 mt-0.5">
+                {prefilledDevoirs.length > 0 && (
+                  <>Devoir{prefilledDevoirs.length > 1 ? "s" : ""} source : <span className="font-semibold">{prefilledDevoirs.map((d: any) => d.titre).join(", ")}</span>. </>
+                )}
+                Vérifiez et modifiez si nécessaire avant de soumettre officiellement.
+              </p>
+            </div>
+            <Link href="/teacher/devoirs">
+              <Button size="sm" variant="outline" className="shrink-0 border-violet-300 text-violet-700 hover:bg-violet-100 text-xs gap-1">
+                <ExternalLink className="w-3.5 h-3.5" />
+                Voir les devoirs
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Validation badge — shown when admin has approved the grades */}
         {isLocked && selectedAssignment && (
@@ -326,9 +410,16 @@ export default function GradeEntry() {
                       <div className="grid grid-cols-2 gap-2 sm:hidden">
                         {Array.from({ length: EVAL_COUNT }, (_, i) => i + 1).map(e => {
                           const k = gradeKey(row.studentId, e);
+                          const meta = gradeMeta[k];
+                          const isDevoir = meta?.source === "devoir_en_ligne";
+                          const isModified = manuallyEdited.has(k);
                           return (
                             <div key={e}>
-                              <label className="text-xs text-muted-foreground font-semibold block mb-1">{EVAL_LABELS[e - 1]}</label>
+                              <label className="text-xs text-muted-foreground font-semibold block mb-1 flex items-center gap-1">
+                                {EVAL_LABELS[e - 1]}
+                                {isDevoir && !isModified && <span className="text-violet-500 text-[10px] font-bold">● devoir</span>}
+                                {isDevoir && isModified && <span className="text-amber-500 text-[10px] font-bold">✏ modifiée</span>}
+                              </label>
                               <Input
                                 type="number"
                                 step="0.5"
@@ -338,8 +429,11 @@ export default function GradeEntry() {
                                 value={localGrades[k] !== undefined ? localGrades[k] : ""}
                                 onChange={ev => handleGradeChange(row.studentId, e, ev.target.value)}
                                 readOnly={isLocked}
-                                className={`text-center font-mono font-bold h-11 focus:ring-primary/30 ${isLocked ? "bg-muted cursor-not-allowed" : ""}`}
+                                className={`text-center font-mono font-bold h-11 focus:ring-primary/30 ${isLocked ? "bg-muted cursor-not-allowed" : isDevoir && !isModified ? "ring-2 ring-violet-300 bg-violet-50/60" : isDevoir && isModified ? "ring-2 ring-amber-300 bg-amber-50/60" : ""}`}
                               />
+                              {isDevoir && !isModified && meta?.devoirTitre && (
+                                <p className="text-[10px] text-violet-600 mt-0.5 truncate" title={meta.devoirTitre}>🎯 {meta.devoirTitre}</p>
+                              )}
                             </div>
                           );
                         })}
@@ -350,23 +444,56 @@ export default function GradeEntry() {
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-base text-foreground">{row.studentName}</p>
                           {hasAll && !isLocked && <CheckCircle2 className="w-4 h-4 text-emerald-500 opacity-60" />}
-                          {isLocked && <ShieldCheck className="w-4 h-4 text-emerald-500" title="Notes validées par l'administration" />}
+                          {isLocked && (
+                            <span title="Notes validées par l'administration">
+                              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                            </span>
+                          )}
                         </div>
                         {Array.from({ length: EVAL_COUNT }, (_, i) => i + 1).map(e => {
                           const k = gradeKey(row.studentId, e);
+                          const meta = gradeMeta[k];
+                          const isDevoir = meta?.source === "devoir_en_ligne";
+                          const isModified = manuallyEdited.has(k);
                           return (
-                            <Input
-                              key={e}
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              max="20"
-                              placeholder="—"
-                              value={localGrades[k] !== undefined ? localGrades[k] : ""}
-                              onChange={ev => handleGradeChange(row.studentId, e, ev.target.value)}
-                              readOnly={isLocked}
-                              className={`text-center font-mono font-bold h-11 focus:ring-primary/30 ${isLocked ? "bg-muted cursor-not-allowed" : ""}`}
-                            />
+                            <div key={e} className="relative">
+                              <Input
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                max="20"
+                                placeholder="—"
+                                value={localGrades[k] !== undefined ? localGrades[k] : ""}
+                                onChange={ev => handleGradeChange(row.studentId, e, ev.target.value)}
+                                readOnly={isLocked}
+                                title={
+                                  isDevoir && !isModified && meta?.devoirTitre
+                                    ? `🎯 Devoir en ligne : ${meta.devoirTitre}`
+                                    : isDevoir && isModified
+                                    ? "✏️ Note modifiée manuellement"
+                                    : ""
+                                }
+                                className={`text-center font-mono font-bold h-11 focus:ring-primary/30 ${
+                                  isLocked
+                                    ? "bg-muted cursor-not-allowed"
+                                    : isDevoir && !isModified
+                                    ? "ring-2 ring-violet-300 bg-violet-50/60"
+                                    : isDevoir && isModified
+                                    ? "ring-2 ring-amber-300 bg-amber-50/60"
+                                    : ""
+                                }`}
+                              />
+                              {isDevoir && !isModified && (
+                                <span className="absolute -top-2 -right-1 flex items-center" title={`Devoir en ligne : ${meta?.devoirTitre ?? ""}`}>
+                                  <Target className="w-3 h-3 text-violet-500" />
+                                </span>
+                              )}
+                              {isDevoir && isModified && (
+                                <span className="absolute -top-2 -right-1" title="Modifiée manuellement">
+                                  <Pencil className="w-3 h-3 text-amber-500" />
+                                </span>
+                              )}
+                            </div>
                           );
                         })}
                         <div className={`text-center font-bold text-sm px-2 py-1 rounded-lg ${avg === "—" ? "text-muted-foreground" : parseFloat(avg) >= 10 ? "text-green-700 bg-green-50" : "text-red-700 bg-red-50"}`}>

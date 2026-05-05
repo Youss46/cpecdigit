@@ -9,6 +9,91 @@ import { eq, and, inArray, desc } from "drizzle-orm";
 import { requireRole } from "../lib/auth.js";
 import { sendPushToUser } from "./push.js";
 
+// ─── Synchronisation notes devoir → table grades ────────────────────────────
+async function synchroniserNotesDevoir(devoirId: number) {
+  try {
+    const devoir = await getDevoir(devoirId);
+    if (!devoir || devoir.type_devoir !== "note_officiel") return;
+
+    const { rows: classes } = await pool.query(
+      `SELECT classe_id FROM devoir_classes WHERE devoir_id = $1`,
+      [devoirId]
+    );
+
+    for (const cls of classes) {
+      const classeId = cls.classe_id;
+
+      // Trouver le semestre via les affectations enseignant
+      const { rows: aff } = await pool.query(
+        `SELECT semester_id FROM teacher_assignments
+         WHERE teacher_id = $1 AND subject_id = $2 AND class_id = $3
+         LIMIT 1`,
+        [devoir.enseignant_id, devoir.matiere_id, classeId]
+      );
+      if (!aff.length) continue;
+      const semesterId = aff[0].semester_id;
+
+      // Résultats des étudiants inscrits dans cette classe pour ce devoir
+      const { rows: resultats } = await pool.query(
+        `SELECT DISTINCT ON (dr.etudiant_id) dr.etudiant_id, dr.note_sur_20
+         FROM devoir_resultats dr
+         JOIN devoir_sessions ds ON ds.id = dr.session_id
+         JOIN class_enrollments ce ON ce.student_id = dr.etudiant_id AND ce.class_id = $1
+         WHERE ds.devoir_id = $2 AND ds.statut IN ('soumis', 'expire', 'tricherie')
+         ORDER BY dr.etudiant_id, ds.soumis_le DESC`,
+        [classeId, devoirId]
+      );
+
+      for (const r of resultats) {
+        const etudiantId = r.etudiant_id;
+        const note = Math.round(r.note_sur_20 * 100) / 100;
+
+        // Vérifier si une note existe déjà pour ce devoir
+        const { rows: existing } = await pool.query(
+          `SELECT id, evaluation_number FROM grades
+           WHERE student_id = $1 AND subject_id = $2 AND semester_id = $3 AND devoir_id = $4`,
+          [etudiantId, devoir.matiere_id, semesterId, devoirId]
+        );
+
+        if (existing.length > 0) {
+          await pool.query(
+            `UPDATE grades SET value = $1, source = 'devoir_en_ligne', updated_at = NOW() WHERE id = $2`,
+            [note, existing[0].id]
+          );
+        } else {
+          // Trouver le premier slot libre (1-4)
+          const { rows: usedSlots } = await pool.query(
+            `SELECT evaluation_number FROM grades
+             WHERE student_id = $1 AND subject_id = $2 AND semester_id = $3`,
+            [etudiantId, devoir.matiere_id, semesterId]
+          );
+          const used = new Set(usedSlots.map((s: any) => s.evaluation_number));
+          let evalNum = 1;
+          while (used.has(evalNum) && evalNum < 4) evalNum++;
+
+          await pool.query(
+            `INSERT INTO grades (student_id, subject_id, semester_id, evaluation_number, value, source, devoir_id)
+             VALUES ($1, $2, $3, $4, $5, 'devoir_en_ligne', $6)
+             ON CONFLICT (student_id, subject_id, semester_id, evaluation_number)
+             DO UPDATE SET value = EXCLUDED.value, source = 'devoir_en_ligne', devoir_id = $6, updated_at = NOW()`,
+            [etudiantId, devoir.matiere_id, semesterId, evalNum, note, devoirId]
+          );
+        }
+      }
+    }
+
+    // Notifier l'enseignant
+    await db.insert(notificationsTable).values({
+      userId: devoir.enseignant_id,
+      type: "notes_prefilled",
+      title: "✅ Notes pré-remplies automatiquement",
+      message: `Les notes du devoir « ${devoir.titre} » ont été importées dans Saisie des Notes. Vérifiez et soumettez officiellement.`,
+    });
+  } catch (err) {
+    console.error("synchroniserNotesDevoir:", err);
+  }
+}
+
 const router = Router();
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -363,6 +448,47 @@ router.patch("/:id/statut", requireRole("teacher", "admin"), async (req, res) =>
 
 // ─── STUDENT routes ──────────────────────────────────────────────────────────
 
+// GET /api/devoirs/prefilled-notes — résumé des notes pré-remplies pour un teacher
+router.get("/prefilled-notes", requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const teacherId = req.session!.userId!;
+    const { subjectId, semesterId, classId } = req.query;
+
+    const { rows } = await pool.query(
+      `SELECT
+         g.student_id   AS "studentId",
+         g.evaluation_number AS "evalNumber",
+         g.value,
+         g.source,
+         g.devoir_id    AS "devoirId",
+         d.titre        AS "devoirTitre"
+       FROM grades g
+       LEFT JOIN devoirs d ON d.id = g.devoir_id
+       JOIN class_enrollments ce ON ce.student_id = g.student_id AND ce.class_id = $3
+       WHERE g.subject_id  = $1
+         AND g.semester_id = $2
+         AND g.source = 'devoir_en_ligne'
+         AND (d.enseignant_id = $4 OR $4 IS NULL)`,
+      [
+        Number(subjectId), Number(semesterId), Number(classId),
+        req.session!.role === "admin" ? null : teacherId,
+      ]
+    );
+
+    // Distinct devoirs involved
+    const devoirsMap = new Map<number, string>();
+    for (const r of rows) {
+      if (r.devoirId) devoirsMap.set(r.devoirId, r.devoirTitre ?? "");
+    }
+    const devoirs = [...devoirsMap.entries()].map(([id, titre]) => ({ id, titre }));
+
+    res.json({ count: rows.length, devoirs, grades: rows });
+  } catch (err) {
+    console.error("GET /devoirs/prefilled-notes:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // GET /api/devoirs/ip — retourner l'IP partiellement masquée pour le watermark
 router.get("/ip", requireRole("student"), (req, res) => {
   const raw = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || req.ip || "";
@@ -622,6 +748,9 @@ router.post("/:id/soumettre", requireRole("student"), async (req, res) => {
     );
 
     const correction = await correcterSession(sessionId, devoirId);
+
+    // Synchroniser automatiquement dans Saisie des Notes (si devoir noté officiel)
+    synchroniserNotesDevoir(devoirId).catch(err => console.error("sync notes:", err));
 
     // Notifier l'enseignant si tricherie
     if (statut === "tricherie") {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import {
   usersTable,
   gradesTable,
@@ -103,33 +103,38 @@ router.get("/grades", requireRole("teacher", "admin"), async (req, res) => {
       return;
     }
 
-    const gradeConditions: any[] = [];
-    if (subjectId) gradeConditions.push(eq(gradesTable.subjectId, parseInt(subjectId as string)));
-    if (semesterId) gradeConditions.push(eq(gradesTable.semesterId, parseInt(semesterId as string)));
+    const whereClauses: string[] = [];
+    const params: any[] = [];
+    if (subjectId)  { params.push(parseInt(subjectId as string));  whereClauses.push(`g.subject_id = $${params.length}`); }
+    if (semesterId) { params.push(parseInt(semesterId as string)); whereClauses.push(`g.semester_id = $${params.length}`); }
 
-    let query = db
-      .select({
-        id: gradesTable.id,
-        studentId: gradesTable.studentId,
-        studentName: usersTable.name,
-        subjectId: gradesTable.subjectId,
-        subjectName: subjectsTable.name,
-        coefficient: subjectsTable.coefficient,
-        semesterId: gradesTable.semesterId,
-        semesterName: semestersTable.name,
-        evaluationNumber: gradesTable.evaluationNumber,
-        value: gradesTable.value,
-        createdAt: gradesTable.createdAt,
-        updatedAt: gradesTable.updatedAt,
-      })
-      .from(gradesTable)
-      .innerJoin(usersTable, eq(usersTable.id, gradesTable.studentId))
-      .innerJoin(subjectsTable, eq(subjectsTable.id, gradesTable.subjectId))
-      .innerJoin(semestersTable, eq(semestersTable.id, gradesTable.semesterId));
+    const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
-    const grades = gradeConditions.length > 0
-      ? await query.where(gradeConditions.length === 1 ? gradeConditions[0] : and(...gradeConditions))
-      : await query;
+    const { rows: grades } = await pool.query(
+      `SELECT
+         g.id,
+         g.student_id   AS "studentId",
+         u.name         AS "studentName",
+         g.subject_id   AS "subjectId",
+         s.name         AS "subjectName",
+         s.coefficient,
+         g.semester_id  AS "semesterId",
+         sem.name       AS "semesterName",
+         g.evaluation_number AS "evaluationNumber",
+         g.value,
+         g.source,
+         g.devoir_id    AS "devoirId",
+         d.titre        AS "devoirTitre",
+         g.created_at   AS "createdAt",
+         g.updated_at   AS "updatedAt"
+       FROM grades g
+       JOIN users u    ON u.id   = g.student_id
+       JOIN subjects s ON s.id   = g.subject_id
+       JOIN semesters sem ON sem.id = g.semester_id
+       LEFT JOIN devoirs d ON d.id = g.devoir_id
+       ${whereSQL}`,
+      params
+    );
 
     res.json(grades);
   } catch (err) {

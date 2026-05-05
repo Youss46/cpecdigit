@@ -117,6 +117,10 @@ export async function ensureDevoirsSchema() {
       )
     `);
 
+    // Colonnes de traçabilité sur la table grades
+    await client.query(`ALTER TABLE grades ADD COLUMN IF NOT EXISTS source VARCHAR(30)`);
+    await client.query(`ALTER TABLE grades ADD COLUMN IF NOT EXISTS devoir_id INTEGER`);
+
     console.log("✓ Schéma Devoirs & Évaluations prêt.");
   } catch (err) {
     console.error("Erreur lors de la création des tables devoirs :", err);
