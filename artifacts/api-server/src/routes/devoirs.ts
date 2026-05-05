@@ -61,21 +61,28 @@ async function synchroniserNotesDevoir(devoirId: number) {
             [note, existing[0].id]
           );
         } else {
-          // Trouver le premier slot libre (1-4)
+          // Trouver le premier slot vraiment vide (1-4) sans toucher aux slots déjà occupés
           const { rows: usedSlots } = await pool.query(
             `SELECT evaluation_number FROM grades
              WHERE student_id = $1 AND subject_id = $2 AND semester_id = $3`,
             [etudiantId, devoir.matiere_id, semesterId]
           );
-          const used = new Set(usedSlots.map((s: any) => s.evaluation_number));
-          let evalNum = 1;
-          while (used.has(evalNum) && evalNum < 4) evalNum++;
+          const used = new Set(usedSlots.map((s: any) => s.evaluation_number as number));
 
+          let evalNum: number | null = null;
+          for (let n = 1; n <= 4; n++) {
+            if (!used.has(n)) { evalNum = n; break; }
+          }
+
+          // Tous les slots sont occupés : ne rien écraser
+          if (evalNum === null) continue;
+
+          // Insertion stricte — n'écrase jamais une note existante
           await pool.query(
             `INSERT INTO grades (student_id, subject_id, semester_id, evaluation_number, value, source, devoir_id)
              VALUES ($1, $2, $3, $4, $5, 'devoir_en_ligne', $6)
              ON CONFLICT (student_id, subject_id, semester_id, evaluation_number)
-             DO UPDATE SET value = EXCLUDED.value, source = 'devoir_en_ligne', devoir_id = $6, updated_at = NOW()`,
+             DO NOTHING`,
             [etudiantId, devoir.matiere_id, semesterId, evalNum, note, devoirId]
           );
         }
