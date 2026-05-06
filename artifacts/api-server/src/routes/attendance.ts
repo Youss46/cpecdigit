@@ -279,10 +279,10 @@ router.post("/teacher/attendance/send", requireRole("teacher", "admin"), async (
       return;
     }
 
-    // Interdire les dates futures — la feuille ne peut concerner qu'une séance passée ou du jour
+    // La feuille ne peut être soumise que pour la date du jour
     const today = new Date().toISOString().split("T")[0];
-    if (sessionDate > today) {
-      res.status(400).json({ error: "Impossible de soumettre une feuille de présence pour une date future." });
+    if (sessionDate !== today) {
+      res.status(400).json({ error: "La feuille de présence ne peut être soumise que pour la date du jour." });
       return;
     }
 

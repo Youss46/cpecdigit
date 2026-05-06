@@ -308,6 +308,7 @@ function NewSessionTab() {
               <Input
                 type="date"
                 value={sessionDate}
+                min={todayDate()}
                 max={todayDate()}
                 onChange={(e) => setSessionDate(e.target.value)}
                 className="bg-background"
