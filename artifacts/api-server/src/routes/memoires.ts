@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import { pool } from "@workspace/db";
 import { requireRole } from "../lib/auth.js";
 import { sendConvocationEmail } from "../lib/resend.js";
-import { sendPushToUser } from "./push.js";
+import { sendPushToUser, sendPushToUsers } from "./push.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, "../../uploads");
@@ -69,6 +69,21 @@ router.post(
           ]
         );
       }
+
+      // Notify all admins of the tenant
+      const { rows: adminRows } = await pool.query(
+        `SELECT id FROM users WHERE tenant_id = $1 AND role = 'admin'`,
+        [tenantId]
+      );
+      const adminIds = adminRows.map((r: { id: number }) => r.id);
+      const studentName = req.session!.name ?? "Un étudiant";
+      sendPushToUsers(adminIds, {
+        title: "Nouveau mémoire soumis",
+        body: `${studentName} a soumis un mémoire : "${titre}"`,
+        type: "memoire_soumis",
+        url: "/admin/memoires",
+        tag: `memoire-soumis-${memoireId}`,
+      }).catch(() => {});
 
       res.status(201).json({ id: memoireId, message: "Mémoire soumis avec succès." });
     } catch (err) {
