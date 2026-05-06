@@ -138,8 +138,8 @@ router.post("/publish", requirePlanificateur, async (req, res) => {
         .where(eq(scheduleEntriesTable.semesterId, parseInt(semesterId)));
       const teacherIds = teacherRows.map((r) => r.teacherId);
       if (teacherIds.length > 0) {
-        const title = "Emploi du temps publié";
-        const message = `L'emploi du temps${semLabel} est maintenant visible par les étudiants. Consultez vos créneaux.`;
+        const title = "Emploi du temps disponible";
+        const message = `Bonjour, votre emploi du temps est disponible. Consultez votre planning.`;
         await db.insert(notificationsTable).values(
           teacherIds.map((uid) => ({ userId: uid, type: "schedule_published" as any, title, message }))
         );
@@ -282,8 +282,8 @@ router.post("/publish-period", requirePlanificateur, async (req, res) => {
       ));
     const teacherIds = teacherRows.map((r) => r.teacherId);
     if (teacherIds.length > 0) {
-      const title = "Emploi du temps publié";
-      const message = `L'emploi du temps${clsLabel}${semLabel} est visible par les étudiants pour ${periodLabel}.`;
+      const title = "Emploi du temps disponible";
+      const message = `Bonjour, votre emploi du temps est disponible. Consultez votre planning.`;
       await db.insert(notificationsTable).values(
         teacherIds.map((uid) => ({ userId: uid, type: "schedule_published" as any, title, message }))
       );
@@ -482,9 +482,8 @@ router.post("/period-generate", requirePlanificateur, async (req, res) => {
     // Notify each teacher
     const teacherIds = [...new Set(toInsert.map((s) => s.teacherId))];
     for (const tid of teacherIds) {
-      const count = toInsert.filter((s) => s.teacherId === tid).length;
-      const title = "Nouvelles séances programmées";
-      const message = `${count} séance(s) ont été ajoutées à votre emploi du temps.`;
+      const title = "Emploi du temps disponible";
+      const message = `Bonjour, votre emploi du temps est disponible. Consultez votre planning.`;
       await db.insert(notificationsTable).values({ userId: tid, type: "schedule_published" as any, title, message });
       sendPushToUser(tid, { title, body: message, type: "schedule_published" }).catch(() => {});
     }
