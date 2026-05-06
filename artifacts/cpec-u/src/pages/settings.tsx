@@ -397,8 +397,8 @@ export default function SettingsPage() {
           <WebAuthnDevicesSection userEmail={userEmail} />
         </motion.div>
 
-        {/* GPS settings — admin only */}
-        {u?.role === "admin" && (
+        {/* GPS settings — directeur, scolarite, planificateur uniquement */}
+        {u?.role === "admin" && ["directeur", "scolarite", "planificateur"].includes(u?.adminSubRole) && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <GpsSettingsCard />
           </motion.div>
