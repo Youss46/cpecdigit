@@ -7,18 +7,26 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   GraduationCap, Upload, FileText, Clock, CheckCircle2, Calendar,
   MapPin, Users, Award, BookMarked, Plus, ChevronDown, ChevronUp,
-  Download, Loader2, AlertCircle, XCircle,
+  Download, Loader2, AlertCircle, XCircle, Eye,
 } from "lucide-react";
 
 async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`/api${path}`, { credentials: "include", ...options });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+function getPreviewUrl(fichierPath: string, fichierNom?: string): string {
+  const ext = (fichierNom ?? fichierPath).split(".").pop()?.toLowerCase();
+  if (ext === "pdf") return fichierPath;
+  const fullUrl = window.location.origin + fichierPath;
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
 }
 
 async function downloadFile(url: string, filename: string) {
@@ -232,6 +240,7 @@ function SubmitForm({ onSuccess }: { onSuccess: () => void }) {
 
 function MemoireCard({ memoire }: { memoire: any }) {
   const [expanded, setExpanded] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const { data: detail, isLoading } = useQuery({
     queryKey: ["/api/student/memoires", memoire.id],
     queryFn: () => apiFetch(`/student/memoires/${memoire.id}`),
@@ -362,15 +371,54 @@ function MemoireCard({ memoire }: { memoire: any }) {
                 </div>
               )}
 
-              {/* File download */}
+              {/* File actions */}
               {memoire.fichier_path && (
-                <button
-                  onClick={() => downloadFile(memoire.fichier_path, memoire.fichier_nom ?? "document")}
-                  className="inline-flex items-center gap-2 text-sm text-primary font-medium hover:underline"
-                >
-                  <Download className="w-4 h-4" />
-                  Télécharger le fichier soumis ({memoire.fichier_nom ?? "document"})
-                </button>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => setPreviewOpen(true)}
+                    className="inline-flex items-center gap-2 text-sm text-primary font-medium hover:underline"
+                  >
+                    <Eye className="w-4 h-4" />Consulter le fichier
+                  </button>
+                  <span className="text-muted-foreground text-sm">·</span>
+                  <button
+                    onClick={() => downloadFile(memoire.fichier_path, memoire.fichier_nom ?? "document")}
+                    className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    <Download className="w-4 h-4" />Télécharger ({memoire.fichier_nom ?? "document"})
+                  </button>
+                </div>
+              )}
+
+              {/* File preview dialog */}
+              {memoire.fichier_path && (
+                <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+                  <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0">
+                    <DialogHeader className="px-5 py-3 border-b border-border flex-shrink-0">
+                      <DialogTitle className="flex items-center gap-2 text-base">
+                        <FileText className="w-4 h-4 text-primary" />
+                        {memoire.fichier_nom ?? "Document"}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-hidden">
+                      <iframe
+                        src={getPreviewUrl(memoire.fichier_path, memoire.fichier_nom)}
+                        className="w-full h-full border-0"
+                        title={memoire.fichier_nom ?? "Aperçu du document"}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between px-5 py-2.5 border-t border-border bg-muted/30 flex-shrink-0">
+                      <span className="text-xs text-muted-foreground">
+                        {memoire.fichier_nom?.split(".").pop()?.toUpperCase() === "PDF"
+                          ? "Aperçu PDF natif"
+                          : "Aperçu via Google Docs Viewer — nécessite une connexion internet"}
+                      </span>
+                      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadFile(memoire.fichier_path, memoire.fichier_nom ?? "document")}>
+                        <Download className="w-3.5 h-3.5" />Télécharger
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               )}
             </div>
           </motion.div>

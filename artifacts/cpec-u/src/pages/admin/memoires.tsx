@@ -15,13 +15,20 @@ import { motion } from "framer-motion";
 import {
   GraduationCap, Search, Filter, Eye, CheckCircle2, Calendar,
   Clock, MapPin, Users, Award, BookMarked, Plus, Trash2, FileText,
-  Download, Loader2, BookOpen, User, X, Archive, Star, AlertCircle, XCircle,
+  Download, Loader2, BookOpen, User, X, Archive, Star, AlertCircle, XCircle, ExternalLink,
 } from "lucide-react";
 
 async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`/api${path}`, { credentials: "include", ...options });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+function getPreviewUrl(fichierPath: string, fichierNom?: string): string {
+  const ext = (fichierNom ?? fichierPath).split(".").pop()?.toLowerCase();
+  if (ext === "pdf") return fichierPath;
+  const fullUrl = window.location.origin + fichierPath;
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
 }
 
 async function downloadFile(url: string, filename: string) {
@@ -215,6 +222,9 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
   const [mention, setMention] = useState("");
   const [observations, setObservations] = useState("");
 
+  // Preview state
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   // Reject dialog state
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -361,13 +371,57 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
         </div>
       )}
 
-      {/* File */}
+      {/* File actions */}
       {memoire.fichier_path && (
-        <button
-          onClick={() => downloadFile(memoire.fichier_path, memoire.fichier_nom ?? "document")}
-          className="inline-flex items-center gap-2 text-sm text-primary font-medium hover:underline">
-          <Download className="w-4 h-4" />Télécharger le fichier ({memoire.fichier_nom ?? "document"})
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => setPreviewOpen(true)}
+            className="inline-flex items-center gap-2 text-sm text-primary font-medium hover:underline">
+            <Eye className="w-4 h-4" />Consulter le fichier
+          </button>
+          <span className="text-muted-foreground text-sm">·</span>
+          <button
+            onClick={() => downloadFile(memoire.fichier_path, memoire.fichier_nom ?? "document")}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:underline">
+            <Download className="w-4 h-4" />Télécharger ({memoire.fichier_nom ?? "document"})
+          </button>
+        </div>
+      )}
+
+      {/* File preview dialog */}
+      {memoire.fichier_path && (
+        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+          <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0">
+            <DialogHeader className="px-5 py-3 border-b border-border flex-shrink-0">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <FileText className="w-4 h-4 text-primary" />
+                {memoire.fichier_nom ?? "Document"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={getPreviewUrl(memoire.fichier_path, memoire.fichier_nom)}
+                className="w-full h-full border-0"
+                title={memoire.fichier_nom ?? "Aperçu du document"}
+              />
+            </div>
+            <div className="flex items-center justify-between px-5 py-2.5 border-t border-border bg-muted/30 flex-shrink-0">
+              <span className="text-xs text-muted-foreground">
+                {memoire.fichier_nom?.split(".").pop()?.toUpperCase() === "PDF"
+                  ? "Aperçu PDF natif"
+                  : "Aperçu via Google Docs Viewer — nécessite une connexion internet"}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadFile(memoire.fichier_path, memoire.fichier_nom ?? "document")}>
+                  <Download className="w-3.5 h-3.5" />Télécharger
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => window.open(memoire.fichier_path, "_blank")}>
+                  <ExternalLink className="w-3.5 h-3.5 mr-1.5" />Ouvrir dans un onglet
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* PDF Convocation button */}
