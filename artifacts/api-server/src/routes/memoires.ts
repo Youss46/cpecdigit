@@ -363,6 +363,47 @@ router.delete("/admin/memoires/:id/jury/:membreId", requireRole("admin"), async 
 });
 
 // ─── Admin: list teachers (for jury member picker) ────────────────────────────
+// ─── Admin: export all scheduled soutenances with jury ────────────────────────
+router.get("/admin/soutenances-programmees", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const { rows } = await pool.query(
+      `SELECT m.id, m.titre, m.filiere, m.annee_academique, m.statut, m.resume,
+              u.name AS student_name,
+              sp.class_name,
+              s.date_soutenance, s.heure_debut, s.duree_minutes, s.salle,
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'nom',  COALESCE(u2.name, jm.nom_externe),
+                    'role', jm.role
+                  ) ORDER BY CASE jm.role WHEN 'PRESIDENT' THEN 1 WHEN 'RAPPORTEUR' THEN 2 ELSE 3 END
+                ) FILTER (WHERE jm.id IS NOT NULL),
+                '[]'::json
+              ) AS jury
+       FROM memoires m
+       JOIN users u ON u.id = m.student_id
+       LEFT JOIN (
+         SELECT DISTINCT ON (ce.student_id) ce.student_id, c.name AS class_name
+         FROM class_enrollments ce JOIN classes c ON c.id = ce.class_id
+         ORDER BY ce.student_id, ce.enrolled_at DESC
+       ) sp ON sp.student_id = m.student_id
+       JOIN soutenances s ON s.memoire_id = m.id
+       LEFT JOIN jury_membres jm ON jm.soutenance_id = s.id
+       LEFT JOIN users u2 ON u2.id = jm.user_id
+       WHERE m.tenant_id = $1 AND m.statut IN ('PLANIFIE', 'SOUTENU')
+       GROUP BY m.id, u.name, sp.class_name,
+                s.date_soutenance, s.heure_debut, s.duree_minutes, s.salle
+       ORDER BY s.date_soutenance, s.heure_debut`,
+      [tenantId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 router.get("/admin/memoires-teachers", requireRole("admin"), async (req, res) => {
   try {
     const tenantId = req.session!.tenantId!;

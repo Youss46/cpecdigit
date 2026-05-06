@@ -656,14 +656,123 @@ function ArchiveTab({ memoires }: { memoires: any[] }) {
   );
 }
 
+// ── PDF Planning des Soutenances ─────────────────────────────────────────────
+async function exportSoutenancesPDF() {
+  const rows: any[] = await apiFetch("/admin/soutenances-programmees");
+  if (!rows.length) { alert("Aucune soutenance planifiée à exporter."); return; }
+
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const W = 297;
+
+  // ── Header band ──────────────────────────────────────────────────────────
+  doc.setFillColor(26, 58, 92);
+  doc.rect(0, 0, W, 28, "F");
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.text("Planning des Soutenances", W / 2, 13, { align: "center" });
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  const year = new Date().getFullYear();
+  doc.text(`Année ${year}  —  Généré le ${new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}`, W / 2, 21, { align: "center" });
+
+  // Gold separator
+  doc.setFillColor(234, 179, 8);
+  doc.rect(0, 28, W, 1.5, "F");
+
+  // ── Summary row ──────────────────────────────────────────────────────────
+  const nbPlanifie = rows.filter(r => r.statut === "PLANIFIE").length;
+  const nbSoutenu  = rows.filter(r => r.statut === "SOUTENU").length;
+  doc.setFontSize(8);
+  doc.setTextColor(60, 80, 120);
+  doc.setFont("helvetica", "italic");
+  doc.text(
+    `${rows.length} soutenance${rows.length > 1 ? "s" : ""}  ·  Planifiées : ${nbPlanifie}  ·  Soutenues : ${nbSoutenu}`,
+    14, 36
+  );
+
+  // ── Table ────────────────────────────────────────────────────────────────
+  autoTable(doc, {
+    startY: 40,
+    head: [["Date", "Heure", "Durée", "Salle", "Étudiant / Classe", "Filière", "Thème du mémoire", "Membres du jury"]],
+    body: rows.map(r => {
+      const date = r.date_soutenance
+        ? new Date(r.date_soutenance).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })
+        : "—";
+      const juryText = Array.isArray(r.jury) && r.jury.length
+        ? r.jury.map((j: any) => `${j.nom} (${ROLE_LABELS[j.role] ?? j.role})`).join("\n")
+        : "Non composé";
+      const studentInfo = r.class_name ? `${r.student_name}\n${r.class_name}` : r.student_name;
+      return [
+        date,
+        r.heure_debut ?? "—",
+        r.duree_minutes ? `${r.duree_minutes} min` : "—",
+        r.salle ?? "—",
+        studentInfo,
+        r.filiere ?? "—",
+        r.titre,
+        juryText,
+      ];
+    }),
+    headStyles: {
+      fillColor: [26, 58, 92],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 7.5,
+      halign: "left",
+    },
+    bodyStyles: { fontSize: 7, valign: "top" },
+    alternateRowStyles: { fillColor: [245, 248, 255] },
+    columnStyles: {
+      0: { cellWidth: 28 },
+      1: { cellWidth: 14 },
+      2: { cellWidth: 14 },
+      3: { cellWidth: 22 },
+      4: { cellWidth: 32 },
+      5: { cellWidth: 20 },
+      6: { cellWidth: 68 },
+      7: { cellWidth: 55 },
+    },
+    margin: { left: 14, right: 14 },
+    styles: { overflow: "linebreak", cellPadding: 2.5 },
+    didDrawPage: (d: any) => {
+      // Footer on each page
+      const pg = d.pageNumber;
+      doc.setFontSize(7);
+      doc.setTextColor(150);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Page ${pg}`, W - 14, 205, { align: "right" });
+      doc.text("M15 EduTech — Document confidentiel", 14, 205);
+    },
+  });
+
+  doc.save(`planning-soutenances-${year}.pdf`);
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminMemoiresPage() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"submissions" | "archive">("submissions");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [filterStatut, setFilterStatut] = useState("all");
   const [filterFiliere, setFilterFiliere] = useState("all");
   const [filterAnnee, setFilterAnnee] = useState("all");
   const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportPDF() {
+    setExporting(true);
+    try {
+      await exportSoutenancesPDF();
+    } catch (err: any) {
+      toast({ title: "Erreur export", description: err.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const { data: memoires = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/memoires"],
@@ -700,22 +809,36 @@ export default function AdminMemoiresPage() {
             </h1>
             <p className="text-muted-foreground">Gestion complète du processus de soutenance académique.</p>
           </div>
-          {/* Tabs */}
-          <div className="flex rounded-xl border border-border overflow-hidden shadow-sm">
-            {([
-              { key: "submissions", label: "Soumissions", icon: FileText },
-              { key: "archive",     label: "Bibliothèque",   icon: BookOpen },
-            ] as const).map(t => (
-              <button key={t.key} onClick={() => setActiveTab(t.key)}
-                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-all ${activeTab === t.key ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-                <t.icon className="w-3.5 h-3.5" />{t.label}
-                {t.key === "submissions" && (memoires as any[]).filter(m => !["SOUTENU","ARCHIVE"].includes(m.statut)).length > 0 && (
-                  <span className="ml-1 text-[10px] bg-primary-foreground/20 text-primary-foreground font-bold px-1.5 py-0.5 rounded-full">
-                    {(memoires as any[]).filter(m => !["SOUTENU","ARCHIVE"].includes(m.statut)).length}
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Export button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="gap-1.5"
+            >
+              {exporting
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Export…</>
+                : <><Download className="w-3.5 h-3.5" />Planning PDF</>}
+            </Button>
+            {/* Tabs */}
+            <div className="flex rounded-xl border border-border overflow-hidden shadow-sm">
+              {([
+                { key: "submissions", label: "Soumissions", icon: FileText },
+                { key: "archive",     label: "Bibliothèque",   icon: BookOpen },
+              ] as const).map(t => (
+                <button key={t.key} onClick={() => setActiveTab(t.key)}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-all ${activeTab === t.key ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
+                  <t.icon className="w-3.5 h-3.5" />{t.label}
+                  {t.key === "submissions" && (memoires as any[]).filter(m => !["SOUTENU","ARCHIVE"].includes(m.statut)).length > 0 && (
+                    <span className="ml-1 text-[10px] bg-primary-foreground/20 text-primary-foreground font-bold px-1.5 py-0.5 rounded-full">
+                      {(memoires as any[]).filter(m => !["SOUTENU","ARCHIVE"].includes(m.statut)).length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
