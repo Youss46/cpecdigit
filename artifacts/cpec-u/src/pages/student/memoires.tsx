@@ -138,6 +138,10 @@ function SubmitForm({ onSuccess }: { onSuccess: () => void }) {
       toast({ title: "Veuillez renseigner le titre et l'année académique.", variant: "destructive" });
       return;
     }
+    if (!file) {
+      toast({ title: "Fichier obligatoire", description: "Veuillez joindre le fichier PDF ou Word de votre mémoire avant de soumettre.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
       const fd = new FormData();
@@ -194,7 +198,7 @@ function SubmitForm({ onSuccess }: { onSuccess: () => void }) {
             <Textarea id="resume" placeholder="Résumé de votre travail (problématique, méthodologie, résultats)…" rows={4} value={resume} onChange={e => setResume(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Fichier (PDF, Word) — max 50 Mo</Label>
+            <Label>Fichier (PDF, Word) — max 50 Mo <span className="text-destructive">*</span></Label>
             <div
               className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-all"
               onClick={() => fileRef.current?.click()}
