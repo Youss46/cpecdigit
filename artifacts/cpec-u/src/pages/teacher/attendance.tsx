@@ -227,17 +227,8 @@ function NewSessionTab() {
         const rayon = locationSettings!.rayon_metres ?? 200;
         const distance = Math.round(haversineMetres(latitude, longitude, locationSettings!.latitude!, locationSettings!.longitude!));
 
-        // Seuil de précision assoupli : 300m (réseau peut donner 100-200m en intérieur)
-        if (accuracy > 300) {
-          setGpsState("error");
-          toast({
-            title: `⚠️ Signal de localisation insuffisant (précision : ±${Math.round(accuracy)}m).`,
-            description: "Rapprochez-vous d'une fenêtre ou activez le WiFi pour améliorer la précision.",
-            variant: "destructive",
-          });
-          setIsSending(false);
-          return;
-        }
+        // Pas de vérification de précision : LTE peut donner ±500m, c'est normal.
+        // La vérification de distance suffit à garantir la présence sur site.
 
         if (distance > rayon) {
           setGpsState("too_far");
