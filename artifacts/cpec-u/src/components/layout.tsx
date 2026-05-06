@@ -282,6 +282,8 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
     { name: "Affectations", href: "/admin/assignments", icon: ClipboardList },
     classesMatieresGroup,
     { name: "Semestres", href: "/admin/semesters", icon: Calendar },
+    { name: "Feuilles de Présence", href: "/admin/attendance", icon: ClipboardList },
+    { name: "Bilan des Absences", href: "/admin/attendance/summary", icon: BarChart3, badge: absenceAlertCount > 0 ? absenceAlertCount : undefined },
     { name: "Utilisateurs", href: "/admin/users", icon: Users },
     { name: "Cahiers de texte", href: "/admin/cahier-de-texte", icon: BookText },
     { name: "Bibliothèque", href: "/admin/bibliotheque", icon: BookOpen },
