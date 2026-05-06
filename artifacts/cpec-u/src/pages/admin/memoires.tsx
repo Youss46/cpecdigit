@@ -429,7 +429,7 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
                 <CheckCircle2 className="w-3.5 h-3.5" />Valider le mémoire
               </Button>
             )}
-            {memoire.statut === "SOUTENU" && (
+            {["SOUTENU", "REJETE"].includes(memoire.statut) && (
               <Button size="sm" variant="outline" className="gap-2" onClick={handleArchive} disabled={saving}>
                 <Archive className="w-3.5 h-3.5" />Archiver
               </Button>

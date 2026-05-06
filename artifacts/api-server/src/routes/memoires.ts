@@ -201,7 +201,7 @@ router.put("/admin/memoires/:id/statut", requireRole("admin"), async (req, res) 
     const id = parseInt(req.params.id);
     const { statut } = req.body as { statut: string };
 
-    const allowed = ["VALIDE", "ARCHIVE"];
+    const allowed = ["VALIDE", "ARCHIVE", "REJETE"];
     if (!allowed.includes(statut)) {
       res.status(400).json({ error: "Statut invalide" });
       return;
