@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 import {
   GraduationCap, Search, Filter, Eye, CheckCircle2, Calendar,
   Clock, MapPin, Users, Award, BookMarked, Plus, Trash2, FileText,
-  Download, Loader2, BookOpen, User, X, Archive, Star,
+  Download, Loader2, BookOpen, User, X, Archive, Star, AlertCircle,
 } from "lucide-react";
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -166,9 +166,10 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: memoire, isLoading, refetch } = useQuery<any>({
+  const { data: memoire, isLoading, isError, refetch } = useQuery<any>({
     queryKey: ["/api/admin/memoires", memoireId],
     queryFn: () => apiFetch(`/admin/memoires/${memoireId}`),
+    retry: 1,
   });
 
   const { data: teachers = [] } = useQuery<any[]>({
@@ -276,7 +277,13 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
       <Loader2 className="w-7 h-7 animate-spin text-primary" />
     </div>
   );
-  if (!memoire) return null;
+  if (isError || !memoire) return (
+    <div className="flex flex-col items-center gap-3 py-10 text-center">
+      <AlertCircle className="w-8 h-8 text-destructive" />
+      <p className="text-sm font-medium text-destructive">Impossible de charger le mémoire.</p>
+      <button onClick={() => refetch()} className="text-xs text-primary underline">Réessayer</button>
+    </div>
+  );
 
   const cfg = STATUT_CONFIG[memoire.statut] ?? STATUT_CONFIG.SOUMIS;
   const StatusIcon = cfg.icon;

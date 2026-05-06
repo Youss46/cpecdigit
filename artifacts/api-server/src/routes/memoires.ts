@@ -165,9 +165,9 @@ router.get("/admin/memoires/:id", requireRole("admin"), async (req, res) => {
        FROM memoires m
        JOIN users u ON u.id = m.student_id
        LEFT JOIN (
-         SELECT ce.student_id, c.name AS class_name
+         SELECT DISTINCT ON (ce.student_id) ce.student_id, c.name AS class_name
          FROM class_enrollments ce JOIN classes c ON c.id = ce.class_id
-         WHERE ce.is_active = true
+         ORDER BY ce.student_id, ce.enrolled_at DESC
        ) sp ON sp.student_id = m.student_id
        LEFT JOIN soutenances s ON s.memoire_id = m.id
        WHERE m.id = $1 AND m.tenant_id = $2`,
