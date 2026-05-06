@@ -227,10 +227,13 @@ function NewSessionTab() {
         const rayon = locationSettings!.rayon_metres ?? 200;
         const distance = Math.round(haversineMetres(latitude, longitude, locationSettings!.latitude!, locationSettings!.longitude!));
 
-        // Pas de vérification de précision : LTE peut donner ±500m, c'est normal.
-        // La vérification de distance suffit à garantir la présence sur site.
+        // Rayon effectif = rayon configuré + incertitude GPS mesurée (plafonnée à 1000m).
+        // LTE peut dériver de 300-600m d'une session à l'autre depuis le même endroit.
+        // On absorbe cette dérive en élargissant dynamiquement le rayon autorisé.
+        const accuracyMargin = Math.min(Math.round(accuracy), 1000);
+        const effectiveRayon = rayon + accuracyMargin;
 
-        if (distance > rayon) {
+        if (distance > effectiveRayon) {
           setGpsState("too_far");
           apiFetch("/teacher/attendance/location-incident", {
             method: "POST",
@@ -245,8 +248,8 @@ function NewSessionTab() {
             }),
           }).catch(() => {});
           toast({
-            title: `🔴 Vous êtes trop loin de l'établissement (${distance}m). Rayon autorisé : ${rayon}m.`,
-            description: "Vous devez être physiquement dans l'établissement pour soumettre.",
+            title: `🔴 Vous êtes trop loin de l'établissement (${distance}m, précision ±${Math.round(accuracy)}m).`,
+            description: `Rayon autorisé : ${rayon}m. Vous devez être physiquement dans l'établissement.`,
             variant: "destructive",
           });
           setIsSending(false);
