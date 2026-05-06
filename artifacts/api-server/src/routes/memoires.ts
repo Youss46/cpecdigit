@@ -72,7 +72,9 @@ router.post(
 
       // Notify all admins of the tenant
       const { rows: adminRows } = await pool.query(
-        `SELECT id FROM users WHERE tenant_id = $1 AND role = 'admin'`,
+        `SELECT id FROM users
+         WHERE tenant_id = $1 AND role = 'admin'
+           AND admin_sub_role IN ('planificateur', 'directeur')`,
         [tenantId]
       );
       const adminIds = adminRows.map((r: { id: number }) => r.id);
