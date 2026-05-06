@@ -698,14 +698,14 @@ export default function AdminSchedules() {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         onClick={() => openEdit(entry)}>
-                        <Pencil className="w-3 h-3" />
+                        <Pencil className="w-3.5 h-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10"
                         onClick={() => setPendingDeleteId(entry.id)}>
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>

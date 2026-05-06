@@ -556,7 +556,9 @@ router.delete("/:entryId", requirePlanificateur, async (req, res) => {
     const enriched = await getEnrichedEntries();
     const toDelete = enriched.find((x) => x.id === entryId);
     await db.delete(scheduleEntriesTable).where(eq(scheduleEntriesTable.id, entryId));
-    if (toDelete) {
+    // Notifier l'enseignant uniquement si la séance était publiée —
+    // un brouillon n'ayant jamais été notifié, l'enseignant n'a rien à savoir.
+    if (toDelete?.published) {
       notifyTeacherOfDeletion({
         teacherId: toDelete.teacherId,
         subjectName: toDelete.subjectName,
