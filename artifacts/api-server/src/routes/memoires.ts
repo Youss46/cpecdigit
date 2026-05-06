@@ -12,14 +12,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, "../../uploads");
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
+// Store files in memory then persist to DB (avoids ephemeral disk loss on Railway restarts)
 const memoireUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-    filename: (_req, file, cb) => {
-      const unique = `memoire-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-      cb(null, `${unique}${path.extname(file.originalname)}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
   fileFilter: (_req, file, cb) => {
     const allowed = [".pdf", ".doc", ".docx"];
@@ -45,20 +40,37 @@ router.post(
         return;
       }
 
+      // Step 1: insert row (no file path yet)
       const { rows } = await pool.query(
         `INSERT INTO memoires
            (tenant_id, student_id, titre, resume, filiere, annee_academique,
-            fichier_path, fichier_nom, statut)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'SOUMIS')
+            fichier_nom, statut)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'SOUMIS')
          RETURNING id`,
-        [
-          tenantId, studentId, titre, resume ?? null, filiere ?? null,
-          annee_academique,
-          req.file ? `/api/uploads/${req.file.filename}` : null,
-          req.file ? req.file.originalname : null,
-        ]
+        [tenantId, studentId, titre, resume ?? null, filiere ?? null,
+         annee_academique,
+         req.file ? req.file.originalname : null]
       );
-      res.status(201).json({ id: rows[0].id, message: "Mémoire soumis avec succès." });
+      const memoireId = rows[0].id;
+
+      // Step 2: if file provided, store binary in DB (survives Railway restarts)
+      if (req.file) {
+        await pool.query(
+          `UPDATE memoires
+           SET fichier_path    = $1,
+               fichier_contenu = $2,
+               fichier_mime    = $3
+           WHERE id = $4`,
+          [
+            `/api/memoires/${memoireId}/fichier`,
+            req.file.buffer,
+            req.file.mimetype,
+            memoireId,
+          ]
+        );
+      }
+
+      res.status(201).json({ id: memoireId, message: "Mémoire soumis avec succès." });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal Server Error" });
@@ -114,6 +126,54 @@ router.get("/student/memoires/:id", requireRole("student"), async (req, res) => 
       [memoire.soutenance_id]
     );
     res.json({ ...memoire, jury });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Shared: serve file binary (admin = all; student = own only) ─────────────
+router.get("/memoires/:id/fichier", requireRole("admin", "student"), async (req, res) => {
+  try {
+    const id      = parseInt(req.params.id);
+    const role    = req.session!.role!;
+    const userId  = req.session!.userId!;
+    const tenantId = req.session!.tenantId!;
+
+    const params: unknown[] = [id, tenantId];
+    let sql = `SELECT fichier_contenu, fichier_mime, fichier_nom, fichier_path
+               FROM memoires WHERE id = $1 AND tenant_id = $2`;
+    if (role !== "admin") {
+      sql += ` AND student_id = $3`;
+      params.push(userId);
+    }
+
+    const { rows: [row] } = await pool.query(sql, params);
+    if (!row) { res.status(404).json({ error: "Introuvable" }); return; }
+
+    const mime = row.fichier_mime || "application/octet-stream";
+    const nom  = row.fichier_nom  || "document";
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(nom)}"`);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+
+    // New records: binary stored in DB
+    if (row.fichier_contenu) {
+      res.setHeader("Content-Type", mime);
+      res.send(row.fichier_contenu);
+      return;
+    }
+
+    // Legacy records: fall back to disk (may not exist after Railway restart)
+    if (row.fichier_path?.startsWith("/api/uploads/")) {
+      const filename = row.fichier_path.slice("/api/uploads/".length);
+      const filePath = path.join(UPLOADS_DIR, filename);
+      if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+        return;
+      }
+    }
+
+    res.status(404).json({ error: "Fichier non disponible — veuillez le soumettre à nouveau." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });

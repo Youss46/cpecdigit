@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,6 @@ async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`/api${path}`, { credentials: "include", ...options });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
-}
-
-function getPreviewUrl(fichierPath: string, fichierNom?: string): string {
-  const ext = (fichierNom ?? fichierPath).split(".").pop()?.toLowerCase();
-  if (ext === "pdf") return fichierPath;
-  const fullUrl = window.location.origin + fichierPath;
-  return `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
 }
 
 async function downloadFile(url: string, filename: string) {
@@ -224,6 +217,19 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
 
   // Preview state
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  useEffect(() => {
+    if (!previewOpen || !memoire?.id) return;
+    setPreviewLoading(true);
+    fetch(`/api/memoires/${memoire.id}/fichier`, { credentials: "include" })
+      .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+      .then(blob => setPreviewBlobUrl(URL.createObjectURL(blob)))
+      .catch(() => setPreviewBlobUrl(null))
+      .finally(() => setPreviewLoading(false));
+    return () => { setPreviewBlobUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; }); };
+  }, [previewOpen, memoire?.id]);
 
   // Reject dialog state
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -381,7 +387,7 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
           </button>
           <span className="text-muted-foreground text-sm">·</span>
           <button
-            onClick={() => downloadFile(memoire.fichier_path, memoire.fichier_nom ?? "document")}
+            onClick={() => downloadFile(`/api/memoires/${memoire.id}/fichier`, memoire.fichier_nom ?? "document")}
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:underline">
             <Download className="w-4 h-4" />Télécharger ({memoire.fichier_nom ?? "document"})
           </button>
@@ -398,26 +404,39 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
                 {memoire.fichier_nom ?? "Document"}
               </DialogTitle>
             </DialogHeader>
-            <div className="flex-1 overflow-hidden">
-              <iframe
-                src={getPreviewUrl(memoire.fichier_path, memoire.fichier_nom)}
-                className="w-full h-full border-0"
-                title={memoire.fichier_nom ?? "Aperçu du document"}
-              />
+            <div className="flex-1 overflow-hidden flex items-center justify-center bg-muted/20">
+              {previewLoading ? (
+                <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                  <span className="text-sm">Chargement du fichier…</span>
+                </div>
+              ) : previewBlobUrl ? (
+                <iframe
+                  src={previewBlobUrl}
+                  className="w-full h-full border-0"
+                  title={memoire.fichier_nom ?? "Aperçu du document"}
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                  <AlertCircle className="w-8 h-8" />
+                  <p className="text-sm">Impossible de charger l'aperçu.</p>
+                  <Button size="sm" variant="outline" onClick={() => downloadFile(`/api/memoires/${memoire.id}/fichier`, memoire.fichier_nom ?? "document")}>
+                    <Download className="w-3.5 h-3.5 mr-1.5" />Télécharger le fichier
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-between px-5 py-2.5 border-t border-border bg-muted/30 flex-shrink-0">
-              <span className="text-xs text-muted-foreground">
-                {memoire.fichier_nom?.split(".").pop()?.toUpperCase() === "PDF"
-                  ? "Aperçu PDF natif"
-                  : "Aperçu via Google Docs Viewer — nécessite une connexion internet"}
-              </span>
+              <span className="text-xs text-muted-foreground">Aperçu PDF natif</span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadFile(memoire.fichier_path, memoire.fichier_nom ?? "document")}>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadFile(`/api/memoires/${memoire.id}/fichier`, memoire.fichier_nom ?? "document")}>
                   <Download className="w-3.5 h-3.5" />Télécharger
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => window.open(memoire.fichier_path, "_blank")}>
-                  <ExternalLink className="w-3.5 h-3.5 mr-1.5" />Ouvrir dans un onglet
-                </Button>
+                {previewBlobUrl && (
+                  <Button variant="outline" size="sm" onClick={() => window.open(previewBlobUrl, "_blank")}>
+                    <ExternalLink className="w-3.5 h-3.5 mr-1.5" />Ouvrir dans un onglet
+                  </Button>
+                )}
               </div>
             </div>
           </DialogContent>

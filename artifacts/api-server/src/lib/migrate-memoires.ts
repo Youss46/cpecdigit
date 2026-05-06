@@ -52,10 +52,12 @@ export async function ensureMemoiresSchema(): Promise<void> {
       )
     `);
 
-    // ── Ajout colonne raison_rejet (idempotent) ────────────────────────────
+    // ── Colonnes de stockage fichier en base (idempotent) ─────────────────
     await client.query(`
       ALTER TABLE memoires
-        ADD COLUMN IF NOT EXISTS raison_rejet TEXT
+        ADD COLUMN IF NOT EXISTS raison_rejet   TEXT,
+        ADD COLUMN IF NOT EXISTS fichier_contenu BYTEA,
+        ADD COLUMN IF NOT EXISTS fichier_mime    VARCHAR(100)
     `);
 
     console.log("✓ Schéma Mémoires & Soutenances prêt.");
