@@ -479,14 +479,8 @@ router.post("/period-generate", requirePlanificateur, async (req, res) => {
 
     const created = await db.insert(scheduleEntriesTable).values(toInsert).returning({ id: scheduleEntriesTable.id });
 
-    // Notify each teacher
-    const teacherIds = [...new Set(toInsert.map((s) => s.teacherId))];
-    for (const tid of teacherIds) {
-      const title = "Emploi du temps disponible";
-      const message = `Bonjour, votre emploi du temps est disponible. Consultez votre planning.`;
-      await db.insert(notificationsTable).values({ userId: tid, type: "schedule_published" as any, title, message });
-      sendPushToUser(tid, { title, body: message, type: "schedule_published" }).catch(() => {});
-    }
+    // Pas de notification ici — les séances sont créées en brouillon (published: false).
+    // Les enseignants seront notifiés uniquement lors de la publication explicite.
 
     res.status(201).json({ created: created.length, batchId });
   } catch (err) {
@@ -523,7 +517,7 @@ router.post("/", requirePlanificateur, async (req, res) => {
       .insert(scheduleEntriesTable)
       .values({ teacherId, subjectId, classId, roomId, semesterId, sessionDate, startTime, endTime, notes: notes ?? null, teamsLink: teamsLink ?? null, published: false })
       .returning();
-    notifyTeacherOfEntry(entry.id, true);
+    // Pas de notification — séance créée en brouillon, l'enseignant sera notifié à la publication.
     const enriched = await getEnrichedEntries();
     res.status(201).json(enriched.find((e) => e.id === entry.id));
   } catch (err) {
@@ -547,7 +541,7 @@ router.put("/:entryId", requirePlanificateur, async (req, res) => {
       .where(eq(scheduleEntriesTable.id, entryId))
       .returning();
     if (!entry) return res.status(404).json({ error: "Not Found" });
-    notifyTeacherOfEntry(entry.id, false);
+    // Pas de notification — modification repasse en brouillon, l'enseignant sera notifié à la re-publication.
     const enriched = await getEnrichedEntries();
     res.json(enriched.find((e) => e.id === entry.id));
   } catch (err) {
