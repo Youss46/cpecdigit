@@ -9,13 +9,32 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, Clock, ClipboardList, Pencil, X, Check, ShieldCheck, FileText, HelpCircle, Loader2, BookOpen, Paperclip, ExternalLink, MapPin, MapPinOff } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ClipboardList, Pencil, X, Check, ShieldCheck, FileText, HelpCircle, Loader2, BookOpen, Paperclip, Download, MapPin, MapPinOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`/api${path}`, { credentials: "include", ...options });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+async function downloadFile(url: string, filename: string) {
+  try {
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch (err: any) {
+    console.error("Download failed:", err);
+    alert("Impossible de télécharger le fichier.");
+  }
 }
 
 const STATUS_CONFIG = {
@@ -414,16 +433,14 @@ function JustificationsPanel({ canManage }: { canManage: boolean }) {
                     <Paperclip className="w-3.5 h-3.5" />
                     Pièce justificative jointe
                   </Label>
-                  <a
-                    href={reviewDialog.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm text-blue-700 hover:bg-blue-100 transition-colors group"
+                  <button
+                    onClick={() => downloadFile(reviewDialog.fileUrl!, "justificatif.pdf")}
+                    className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm text-blue-700 hover:bg-blue-100 transition-colors w-full text-left"
                   >
                     <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                    <span className="flex-1">Consulter le document PDF</span>
-                    <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
-                  </a>
+                    <span className="flex-1">Télécharger le justificatif PDF</span>
+                    <Download className="w-3.5 h-3.5 opacity-60" />
+                  </button>
                 </div>
               )}
               <div className="space-y-1.5">

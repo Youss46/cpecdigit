@@ -19,6 +19,25 @@ async function apiFetch(path: string, options?: RequestInit) {
   return res.json();
 }
 
+async function downloadFile(url: string, filename: string) {
+  try {
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch (err: any) {
+    console.error("Download failed:", err);
+    alert("Impossible de télécharger le fichier.");
+  }
+}
+
 function roleLabel(role: string, subRole?: string) {
   if (role === "student") return "Étudiant";
   if (role === "teacher") return "Enseignant";
@@ -62,12 +81,9 @@ function FileAttachment({ fileUrl, fileName, fileType, fileSize, isMe }: {
   fileUrl: string; fileName: string; fileType: string; fileSize: number; isMe: boolean;
 }) {
   return (
-    <a
-      href={fileUrl}
-      download={fileName}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`flex items-center gap-2.5 rounded-xl p-2.5 mt-1 transition-colors ${
+    <button
+      onClick={() => downloadFile(fileUrl, fileName)}
+      className={`flex items-center gap-2.5 rounded-xl p-2.5 mt-1 transition-colors w-full text-left ${
         isMe
           ? "bg-primary-foreground/15 hover:bg-primary-foreground/25"
           : "bg-background/60 hover:bg-background border border-border/50"
@@ -83,7 +99,7 @@ function FileAttachment({ fileUrl, fileName, fileType, fileSize, isMe }: {
         </p>
       </div>
       <Download className={`w-4 h-4 flex-shrink-0 ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`} />
-    </a>
+    </button>
   );
 }
 

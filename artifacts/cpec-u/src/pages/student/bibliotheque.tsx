@@ -19,6 +19,25 @@ import {
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
+async function downloadFile(url: string, filename: string) {
+  try {
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch (err: any) {
+    console.error("Download failed:", err);
+    alert("Impossible de télécharger le fichier.");
+  }
+}
+
 const RESOURCE_ICONS: Record<string, any> = {
   pdf: FileText, word: FileText, powerpoint: FileText,
   image: FileImage, archive: Archive, youtube: Youtube, link: Link2,
@@ -1009,7 +1028,7 @@ export default function StudentBibliotheque() {
                                             else if (r.type === "youtube") {
                                               const vid = getYoutubeId(r.fileUrl ?? "");
                                               if (vid) openPreview({ kind: "youtube", videoId: vid, title: r.title });
-                                            } else window.open(`${BASE}/api/bibliotheque/${r.id}/download`, "_blank");
+                                            } else downloadFile(`${BASE}/api/bibliotheque/${r.id}/download`, r.title ?? "fichier");
                                           } else {
                                             setActiveTab("supports");
                                           }

@@ -28,6 +28,25 @@ import { motion } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
+async function downloadFile(url: string, filename: string) {
+  try {
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch (err: any) {
+    console.error("Download failed:", err);
+    alert("Impossible de télécharger le fichier.");
+  }
+}
+
 function fmt(n: number) {
   return new Intl.NumberFormat("fr-FR").format(Math.round(n));
 }
@@ -105,10 +124,8 @@ function AdminStudentCardTab({ studentId, studentName }: { studentId: number; st
         <div className="flex gap-2">
           {cardData ? (
             <>
-              <Button size="sm" variant="outline" asChild>
-                <a href={`/api/admin/students/${studentId}/card/pdf`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
-                  <Download className="w-3.5 h-3.5" /> PDF
-                </a>
+              <Button size="sm" variant="outline" onClick={() => downloadFile(`/api/admin/students/${studentId}/card/pdf`, `carte-etudiant-${studentId}.pdf`)}>
+                <Download className="w-3.5 h-3.5 mr-1" /> PDF
               </Button>
               <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
                 <RefreshCw className="w-3.5 h-3.5 mr-1.5" />

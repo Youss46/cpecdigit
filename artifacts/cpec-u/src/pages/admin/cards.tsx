@@ -13,6 +13,25 @@ import {
 import { useLocation } from "wouter";
 import { downloadCardAsPdf } from "@/lib/download-card-pdf";
 
+async function downloadFile(url: string, filename: string) {
+  try {
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch (err: any) {
+    console.error("Download failed:", err);
+    alert("Impossible de télécharger le fichier.");
+  }
+}
+
 type CardEntry = {
   studentId: number;
   studentName: string;
@@ -172,10 +191,8 @@ export default function AdminCards() {
           </div>
           {selectedClassId && (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <a href={`/api/admin/classes/${selectedClassId}/cards`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
-                  <Download className="w-4 h-4" /> Imprimer toute la classe
-                </a>
+              <Button variant="outline" size="sm" onClick={() => downloadFile(`/api/admin/classes/${selectedClassId}/cards`, `cartes-classe-${selectedClassId}.pdf`)}>
+                <Download className="w-4 h-4 mr-1.5" /> Imprimer toute la classe
               </Button>
               <Button size="sm" onClick={handleBulkGenerate} disabled={bulkLoading}>
                 <QrCode className="w-4 h-4 mr-1.5" />
