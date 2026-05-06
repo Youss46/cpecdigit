@@ -44,6 +44,7 @@ export interface CardData {
   isValid: boolean;
   hash: string;
   verifyBaseUrl: string;
+  schoolName: string;
 }
 
 function fmtDate(d: Date | string | null | undefined): string {
@@ -439,8 +440,7 @@ export async function generateCardHtml(card: CardData): Promise<string> {
           ? `<img src="${logo}" alt="Logo" class="school-logo" />`
           : `<div class="school-logo-placeholder">C</div>`}
         <div>
-          <div class="school-name">M15 EduTech</div>
-          <div class="school-sub">INP-HB</div>
+          <div class="school-name">${card.schoolName}</div>
         </div>
       </div>
       <div class="card-type-badge">Carte Étudiante</div>
@@ -480,7 +480,7 @@ export async function generateCardHtml(card: CardData): Promise<string> {
   <div class="card-label">VERSO</div>
   <div class="card verso">
     <div class="verso-header">
-      <div class="verso-title">M15 EduTech — Carte Étudiante</div>
+      <div class="verso-title">${card.schoolName} — Carte Étudiante</div>
       <div class="validity-pill">${validityLabel}</div>
     </div>
 
@@ -553,8 +553,7 @@ export async function generateBulkCardsHtml(cards: CardData[]): Promise<string> 
             <div class="school-brand">
               ${logo ? `<img src="${logo}" alt="Logo" class="school-logo" />` : `<div class="school-logo-placeholder">C</div>`}
               <div>
-                <div class="school-name">M15 EduTech</div>
-                <div class="school-sub">INP-HB</div>
+                <div class="school-name">${card.schoolName}</div>
               </div>
             </div>
             <div class="card-type-badge">Carte Étudiante</div>
@@ -576,7 +575,7 @@ export async function generateBulkCardsHtml(cards: CardData[]): Promise<string> 
         <!-- VERSO -->
         <div class="card verso">
           <div class="verso-header">
-            <div class="verso-title">M15 EduTech — Carte Étudiante</div>
+            <div class="verso-title">${card.schoolName} — Carte Étudiante</div>
             <div class="validity-pill" style="background:${validityColor}">${validityLabel}</div>
           </div>
           <div class="verso-body">

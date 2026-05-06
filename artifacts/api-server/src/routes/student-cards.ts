@@ -7,6 +7,7 @@ import {
   classEnrollmentsTable,
   classesTable,
   studentCardsTable,
+  tenantsTable,
 } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireRole } from "../lib/auth.js";
@@ -51,6 +52,11 @@ async function getStudentCardData(studentId: number, req: any): Promise<CardData
     .where(eq(classEnrollmentsTable.studentId, studentId))
     .limit(1);
 
+  const tenantId = req.tenantId ?? user.tenantId;
+  const [tenant] = tenantId
+    ? await db.select({ name: tenantsTable.name }).from(tenantsTable).where(eq(tenantsTable.id, tenantId)).limit(1)
+    : [null];
+
   const academicYear = getCurrentAcademicYear();
   const [existingCard] = await db
     .select()
@@ -73,6 +79,7 @@ async function getStudentCardData(studentId: number, req: any): Promise<CardData
     isValid: existingCard.isValid,
     hash: existingCard.hash,
     verifyBaseUrl: getVerifyBaseUrl(req),
+    schoolName: tenant?.name ?? "M15 EduTech",
   };
 }
 
