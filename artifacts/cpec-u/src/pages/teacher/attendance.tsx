@@ -305,7 +305,13 @@ function NewSessionTab() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Date du cours</label>
-              <Input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="bg-background" />
+              <Input
+                type="date"
+                value={sessionDate}
+                max={todayDate()}
+                onChange={(e) => setSessionDate(e.target.value)}
+                className="bg-background"
+              />
             </div>
           </div>
         </CardContent>
