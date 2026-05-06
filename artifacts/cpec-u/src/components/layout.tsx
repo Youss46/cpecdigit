@@ -4,7 +4,7 @@ import { CpecLogo } from "@/components/cpec-logo";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useGetCurrentUser, useLogout, useGetUnreadNotificationCount, useGetPendingGradeSubmissionsCount, useGetUnreadMessageCount, useStudentEvaluationsCurrent } from "@workspace/api-client-react";
 import { useSocket } from "@/hooks/use-socket";
-import { GlobalSearch } from "@/components/GlobalSearch";
+import { GlobalSearch, type NavSearchItem } from "@/components/GlobalSearch";
 import { ActivationKeyModal } from "@/components/activation-key-modal";
 import { InstallButton, InstallBannerMobile } from "@/components/install-banner";
 import { useOffline } from "@/lib/offline/offline-context";
@@ -448,9 +448,19 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
           : "Menu Étudiant"}
       </div>
 
-      {user.role === "admin" && adminSubRole !== "hebergement" && (
+      {adminSubRole !== "hebergement" && (
         <div className="px-4 pt-1 pb-2">
-          <GlobalSearch />
+          <GlobalSearch
+            isAdmin={user.role === "admin"}
+            navItems={navItems.flatMap((item): NavSearchItem[] => {
+              if ((item as any).type === "group") {
+                return (item as any).children.map((c: any) => ({ name: c.name, href: c.href, icon: c.icon }));
+              }
+              const si = item as any;
+              if (!si.href) return [];
+              return [{ name: si.name, href: si.href, icon: si.icon }];
+            })}
+          />
         </div>
       )}
 
