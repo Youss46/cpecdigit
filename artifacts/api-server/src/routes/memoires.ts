@@ -296,14 +296,14 @@ router.put("/admin/memoires/:id/statut", requireRole("admin"), async (req, res) 
         sendPushToUser(m.student_id, {
           title: "✅ Mémoire validé",
           body: `Votre mémoire « ${m.titre} » a été validé. La planification de la soutenance va débuter.`,
-          url: "/memoires",
+          url: "/student/memoires",
           tag: `memoire-${id}-valide`,
         }).catch(() => {});
       } else if (statut === "ARCHIVE") {
         sendPushToUser(m.student_id, {
           title: "📁 Mémoire archivé",
           body: `Votre mémoire « ${m.titre} » a été archivé dans la bibliothèque numérique.`,
-          url: "/memoires",
+          url: "/student/memoires",
           tag: `memoire-${id}-archive`,
         }).catch(() => {});
       }
@@ -338,7 +338,7 @@ router.post("/admin/memoires/:id/rejeter", requireRole("admin"), async (req, res
       body: raison
         ? `Votre mémoire « ${m.titre} » a été refusé : ${raison}`
         : `Votre mémoire « ${m.titre} » a été refusé par l'administration.`,
-      url: "/memoires",
+      url: "/student/memoires",
       tag: `memoire-${id}-rejete`,
     }).catch(() => {});
 
@@ -419,7 +419,7 @@ router.post("/admin/memoires/:id/soutenance", requireRole("admin"), async (req, 
     sendPushToUser(memInfo.student_id ?? 0, {
       title: "📅 Soutenance planifiée",
       body: `Votre soutenance est prévue le ${dateFormatted} à ${heure_debut}${salle ? ` — Salle ${salle}` : ""}.`,
-      url: "/memoires",
+      url: "/student/memoires",
       tag: `memoire-${memoireId}-planifie`,
     }).catch(() => {});
 
@@ -496,7 +496,7 @@ router.post("/admin/memoires/:id/note", requireRole("admin"), async (req, res) =
       sendPushToUser(m.student_id, {
         title: "🎓 Résultat de soutenance disponible",
         body: `Félicitations ! Votre soutenance « ${m.titre} » a été enregistrée.${mentionText}${noteText}`,
-        url: "/memoires",
+        url: "/student/memoires",
         tag: `memoire-${id}-soutenu`,
       }).catch(() => {});
     }
