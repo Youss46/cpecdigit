@@ -188,76 +188,97 @@ function NewSessionTab() {
       }
 
       setGpsState("checking");
-      toast({ title: "📍 Vérification de votre position en cours…", description: "Restez immobile quelques secondes." });
+      toast({ title: "📍 Vérification de votre position en cours…", description: "Patientez, cela peut prendre quelques secondes." });
 
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const { latitude, longitude, accuracy } = position.coords;
-            const rayon = locationSettings!.rayon_metres ?? 200;
-            const distance = Math.round(haversineMetres(latitude, longitude, locationSettings!.latitude!, locationSettings!.longitude!));
+      // Helper: wrap getCurrentPosition in a Promise
+      const getPosition = (opts: PositionOptions): Promise<GeolocationPosition> =>
+        new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, opts));
 
-            if (accuracy > 150) {
-              setGpsState("error");
-              toast({ title: `⚠️ Signal GPS insuffisant (précision : ±${Math.round(accuracy)}m). Rapprochez-vous d'une fenêtre et réessayez.`, variant: "destructive" });
-              setIsSending(false);
-              return;
-            }
-
-            if (distance > rayon) {
-              setGpsState("too_far");
-              // Enregistrer l'incident
-              apiFetch("/teacher/attendance/location-incident", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  subjectId: selectedAssignment!.subjectId,
-                  classId: selectedAssignment!.classId,
-                  sessionDate,
-                  latitude, longitude,
-                  distance_metres: distance,
-                  precision_metres: Math.round(accuracy),
-                }),
-              }).catch(() => {});
-              toast({
-                title: `🔴 Vous êtes trop loin de l'établissement (${distance}m). Rayon autorisé : ${rayon}m.`,
-                description: "Vous devez être physiquement dans l'établissement pour soumettre.",
-                variant: "destructive",
-              });
-              setIsSending(false);
-              return;
-            }
-
-            // Position valide
-            setGpsState("ok");
-            const gps: GpsData = {
-              latitude, longitude,
-              precision_metres: Math.round(accuracy),
-              distance_etablissement: distance,
-              localisation_validee: true,
-            };
-            setGpsData(gps);
-            await doSend(gps);
-            setGpsState("idle");
-          } catch {
-            toast({ title: "Erreur lors de l'envoi", variant: "destructive" });
-            setGpsState("idle");
-          } finally {
-            setIsSending(false);
-          }
-        },
-        (err) => {
-          const msgs: Record<number, string> = {
-            1: "Vous avez refusé l'accès à la localisation. Autorisez-la dans les paramètres de votre navigateur.",
-            2: "Position GPS indisponible. Activez le GPS sur votre appareil.",
-            3: "Délai dépassé pour obtenir la position. Réessayez.",
-          };
+      let position: GeolocationPosition | null = null;
+      try {
+        // Tentative 1 : GPS haute précision (accepte position récente ≤ 60s)
+        position = await getPosition({ enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
+      } catch (err1: any) {
+        if (err1?.code === 1) {
+          // Permission refusée — inutile de retenter
           setGpsState("error");
-          toast({ title: `📍 ${msgs[err.code] ?? "Erreur de localisation."}`, variant: "destructive" });
+          toast({ title: "📍 Accès à la localisation refusé. Autorisez-le dans les paramètres de votre navigateur.", variant: "destructive" });
           setIsSending(false);
-        },
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-      );
+          return;
+        }
+        // Timeout ou position indisponible → repli sur géolocalisation réseau (WiFi/cellulaire)
+        toast({ title: "📡 GPS lent, basculement sur la géolocalisation réseau…" });
+        try {
+          position = await getPosition({ enableHighAccuracy: false, timeout: 25000, maximumAge: 120000 });
+        } catch {
+          setGpsState("error");
+          toast({
+            title: "📍 Impossible d'obtenir votre position.",
+            description: "Activez la localisation sur votre appareil et autorisez-la dans le navigateur.",
+            variant: "destructive",
+          });
+          setIsSending(false);
+          return;
+        }
+      }
+
+      try {
+        const { latitude, longitude, accuracy } = position.coords;
+        const rayon = locationSettings!.rayon_metres ?? 200;
+        const distance = Math.round(haversineMetres(latitude, longitude, locationSettings!.latitude!, locationSettings!.longitude!));
+
+        // Seuil de précision assoupli : 300m (réseau peut donner 100-200m en intérieur)
+        if (accuracy > 300) {
+          setGpsState("error");
+          toast({
+            title: `⚠️ Signal de localisation insuffisant (précision : ±${Math.round(accuracy)}m).`,
+            description: "Rapprochez-vous d'une fenêtre ou activez le WiFi pour améliorer la précision.",
+            variant: "destructive",
+          });
+          setIsSending(false);
+          return;
+        }
+
+        if (distance > rayon) {
+          setGpsState("too_far");
+          apiFetch("/teacher/attendance/location-incident", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              subjectId: selectedAssignment!.subjectId,
+              classId: selectedAssignment!.classId,
+              sessionDate,
+              latitude, longitude,
+              distance_metres: distance,
+              precision_metres: Math.round(accuracy),
+            }),
+          }).catch(() => {});
+          toast({
+            title: `🔴 Vous êtes trop loin de l'établissement (${distance}m). Rayon autorisé : ${rayon}m.`,
+            description: "Vous devez être physiquement dans l'établissement pour soumettre.",
+            variant: "destructive",
+          });
+          setIsSending(false);
+          return;
+        }
+
+        // Position valide
+        setGpsState("ok");
+        const gps: GpsData = {
+          latitude, longitude,
+          precision_metres: Math.round(accuracy),
+          distance_etablissement: distance,
+          localisation_validee: true,
+        };
+        setGpsData(gps);
+        await doSend(gps);
+        setGpsState("idle");
+      } catch {
+        toast({ title: "Erreur lors de l'envoi", variant: "destructive" });
+        setGpsState("idle");
+      } finally {
+        setIsSending(false);
+      }
     } catch {
       toast({ title: "Erreur lors de l'envoi", variant: "destructive" });
       setIsSending(false);
