@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { pool } from "@workspace/db";
 import { requireRole } from "../lib/auth.js";
 import { sendConvocationEmail } from "../lib/resend.js";
+import { sendPushToUser } from "./push.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, "../../uploads");
@@ -193,7 +194,7 @@ router.get("/admin/memoires/:id", requireRole("admin"), async (req, res) => {
   }
 });
 
-// ─── Admin: validate a memoire (SOUMIS → VALIDE) ─────────────────────────────
+// ─── Admin: validate / archive a memoire ─────────────────────────────────────
 router.put("/admin/memoires/:id/statut", requireRole("admin"), async (req, res) => {
   try {
     const tenantId = req.session!.tenantId!;
@@ -206,11 +207,64 @@ router.put("/admin/memoires/:id/statut", requireRole("admin"), async (req, res) 
       return;
     }
 
-    await pool.query(
+    const { rows: [m] } = await pool.query(
       `UPDATE memoires SET statut = $1, updated_at = NOW()
-       WHERE id = $2 AND tenant_id = $3`,
+       WHERE id = $2 AND tenant_id = $3
+       RETURNING student_id, titre`,
       [statut, id, tenantId]
     );
+
+    if (m) {
+      if (statut === "VALIDE") {
+        sendPushToUser(m.student_id, {
+          title: "✅ Mémoire validé",
+          body: `Votre mémoire « ${m.titre} » a été validé. La planification de la soutenance va débuter.`,
+          url: "/memoires",
+          tag: `memoire-${id}-valide`,
+        }).catch(() => {});
+      } else if (statut === "ARCHIVE") {
+        sendPushToUser(m.student_id, {
+          title: "📁 Mémoire archivé",
+          body: `Votre mémoire « ${m.titre} » a été archivé dans la bibliothèque numérique.`,
+          url: "/memoires",
+          tag: `memoire-${id}-archive`,
+        }).catch(() => {});
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: reject a memoire (any statut → REJETE) ────────────────────────────
+router.post("/admin/memoires/:id/rejeter", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const id = parseInt(req.params.id);
+    const { raison } = req.body as { raison?: string };
+
+    const { rows: [m] } = await pool.query(
+      `UPDATE memoires
+       SET statut = 'REJETE', raison_rejet = $1, updated_at = NOW()
+       WHERE id = $2 AND tenant_id = $3
+       RETURNING student_id, titre`,
+      [raison ?? null, id, tenantId]
+    );
+
+    if (!m) { res.status(404).json({ error: "Mémoire introuvable" }); return; }
+
+    sendPushToUser(m.student_id, {
+      title: "❌ Mémoire refusé",
+      body: raison
+        ? `Votre mémoire « ${m.titre} » a été refusé : ${raison}`
+        : `Votre mémoire « ${m.titre} » a été refusé par l'administration.`,
+      url: "/memoires",
+      tag: `memoire-${id}-rejete`,
+    }).catch(() => {});
+
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -243,9 +297,10 @@ router.post("/admin/memoires/:id/soutenance", requireRole("admin"), async (req, 
       return;
     }
 
-    // Récupérer l'email de l'étudiant pour la notification
+    // Récupérer les infos de l'étudiant pour la notification
     const { rows: [memInfo] } = await pool.query(
-      `SELECT m.titre, m.filiere, u.name AS student_name, u.email AS student_email,
+      `SELECT m.titre, m.filiere, m.student_id,
+              u.name AS student_name, u.email AS student_email,
               t.name AS school_name
        FROM memoires m
        JOIN users u ON u.id = m.student_id
@@ -281,6 +336,15 @@ router.post("/admin/memoires/:id/soutenance", requireRole("admin"), async (req, 
       `UPDATE memoires SET statut='PLANIFIE', updated_at=NOW() WHERE id=$1 AND tenant_id=$2`,
       [memoireId, tenantId]
     );
+
+    // Push notification to student
+    const dateFormatted = new Date(date_soutenance).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+    sendPushToUser(memInfo.student_id ?? 0, {
+      title: "📅 Soutenance planifiée",
+      body: `Votre soutenance est prévue le ${dateFormatted} à ${heure_debut}${salle ? ` — Salle ${salle}` : ""}.`,
+      url: "/memoires",
+      tag: `memoire-${memoireId}-planifie`,
+    }).catch(() => {});
 
     // Send convocation email to student
     const juryNames = (jury ?? []).map((j) => ({
@@ -337,12 +401,29 @@ router.post("/admin/memoires/:id/note", requireRole("admin"), async (req, res) =
       note?: number; mention?: string; observations?: string;
     };
 
-    await pool.query(
+    const { rows: [m] } = await pool.query(
       `UPDATE memoires
        SET note=$1, mention=$2, observations=$3, statut='SOUTENU', updated_at=NOW()
-       WHERE id=$4 AND tenant_id=$5`,
+       WHERE id=$4 AND tenant_id=$5
+       RETURNING student_id, titre`,
       [note ?? null, mention ?? null, observations ?? null, id, tenantId]
     );
+
+    if (m) {
+      const mentionLabel: Record<string, string> = {
+        EXCELLENT: "Excellent", TRES_BIEN: "Très Bien", BIEN: "Bien",
+        ASSEZ_BIEN: "Assez Bien", PASSABLE: "Passable",
+      };
+      const mentionText = mention ? ` — Mention : ${mentionLabel[mention] ?? mention}` : "";
+      const noteText = note != null ? ` · ${Number(note).toFixed(2)}/20` : "";
+      sendPushToUser(m.student_id, {
+        title: "🎓 Résultat de soutenance disponible",
+        body: `Félicitations ! Votre soutenance « ${m.titre} » a été enregistrée.${mentionText}${noteText}`,
+        url: "/memoires",
+        tag: `memoire-${id}-soutenu`,
+      }).catch(() => {});
+    }
+
     res.json({ ok: true });
   } catch (err) {
     console.error(err);

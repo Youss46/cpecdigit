@@ -52,6 +52,12 @@ export async function ensureMemoiresSchema(): Promise<void> {
       )
     `);
 
+    // ── Ajout colonne raison_rejet (idempotent) ────────────────────────────
+    await client.query(`
+      ALTER TABLE memoires
+        ADD COLUMN IF NOT EXISTS raison_rejet TEXT
+    `);
+
     console.log("✓ Schéma Mémoires & Soutenances prêt.");
   } catch (err) {
     console.error("Erreur lors de la création des tables mémoires :", err);

@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   GraduationCap, Upload, FileText, Clock, CheckCircle2, Calendar,
   MapPin, Users, Award, BookMarked, Plus, ChevronDown, ChevronUp,
-  Download, Loader2, AlertCircle,
+  Download, Loader2, AlertCircle, XCircle,
 } from "lucide-react";
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -40,11 +40,12 @@ async function downloadFile(url: string, filename: string) {
 }
 
 const STATUT_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType; step: number }> = {
-  SOUMIS:   { label: "Soumis",   color: "text-blue-700",   bg: "bg-blue-50 border-blue-200",   icon: Clock,        step: 1 },
+  SOUMIS:   { label: "Soumis",   color: "text-blue-700",    bg: "bg-blue-50 border-blue-200",       icon: Clock,        step: 1 },
   VALIDE:   { label: "Validé",   color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: CheckCircle2, step: 2 },
-  PLANIFIE: { label: "Planifié", color: "text-violet-700", bg: "bg-violet-50 border-violet-200", icon: Calendar,    step: 3 },
-  SOUTENU:  { label: "Soutenu",  color: "text-amber-700",  bg: "bg-amber-50 border-amber-200",   icon: Award,        step: 4 },
-  ARCHIVE:  { label: "Archivé",  color: "text-gray-600",   bg: "bg-gray-50 border-gray-200",    icon: BookMarked,   step: 5 },
+  PLANIFIE: { label: "Planifié", color: "text-violet-700",  bg: "bg-violet-50 border-violet-200",   icon: Calendar,     step: 3 },
+  SOUTENU:  { label: "Soutenu",  color: "text-amber-700",   bg: "bg-amber-50 border-amber-200",     icon: Award,        step: 4 },
+  ARCHIVE:  { label: "Archivé",  color: "text-gray-600",    bg: "bg-gray-50 border-gray-200",       icon: BookMarked,   step: 5 },
+  REJETE:   { label: "Refusé",   color: "text-red-700",     bg: "bg-red-50 border-red-200",         icon: XCircle,      step: 0 },
 };
 
 const MENTION_COLORS: Record<string, string> = {
@@ -78,6 +79,16 @@ const STEPS = [
 ];
 
 function StatusTimeline({ statut }: { statut: string }) {
+  // If rejected, show a special single-step "refusé" banner instead of the normal timeline
+  if (statut === "REJETE") {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-red-50 border border-red-200">
+        <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+        <span className="text-sm font-semibold text-red-700">Dossier refusé par l'administration</span>
+      </div>
+    );
+  }
+
   const currentStep = STATUT_CONFIG[statut]?.step ?? 1;
   return (
     <div className="flex items-center gap-0 w-full">
@@ -260,6 +271,25 @@ function MemoireCard({ memoire }: { memoire: any }) {
               {/* Timeline */}
               <StatusTimeline statut={memoire.statut} />
 
+              {/* Rejection reason */}
+              {memoire.statut === "REJETE" && memoire.raison_rejet && (
+                <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+                  <XCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">Motif du refus</p>
+                    <p className="text-sm text-red-600 mt-0.5 italic">« {memoire.raison_rejet} »</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Re-submit hint after rejection */}
+              {memoire.statut === "REJETE" && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  Vous pouvez déposer un nouveau mémoire corrigé depuis le formulaire de soumission.
+                </div>
+              )}
+
               {/* Result */}
               {memoire.statut === "SOUTENU" && (memoire.mention || memoire.note) && (
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
@@ -355,7 +385,7 @@ export default function StudentMemoiresPage() {
     queryFn: () => apiFetch("/student/memoires"),
   });
 
-  const hasPending = (memoires as any[]).some(m => !["SOUTENU", "ARCHIVE"].includes(m.statut));
+  const hasPending = (memoires as any[]).some(m => !["SOUTENU", "ARCHIVE", "REJETE"].includes(m.statut));
 
   return (
     <AppLayout allowedRoles={["student"]}>

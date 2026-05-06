@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 import {
   GraduationCap, Search, Filter, Eye, CheckCircle2, Calendar,
   Clock, MapPin, Users, Award, BookMarked, Plus, Trash2, FileText,
-  Download, Loader2, BookOpen, User, X, Archive, Star, AlertCircle,
+  Download, Loader2, BookOpen, User, X, Archive, Star, AlertCircle, XCircle,
 } from "lucide-react";
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -48,6 +48,7 @@ const STATUT_CONFIG: Record<string, { label: string; color: string; bg: string; 
   PLANIFIE: { label: "Planifié", color: "text-violet-700",  bg: "bg-violet-50 border-violet-200",   icon: Calendar },
   SOUTENU:  { label: "Soutenu",  color: "text-amber-700",   bg: "bg-amber-50 border-amber-200",     icon: Award },
   ARCHIVE:  { label: "Archivé",  color: "text-gray-600",    bg: "bg-gray-50 border-gray-200",       icon: BookMarked },
+  REJETE:   { label: "Refusé",   color: "text-red-700",     bg: "bg-red-50 border-red-200",         icon: XCircle },
 };
 
 const MENTION_LABELS: Record<string, string> = {
@@ -214,6 +215,10 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
   const [mention, setMention] = useState("");
   const [observations, setObservations] = useState("");
 
+  // Reject dialog state
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState<"info" | "planning" | "result">("info");
 
@@ -239,6 +244,22 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
       toast({ title: "Mémoire archivé." });
       invalidate();
     } catch { toast({ title: "Erreur", variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
+
+  const handleReject = async () => {
+    setSaving(true);
+    try {
+      await apiFetch(`/admin/memoires/${memoireId}/rejeter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raison: rejectReason.trim() || undefined }),
+      });
+      toast({ title: "Mémoire refusé.", description: "L'étudiant a été notifié." });
+      setRejectOpen(false);
+      setRejectReason("");
+      invalidate();
+    } catch { toast({ title: "Erreur lors du refus", variant: "destructive" }); }
     finally { setSaving(false); }
   };
 
@@ -413,7 +434,25 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
                 <Archive className="w-3.5 h-3.5" />Archiver
               </Button>
             )}
+            {!["SOUTENU", "ARCHIVE", "REJETE"].includes(memoire.statut) && (
+              <Button size="sm" variant="outline" className="gap-2 border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300" onClick={() => setRejectOpen(true)} disabled={saving}>
+                <XCircle className="w-3.5 h-3.5" />Refuser le dossier
+              </Button>
+            )}
           </div>
+
+          {/* Rejection banner */}
+          {memoire.statut === "REJETE" && (
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
+              <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-700">Dossier refusé</p>
+                {memoire.raison_rejet && (
+                  <p className="text-sm text-red-600 mt-0.5 italic">« {memoire.raison_rejet} »</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -563,6 +602,45 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
           </div>
         </div>
       )}
+
+      {/* ── Reject confirmation dialog ── */}
+      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <XCircle className="w-5 h-5" />Refuser ce dossier
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <p className="text-sm text-muted-foreground">
+              L'étudiant sera notifié par push notification du refus de son dossier. Cette action peut être levée en le resoumettant.
+            </p>
+            <div className="space-y-1.5">
+              <Label>Motif du refus <span className="text-muted-foreground">(optionnel mais recommandé)</span></Label>
+              <Textarea
+                placeholder="ex : Problème de plagiat, résumé insuffisant, format non conforme…"
+                rows={3}
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => { setRejectOpen(false); setRejectReason(""); }}>
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleReject}
+                disabled={saving}
+                className="gap-1.5"
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                {saving ? "Refus en cours…" : "Confirmer le refus"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
