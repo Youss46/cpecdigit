@@ -10,10 +10,24 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   ClipboardCheck, Send, Save, CheckCircle2, XCircle, Clock,
-  History, CalendarDays, Users, TrendingUp, WifiOff,
+  History, CalendarDays, Users, TrendingUp, WifiOff, MapPin, Loader2,
 } from "lucide-react";
 import { useOffline } from "@/lib/offline/offline-context";
 import { saveAttendanceOffline } from "@/lib/offline/offline-actions";
+
+// ── Formule Haversine — distance entre 2 points GPS en mètres ────────────────
+function haversineMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+type GpsState = "idle" | "checking" | "ok" | "too_far" | "error" | "no_gps_config";
+type GpsData = { latitude: number; longitude: number; precision_metres: number; distance_etablissement: number; localisation_validee: boolean } | null;
 
 const STATUS_CONFIG = {
   present: { label: "Présent(e)", icon: CheckCircle2, color: "bg-emerald-100 text-emerald-700 border-emerald-300", dot: "bg-emerald-500" },
@@ -50,6 +64,8 @@ function NewSessionTab() {
   const [sentAt, setSentAt] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [gpsState, setGpsState] = useState<GpsState>("idle");
+  const [gpsData, setGpsData] = useState<GpsData>(null);
   const { toast } = useToast();
   const { isOnline } = useOffline();
 
@@ -125,21 +141,125 @@ function NewSessionTab() {
     }
   };
 
+  const doSend = async (gps: GpsData) => {
+    if (!selectedAssignment) return;
+    await apiFetch("/teacher/attendance/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload()) });
+    const { sentAt: sa } = await apiFetch("/teacher/attendance/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subjectId: selectedAssignment.subjectId,
+        classId: selectedAssignment.classId,
+        semesterId: selectedAssignment.semesterId,
+        sessionDate,
+        ...(gps ?? {}),
+      }),
+    });
+    setSentAt(sa);
+    const distMsg = gps?.localisation_validee ? ` (Position vérifiée — ${gps.distance_etablissement}m)` : "";
+    toast({ title: `Feuille transmise à la scolarité ✓${distMsg}` });
+  };
+
   const handleSend = async () => {
     if (!selectedAssignment) return;
     setIsSending(true);
     try {
-      await apiFetch("/teacher/attendance/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload()) });
-      const { sentAt: sa } = await apiFetch("/teacher/attendance/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subjectId: selectedAssignment.subjectId, classId: selectedAssignment.classId, semesterId: selectedAssignment.semesterId, sessionDate }),
-      });
-      setSentAt(sa);
-      toast({ title: "Feuille transmise à la scolarité ✓" });
+      // Récupérer la configuration GPS du tenant
+      let locationSettings: { latitude: number | null; longitude: number | null; rayon_metres: number } | null = null;
+      try {
+        locationSettings = await apiFetch("/teacher/attendance/location-settings");
+      } catch { /* ignore */ }
+
+      const hasGpsConfig = locationSettings?.latitude != null && locationSettings?.longitude != null;
+
+      if (!hasGpsConfig) {
+        // Pas de config GPS → soumission directe
+        setGpsState("no_gps_config");
+        await doSend(null);
+        setGpsState("idle");
+        return;
+      }
+
+      // Vérification GPS obligatoire
+      if (!navigator.geolocation) {
+        toast({ title: "Géolocalisation non disponible sur cet appareil. Contactez l'administration.", variant: "destructive" });
+        setIsSending(false);
+        return;
+      }
+
+      setGpsState("checking");
+      toast({ title: "📍 Vérification de votre position en cours…", description: "Restez immobile quelques secondes." });
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude, accuracy } = position.coords;
+            const rayon = locationSettings!.rayon_metres ?? 200;
+            const distance = Math.round(haversineMetres(latitude, longitude, locationSettings!.latitude!, locationSettings!.longitude!));
+
+            if (accuracy > 150) {
+              setGpsState("error");
+              toast({ title: `⚠️ Signal GPS insuffisant (précision : ±${Math.round(accuracy)}m). Rapprochez-vous d'une fenêtre et réessayez.`, variant: "destructive" });
+              setIsSending(false);
+              return;
+            }
+
+            if (distance > rayon) {
+              setGpsState("too_far");
+              // Enregistrer l'incident
+              apiFetch("/teacher/attendance/location-incident", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  subjectId: selectedAssignment!.subjectId,
+                  classId: selectedAssignment!.classId,
+                  sessionDate,
+                  latitude, longitude,
+                  distance_metres: distance,
+                  precision_metres: Math.round(accuracy),
+                }),
+              }).catch(() => {});
+              toast({
+                title: `🔴 Vous êtes trop loin de l'établissement (${distance}m). Rayon autorisé : ${rayon}m.`,
+                description: "Vous devez être physiquement dans l'établissement pour soumettre.",
+                variant: "destructive",
+              });
+              setIsSending(false);
+              return;
+            }
+
+            // Position valide
+            setGpsState("ok");
+            const gps: GpsData = {
+              latitude, longitude,
+              precision_metres: Math.round(accuracy),
+              distance_etablissement: distance,
+              localisation_validee: true,
+            };
+            setGpsData(gps);
+            await doSend(gps);
+            setGpsState("idle");
+          } catch {
+            toast({ title: "Erreur lors de l'envoi", variant: "destructive" });
+            setGpsState("idle");
+          } finally {
+            setIsSending(false);
+          }
+        },
+        (err) => {
+          const msgs: Record<number, string> = {
+            1: "Vous avez refusé l'accès à la localisation. Autorisez-la dans les paramètres de votre navigateur.",
+            2: "Position GPS indisponible. Activez le GPS sur votre appareil.",
+            3: "Délai dépassé pour obtenir la position. Réessayez.",
+          };
+          setGpsState("error");
+          toast({ title: `📍 ${msgs[err.code] ?? "Erreur de localisation."}`, variant: "destructive" });
+          setIsSending(false);
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
     } catch {
       toast({ title: "Erreur lors de l'envoi", variant: "destructive" });
-    } finally {
       setIsSending(false);
     }
   };
@@ -249,13 +369,45 @@ function NewSessionTab() {
               <span className="text-sm font-medium">Mode hors ligne — Vous pouvez sauvegarder les présences localement.</span>
             </div>
           )}
+          {/* GPS status indicator */}
+          {gpsState === "checking" && (
+            <div className="flex items-center gap-2 text-blue-700 bg-blue-50 border border-blue-200 px-4 py-2.5 rounded-xl text-sm font-medium">
+              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+              Vérification de votre position GPS en cours…
+            </div>
+          )}
+          {gpsState === "ok" && gpsData && (
+            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2.5 rounded-xl text-sm font-medium">
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              Position validée — à {gpsData.distance_etablissement}m de l'établissement (±{gpsData.precision_metres}m)
+            </div>
+          )}
+          {gpsState === "too_far" && (
+            <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 px-4 py-2.5 rounded-xl text-sm font-medium">
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              Position refusée — vous êtes trop loin de l'établissement.
+            </div>
+          )}
+          {gpsState === "error" && (
+            <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-xl text-sm font-medium">
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              Impossible d'obtenir votre position. Vérifiez les permissions GPS.
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button variant="outline" onClick={handleSave} disabled={isSaving} className="flex-1">
               {!isOnline && <WifiOff className="w-4 h-4 mr-2" />}
               <Save className="w-4 h-4 mr-2" />{isSaving ? "Sauvegarde…" : isOnline ? "Sauvegarder le brouillon" : "Sauvegarder hors ligne"}
             </Button>
-            <Button onClick={handleSend} disabled={isSending || isSaving || !isOnline} className="flex-1 bg-primary hover:bg-primary/90">
-              <Send className="w-4 h-4 mr-2" />{isSending ? "Envoi…" : "Envoyer à l'Assistant de Direction"}
+            <Button onClick={handleSend} disabled={isSending || isSaving || !isOnline || gpsState === "checking"} className="flex-1 bg-primary hover:bg-primary/90">
+              {isSending && gpsState === "checking" ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Vérification GPS…</>
+              ) : isSending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Envoi…</>
+              ) : (
+                <><Send className="w-4 h-4 mr-2" />Envoyer à l'Assistant de Direction</>
+              )}
             </Button>
           </div>
         </>

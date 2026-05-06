@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Settings,
@@ -9,6 +9,9 @@ import {
   ShieldCheck,
   Save,
   Fingerprint,
+  MapPin,
+  Crosshair,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +22,149 @@ import { useToast } from "@/hooks/use-toast";
 import { useGetCurrentUser } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout";
 import { WebAuthnDevicesSection } from "@/components/webauthn-devices-section";
+
+async function apiFetch(path: string, options?: RequestInit) {
+  const res = await fetch(`/api${path}`, { credentials: "include", ...options });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// ── Panneau de configuration GPS — visible uniquement pour les admins ────────
+function GpsSettingsCard() {
+  const [lat, setLat] = useState("");
+  const [lon, setLon] = useState("");
+  const [rayon, setRayon] = useState("200");
+  const [loading, setLoading] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    apiFetch("/admin/attendance/location-settings")
+      .then((data: any) => {
+        if (data.latitude != null) setLat(String(data.latitude));
+        if (data.longitude != null) setLon(String(data.longitude));
+        if (data.rayon_metres != null) setRayon(String(data.rayon_metres));
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleDetect = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "GPS non disponible sur cet appareil", variant: "destructive" });
+      return;
+    }
+    setDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(pos.coords.latitude.toFixed(7));
+        setLon(pos.coords.longitude.toFixed(7));
+        setDetecting(false);
+        toast({ title: "Position détectée", description: `Précision : ±${Math.round(pos.coords.accuracy)}m` });
+      },
+      () => {
+        setDetecting(false);
+        toast({ title: "Impossible d'obtenir la position GPS", variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const latN = parseFloat(lat);
+    const lonN = parseFloat(lon);
+    const rayonN = parseInt(rayon);
+    if (isNaN(latN) || isNaN(lonN) || isNaN(rayonN) || rayonN < 50) {
+      toast({ title: "Veuillez saisir des coordonnées valides et un rayon ≥ 50m", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      await apiFetch("/admin/attendance/location-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude: latN, longitude: lonN, rayon_metres: rayonN }),
+      });
+      toast({ title: "Coordonnées GPS enregistrées", description: "La vérification de présence est maintenant active." });
+    } catch {
+      toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="border-border shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <MapPin className="w-4 h-4 text-primary" />
+          Géolocalisation des présences
+        </CardTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+          Définissez les coordonnées GPS de l'établissement. Les enseignants ne pourront soumettre leur feuille de présence qu'en se trouvant dans le rayon autorisé.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={handleDetect} disabled={detecting} className="gap-2">
+              {detecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Crosshair className="w-3.5 h-3.5" />}
+              {detecting ? "Détection…" : "Utiliser ma position actuelle"}
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="gpsLat">Latitude</Label>
+              <Input
+                id="gpsLat"
+                placeholder="ex: 36.7372"
+                value={lat}
+                onChange={e => setLat(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="gpsLon">Longitude</Label>
+              <Input
+                id="gpsLon"
+                placeholder="ex: 3.0869"
+                value={lon}
+                onChange={e => setLon(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="gpsRayon">Rayon autorisé (mètres)</Label>
+            <Input
+              id="gpsRayon"
+              type="number"
+              min={50}
+              max={2000}
+              placeholder="200"
+              value={rayon}
+              onChange={e => setRayon(e.target.value)}
+              required
+            />
+            <p className="text-xs text-muted-foreground">Min 50m · Max 2000m · Valeur recommandée : 150 à 300m</p>
+          </div>
+          {lat && lon && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground">
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+              Coordonnées configurées : {parseFloat(lat).toFixed(5)}, {parseFloat(lon).toFixed(5)} · rayon {rayon}m
+            </div>
+          )}
+          <div className="flex justify-end pt-1">
+            <Button type="submit" className="gap-2" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {loading ? "Enregistrement…" : "Enregistrer les coordonnées"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administration",
@@ -250,6 +396,13 @@ export default function SettingsPage() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <WebAuthnDevicesSection userEmail={userEmail} />
         </motion.div>
+
+        {/* GPS settings — admin only */}
+        {u?.role === "admin" && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <GpsSettingsCard />
+          </motion.div>
+        )}
       </div>
     </AppLayout>
   );

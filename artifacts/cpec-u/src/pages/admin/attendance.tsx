@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, Clock, ClipboardList, Pencil, X, Check, ShieldCheck, FileText, HelpCircle, Loader2, BookOpen, Paperclip, ExternalLink } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ClipboardList, Pencil, X, Check, ShieldCheck, FileText, HelpCircle, Loader2, BookOpen, Paperclip, ExternalLink, MapPin, MapPinOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -643,6 +643,45 @@ export default function AdminAttendance() {
                   </span>
                 )}
               </div>
+
+              {/* GPS info */}
+              {(() => {
+                const s = selectedSession as any;
+                if (!s) return null;
+                if (s.localisationValidee) {
+                  return (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-800">
+                      <MapPin className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold">Position vérifiée</p>
+                        <p className="text-xs text-emerald-700">
+                          {s.distanceEtablissement != null ? `${s.distanceEtablissement}m de l'établissement` : ""}
+                          {s.precisionMetres != null ? ` · précision ±${s.precisionMetres}m` : ""}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                if (s.latitude != null) {
+                  return (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                      <MapPin className="w-4 h-4 flex-shrink-0 text-amber-600" />
+                      <div>
+                        <p className="font-semibold">Position enregistrée (non vérifiée)</p>
+                        <p className="text-xs text-amber-700">
+                          Lat {Number(s.latitude).toFixed(5)}, Lon {Number(s.longitude).toFixed(5)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/60 border border-border text-sm text-muted-foreground">
+                    <MapPinOff className="w-4 h-4 flex-shrink-0" />
+                    Aucune donnée GPS pour cette feuille
+                  </div>
+                );
+              })()}
 
               {/* Records */}
               <div className="rounded-xl border border-border overflow-hidden">

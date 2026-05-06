@@ -121,6 +121,37 @@ export async function ensureDevoirsSchema() {
     await client.query(`ALTER TABLE grades ADD COLUMN IF NOT EXISTS source VARCHAR(30)`);
     await client.query(`ALTER TABLE grades ADD COLUMN IF NOT EXISTS devoir_id INTEGER`);
 
+    // ── Géolocalisation présences ──────────────────────────────────────────
+    // Coordonnées GPS de l'établissement sur la table tenants
+    await client.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 8)`);
+    await client.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS longitude DECIMAL(11, 8)`);
+    await client.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS rayon_metres INTEGER DEFAULT 200`);
+
+    // Données GPS sur les feuilles de présence
+    await client.query(`ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 8)`);
+    await client.query(`ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS longitude DECIMAL(11, 8)`);
+    await client.query(`ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS precision_metres INTEGER`);
+    await client.query(`ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS distance_etablissement INTEGER`);
+    await client.query(`ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS localisation_validee BOOLEAN DEFAULT false`);
+
+    // Table des tentatives de soumission hors zone
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS attendance_location_incidents (
+        id               SERIAL PRIMARY KEY,
+        teacher_id       INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        subject_id       INTEGER REFERENCES subjects(id) ON DELETE CASCADE,
+        class_id         INTEGER REFERENCES classes(id) ON DELETE CASCADE,
+        session_date     DATE,
+        latitude         DECIMAL(10, 8),
+        longitude        DECIMAL(11, 8),
+        distance_metres  INTEGER,
+        precision_metres INTEGER,
+        type             VARCHAR(50) DEFAULT 'SOUMISSION_HORS_ZONE',
+        tenant_id        INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
     console.log("✓ Schéma Devoirs & Évaluations prêt.");
   } catch (err) {
     console.error("Erreur lors de la création des tables devoirs :", err);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import {
   usersTable,
   subjectsTable,
@@ -168,15 +168,110 @@ router.post("/teacher/attendance/save", requireRole("teacher", "admin"), async (
   }
 });
 
+// ─── Teacher + Admin: get tenant GPS settings (lecture seule pour enseignant) ──
+router.get("/teacher/attendance/location-settings", requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const { rows } = await pool.query(
+      `SELECT latitude, longitude, rayon_metres FROM tenants WHERE id = $1`,
+      [tenantId]
+    );
+    res.json(rows[0] ?? { latitude: null, longitude: null, rayon_metres: 200 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: get / update tenant GPS settings ─────────────────────────────────
+router.get("/admin/attendance/location-settings", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const { rows } = await pool.query(
+      `SELECT latitude, longitude, rayon_metres FROM tenants WHERE id = $1`,
+      [tenantId]
+    );
+    res.json(rows[0] ?? { latitude: null, longitude: null, rayon_metres: 200 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.put("/admin/attendance/location-settings", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const { latitude, longitude, rayon_metres } = req.body as {
+      latitude: number; longitude: number; rayon_metres: number;
+    };
+    if (latitude == null || longitude == null || !rayon_metres) {
+      res.status(400).json({ error: "latitude, longitude et rayon_metres sont requis" });
+      return;
+    }
+    await pool.query(
+      `UPDATE tenants SET latitude = $1, longitude = $2, rayon_metres = $3 WHERE id = $4`,
+      [latitude, longitude, rayon_metres, tenantId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Teacher: log out-of-zone attempt ────────────────────────────────────────
+router.post("/teacher/attendance/location-incident", requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const teacherId = req.session!.userId!;
+    const tenantId = req.session!.tenantId!;
+    const { subjectId, classId, sessionDate, latitude, longitude, distance_metres, precision_metres } = req.body;
+    await pool.query(
+      `INSERT INTO attendance_location_incidents
+         (teacher_id, subject_id, class_id, session_date, latitude, longitude,
+          distance_metres, precision_metres, type, tenant_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'SOUMISSION_HORS_ZONE',$9)`,
+      [teacherId, subjectId, classId, sessionDate, latitude, longitude,
+       distance_metres, precision_metres, tenantId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: list GPS incidents ────────────────────────────────────────────────
+router.get("/admin/attendance/location-incidents", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const { rows } = await pool.query(
+      `SELECT ali.*, u.name AS teacher_name, s.name AS subject_name, c.name AS class_name
+       FROM attendance_location_incidents ali
+       JOIN users u ON u.id = ali.teacher_id
+       JOIN subjects s ON s.id = ali.subject_id
+       JOIN classes c ON c.id = ali.class_id
+       WHERE ali.tenant_id = $1
+       ORDER BY ali.created_at DESC
+       LIMIT 200`,
+      [tenantId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // ─── Teacher: send session to scolarité ──────────────────────────────────────
 router.post("/teacher/attendance/send", requireRole("teacher", "admin"), async (req, res) => {
   try {
     const teacherId = req.session!.userId!;
-    const { subjectId, classId, semesterId, sessionDate } = req.body as {
-      subjectId: number;
-      classId: number;
-      semesterId: number;
-      sessionDate: string;
+    const { subjectId, classId, semesterId, sessionDate,
+            latitude, longitude, precision_metres, distance_etablissement, localisation_validee
+          } = req.body as {
+      subjectId: number; classId: number; semesterId: number; sessionDate: string;
+      latitude?: number; longitude?: number; precision_metres?: number;
+      distance_etablissement?: number; localisation_validee?: boolean;
     };
 
     if (!subjectId || !classId || !semesterId || !sessionDate) {
@@ -186,18 +281,23 @@ router.post("/teacher/attendance/send", requireRole("teacher", "admin"), async (
 
     const now = new Date();
 
-    await db
-      .insert(attendanceSessionsTable)
-      .values({ teacherId, subjectId, classId, semesterId, sessionDate, sentAt: now })
-      .onConflictDoUpdate({
-        target: [
-          attendanceSessionsTable.teacherId,
-          attendanceSessionsTable.subjectId,
-          attendanceSessionsTable.classId,
-          attendanceSessionsTable.sessionDate,
-        ],
-        set: { sentAt: now },
-      });
+    await pool.query(
+      `INSERT INTO attendance_sessions
+         (teacher_id, subject_id, class_id, semester_id, session_date, sent_at,
+          latitude, longitude, precision_metres, distance_etablissement, localisation_validee)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (teacher_id, subject_id, class_id, session_date)
+       DO UPDATE SET
+         sent_at = EXCLUDED.sent_at,
+         latitude = COALESCE(EXCLUDED.latitude, attendance_sessions.latitude),
+         longitude = COALESCE(EXCLUDED.longitude, attendance_sessions.longitude),
+         precision_metres = COALESCE(EXCLUDED.precision_metres, attendance_sessions.precision_metres),
+         distance_etablissement = COALESCE(EXCLUDED.distance_etablissement, attendance_sessions.distance_etablissement),
+         localisation_validee = COALESCE(EXCLUDED.localisation_validee, attendance_sessions.localisation_validee)`,
+      [teacherId, subjectId, classId, semesterId, sessionDate, now,
+       latitude ?? null, longitude ?? null, precision_metres ?? null,
+       distance_etablissement ?? null, localisation_validee ?? false]
+    );
 
     const [teacher] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, teacherId)).limit(1);
     const [subject] = await db.select({ name: subjectsTable.name }).from(subjectsTable).where(eq(subjectsTable.id, subjectId)).limit(1);
@@ -250,27 +350,35 @@ router.post("/teacher/attendance/send", requireRole("teacher", "admin"), async (
 // ─── Admin: list all sent sessions ───────────────────────────────────────────
 router.get("/admin/attendance/sessions", requireRole("admin"), async (req, res) => {
   try {
-    const sessions = await db
-      .select({
-        id: attendanceSessionsTable.id,
-        teacherId: attendanceSessionsTable.teacherId,
-        teacherName: usersTable.name,
-        subjectId: attendanceSessionsTable.subjectId,
-        subjectName: subjectsTable.name,
-        classId: attendanceSessionsTable.classId,
-        className: classesTable.name,
-        semesterId: attendanceSessionsTable.semesterId,
-        semesterName: semestersTable.name,
-        sessionDate: attendanceSessionsTable.sessionDate,
-        sentAt: attendanceSessionsTable.sentAt,
-      })
-      .from(attendanceSessionsTable)
-      .innerJoin(usersTable, eq(usersTable.id, attendanceSessionsTable.teacherId))
-      .innerJoin(subjectsTable, eq(subjectsTable.id, attendanceSessionsTable.subjectId))
-      .innerJoin(classesTable, eq(classesTable.id, attendanceSessionsTable.classId))
-      .innerJoin(semestersTable, eq(semestersTable.id, attendanceSessionsTable.semesterId))
-      .where(isNotNull(attendanceSessionsTable.sentAt))
-      .orderBy(desc(attendanceSessionsTable.sentAt));
+    const tenantId = req.session!.tenantId!;
+    const { rows: sessions } = await pool.query(
+      `SELECT
+         ats.id,
+         ats.teacher_id        AS "teacherId",
+         u.name                AS "teacherName",
+         ats.subject_id        AS "subjectId",
+         s.name                AS "subjectName",
+         ats.class_id          AS "classId",
+         c.name                AS "className",
+         ats.semester_id       AS "semesterId",
+         sem.name              AS "semesterName",
+         ats.session_date      AS "sessionDate",
+         ats.sent_at           AS "sentAt",
+         ats.latitude,
+         ats.longitude,
+         ats.precision_metres  AS "precisionMetres",
+         ats.distance_etablissement AS "distanceEtablissement",
+         ats.localisation_validee   AS "localisationValidee"
+       FROM attendance_sessions ats
+       JOIN users u    ON u.id  = ats.teacher_id
+       JOIN subjects s ON s.id  = ats.subject_id
+       JOIN classes c  ON c.id  = ats.class_id
+       JOIN semesters sem ON sem.id = ats.semester_id
+       WHERE ats.sent_at IS NOT NULL
+         AND u.tenant_id = $1
+       ORDER BY ats.sent_at DESC`,
+      [tenantId]
+    );
 
     res.json(sessions);
   } catch (err) {
