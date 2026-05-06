@@ -24,6 +24,24 @@ async function apiFetch(path: string, options?: RequestInit) {
   return res.json();
 }
 
+async function downloadFile(url: string, filename: string) {
+  try {
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) throw new Error("Erreur lors du téléchargement");
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    alert("Impossible de télécharger le fichier.");
+  }
+}
+
 const STATUT_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   SOUMIS:   { label: "Soumis",   color: "text-blue-700",    bg: "bg-blue-50 border-blue-200",       icon: Clock },
   VALIDE:   { label: "Validé",   color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: CheckCircle2 },
@@ -324,10 +342,11 @@ function MemoireDialog({ memoireId, onClose }: { memoireId: number; onClose: () 
 
       {/* File */}
       {memoire.fichier_path && (
-        <a href={memoire.fichier_path} target="_blank" rel="noopener noreferrer"
+        <button
+          onClick={() => downloadFile(memoire.fichier_path, memoire.fichier_nom ?? "document")}
           className="inline-flex items-center gap-2 text-sm text-primary font-medium hover:underline">
           <Download className="w-4 h-4" />Télécharger le fichier ({memoire.fichier_nom ?? "document"})
-        </a>
+        </button>
       )}
 
       {/* PDF Convocation button */}
@@ -622,10 +641,11 @@ function ArchiveTab({ memoires }: { memoires: any[] }) {
                 )}
                 {m.note != null && <span className="text-xs text-muted-foreground">{Number(m.note).toFixed(2)}/20</span>}
                 {m.fichier_path && (
-                  <a href={m.fichier_path} target="_blank" rel="noopener noreferrer"
+                  <button
+                    onClick={() => downloadFile(m.fichier_path, m.fichier_nom ?? "document")}
                     className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-1">
                     <Download className="w-3 h-3" />Fichier
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
