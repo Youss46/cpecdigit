@@ -128,7 +128,7 @@ router.post("/publish", requirePlanificateur, async (req, res) => {
         parseInt(semesterId),
         "schedule_published",
         "Emploi du temps disponible",
-        `L'emploi du temps${semLabel} a été publié. Consultez votre planning.`
+        `Bonjour, votre emploi du temps est disponible. Consultez votre planning.`
       ).catch(console.error);
 
       // Notify all teachers who have sessions in this semester
@@ -268,7 +268,7 @@ router.post("/publish-period", requirePlanificateur, async (req, res) => {
       [cid],
       "schedule_published",
       "Emploi du temps disponible",
-      `L'emploi du temps${clsLabel}${semLabel} est publié pour ${periodLabel}.`
+      `Bonjour, votre emploi du temps est disponible. Consultez votre planning.`
     ).catch(console.error);
 
     // Notify teachers assigned to sessions in this range
