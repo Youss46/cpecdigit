@@ -1,0 +1,382 @@
+import { Router } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { pool } from "@workspace/db";
+import { requireRole } from "../lib/auth.js";
+import { sendConvocationEmail } from "../lib/resend.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UPLOADS_DIR = path.join(__dirname, "../../uploads");
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const memoireUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+    filename: (_req, file, cb) => {
+      const unique = `memoire-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+      cb(null, `${unique}${path.extname(file.originalname)}`);
+    },
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = [".pdf", ".doc", ".docx"];
+    cb(null, allowed.includes(path.extname(file.originalname).toLowerCase()));
+  },
+});
+
+const router = Router();
+
+// ─── Student: submit a memoire ────────────────────────────────────────────────
+router.post(
+  "/student/memoires",
+  requireRole("student"),
+  memoireUpload.single("fichier"),
+  async (req, res) => {
+    try {
+      const studentId = req.session!.userId!;
+      const tenantId  = req.session!.tenantId!;
+      const { titre, resume, filiere, annee_academique } = req.body as Record<string, string>;
+
+      if (!titre || !annee_academique) {
+        res.status(400).json({ error: "titre et annee_academique sont requis" });
+        return;
+      }
+
+      const { rows } = await pool.query(
+        `INSERT INTO memoires
+           (tenant_id, student_id, titre, resume, filiere, annee_academique,
+            fichier_path, fichier_nom, statut)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'SOUMIS')
+         RETURNING id`,
+        [
+          tenantId, studentId, titre, resume ?? null, filiere ?? null,
+          annee_academique,
+          req.file ? `/api/uploads/${req.file.filename}` : null,
+          req.file ? req.file.originalname : null,
+        ]
+      );
+      res.status(201).json({ id: rows[0].id, message: "Mémoire soumis avec succès." });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
+
+// ─── Student: list own memoires ───────────────────────────────────────────────
+router.get("/student/memoires", requireRole("student"), async (req, res) => {
+  try {
+    const studentId = req.session!.userId!;
+    const tenantId  = req.session!.tenantId!;
+
+    const { rows } = await pool.query(
+      `SELECT m.*,
+              s.date_soutenance, s.heure_debut, s.duree_minutes, s.salle,
+              s.id AS soutenance_id
+       FROM memoires m
+       LEFT JOIN soutenances s ON s.memoire_id = m.id
+       WHERE m.student_id = $1 AND m.tenant_id = $2
+       ORDER BY m.created_at DESC`,
+      [studentId, tenantId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Student: get memoire detail + jury ───────────────────────────────────────
+router.get("/student/memoires/:id", requireRole("student"), async (req, res) => {
+  try {
+    const studentId = req.session!.userId!;
+    const id = parseInt(req.params.id);
+
+    const { rows: [memoire] } = await pool.query(
+      `SELECT m.*,
+              s.id AS soutenance_id, s.date_soutenance, s.heure_debut,
+              s.duree_minutes, s.salle
+       FROM memoires m
+       LEFT JOIN soutenances s ON s.memoire_id = m.id
+       WHERE m.id = $1 AND m.student_id = $2`,
+      [id, studentId]
+    );
+    if (!memoire) { res.status(404).json({ error: "Introuvable" }); return; }
+
+    const { rows: jury } = await pool.query(
+      `SELECT jm.*, u.name AS user_name
+       FROM jury_membres jm
+       LEFT JOIN users u ON u.id = jm.user_id
+       WHERE jm.soutenance_id = $1`,
+      [memoire.soutenance_id]
+    );
+    res.json({ ...memoire, jury });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: list all memoires (with filters) ──────────────────────────────────
+router.get("/admin/memoires", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const { statut, filiere, annee, q } = req.query as Record<string, string>;
+
+    let sql = `
+      SELECT m.*, u.name AS student_name, u.email AS student_email,
+             s.date_soutenance, s.heure_debut, s.salle, s.id AS soutenance_id
+      FROM memoires m
+      JOIN users u ON u.id = m.student_id
+      LEFT JOIN soutenances s ON s.memoire_id = m.id
+      WHERE m.tenant_id = $1
+    `;
+    const params: unknown[] = [tenantId];
+    let idx = 2;
+
+    if (statut)  { sql += ` AND m.statut = $${idx++}`;  params.push(statut); }
+    if (filiere) { sql += ` AND m.filiere = $${idx++}`; params.push(filiere); }
+    if (annee)   { sql += ` AND m.annee_academique = $${idx++}`; params.push(annee); }
+    if (q)       { sql += ` AND (m.titre ILIKE $${idx} OR u.name ILIKE $${idx})`; params.push(`%${q}%`); idx++; }
+
+    sql += " ORDER BY m.created_at DESC";
+
+    const { rows } = await pool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: get memoire detail ────────────────────────────────────────────────
+router.get("/admin/memoires/:id", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const id = parseInt(req.params.id);
+
+    const { rows: [memoire] } = await pool.query(
+      `SELECT m.*, u.name AS student_name, u.email AS student_email,
+              sp.class_name,
+              s.id AS soutenance_id, s.date_soutenance, s.heure_debut,
+              s.duree_minutes, s.salle
+       FROM memoires m
+       JOIN users u ON u.id = m.student_id
+       LEFT JOIN (
+         SELECT ce.student_id, c.name AS class_name
+         FROM class_enrollments ce JOIN classes c ON c.id = ce.class_id
+         WHERE ce.is_active = true
+       ) sp ON sp.student_id = m.student_id
+       LEFT JOIN soutenances s ON s.memoire_id = m.id
+       WHERE m.id = $1 AND m.tenant_id = $2`,
+      [id, tenantId]
+    );
+    if (!memoire) { res.status(404).json({ error: "Introuvable" }); return; }
+
+    const { rows: jury } = memoire.soutenance_id
+      ? await pool.query(
+          `SELECT jm.*, u.name AS user_name
+           FROM jury_membres jm
+           LEFT JOIN users u ON u.id = jm.user_id
+           WHERE jm.soutenance_id = $1
+           ORDER BY CASE jm.role WHEN 'PRESIDENT' THEN 1 WHEN 'RAPPORTEUR' THEN 2 ELSE 3 END`,
+          [memoire.soutenance_id]
+        )
+      : { rows: [] };
+
+    res.json({ ...memoire, jury });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: validate a memoire (SOUMIS → VALIDE) ─────────────────────────────
+router.put("/admin/memoires/:id/statut", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const id = parseInt(req.params.id);
+    const { statut } = req.body as { statut: string };
+
+    const allowed = ["VALIDE", "ARCHIVE"];
+    if (!allowed.includes(statut)) {
+      res.status(400).json({ error: "Statut invalide" });
+      return;
+    }
+
+    await pool.query(
+      `UPDATE memoires SET statut = $1, updated_at = NOW()
+       WHERE id = $2 AND tenant_id = $3`,
+      [statut, id, tenantId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: schedule a soutenance + compose jury (VALIDE → PLANIFIE) ─────────
+router.post("/admin/memoires/:id/soutenance", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const memoireId = parseInt(req.params.id);
+    const {
+      date_soutenance, heure_debut, duree_minutes, salle, jury,
+    } = req.body as {
+      date_soutenance: string;
+      heure_debut: string;
+      duree_minutes?: number;
+      salle?: string;
+      jury: Array<{
+        user_id?: number;
+        nom_externe?: string;
+        email_externe?: string;
+        role: string;
+      }>;
+    };
+
+    if (!date_soutenance || !heure_debut) {
+      res.status(400).json({ error: "date_soutenance et heure_debut sont requis" });
+      return;
+    }
+
+    // Récupérer l'email de l'étudiant pour la notification
+    const { rows: [memInfo] } = await pool.query(
+      `SELECT m.titre, m.filiere, u.name AS student_name, u.email AS student_email,
+              t.name AS school_name
+       FROM memoires m
+       JOIN users u ON u.id = m.student_id
+       JOIN tenants t ON t.id = m.tenant_id
+       WHERE m.id = $1 AND m.tenant_id = $2`,
+      [memoireId, tenantId]
+    );
+    if (!memInfo) { res.status(404).json({ error: "Mémoire introuvable" }); return; }
+
+    // Upsert soutenance
+    const { rows: [sout] } = await pool.query(
+      `INSERT INTO soutenances (tenant_id, memoire_id, date_soutenance, heure_debut, duree_minutes, salle)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (memoire_id) DO UPDATE
+         SET date_soutenance=$3, heure_debut=$4, duree_minutes=$5, salle=$6
+       RETURNING id`,
+      [tenantId, memoireId, date_soutenance, heure_debut, duree_minutes ?? 60, salle ?? null]
+    );
+    const soutenanceId = sout.id;
+
+    // Replace jury members
+    await pool.query(`DELETE FROM jury_membres WHERE soutenance_id = $1`, [soutenanceId]);
+    for (const m of (jury ?? [])) {
+      await pool.query(
+        `INSERT INTO jury_membres (soutenance_id, tenant_id, user_id, nom_externe, email_externe, role)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [soutenanceId, tenantId, m.user_id ?? null, m.nom_externe ?? null, m.email_externe ?? null, m.role]
+      );
+    }
+
+    // Move memoire status to PLANIFIE
+    await pool.query(
+      `UPDATE memoires SET statut='PLANIFIE', updated_at=NOW() WHERE id=$1 AND tenant_id=$2`,
+      [memoireId, tenantId]
+    );
+
+    // Send convocation email to student
+    const juryNames = (jury ?? []).map((j) => ({
+      nom: j.nom_externe ?? "",
+      role: j.role,
+    }));
+    sendConvocationEmail({
+      to: memInfo.student_email,
+      studentName: memInfo.student_name,
+      titre: memInfo.titre,
+      dateSoutenance: date_soutenance,
+      heureDebut: heure_debut,
+      salle: salle ?? "Non précisée",
+      dureeMinutes: duree_minutes ?? 60,
+      jury: juryNames,
+      schoolName: memInfo.school_name,
+    }).catch((e) => console.error("[sendConvocationEmail]", e));
+
+    // Send email to external jury members
+    for (const m of (jury ?? [])) {
+      if (m.email_externe) {
+        sendConvocationEmail({
+          to: m.email_externe,
+          studentName: memInfo.student_name,
+          titre: memInfo.titre,
+          dateSoutenance: date_soutenance,
+          heureDebut: heure_debut,
+          salle: salle ?? "Non précisée",
+          dureeMinutes: duree_minutes ?? 60,
+          jury: juryNames,
+          schoolName: memInfo.school_name,
+          isJuryMember: true,
+          juryRole: m.role,
+        }).catch((e) => console.error("[sendConvocationEmail jury]", e));
+      }
+    }
+
+    res.json({ ok: true, soutenanceId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Ensure UNIQUE constraint on soutenances.memoire_id
+// (handled in migration)
+
+// ─── Admin: record result after defense (PLANIFIE → SOUTENU) ─────────────────
+router.post("/admin/memoires/:id/note", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const id = parseInt(req.params.id);
+    const { note, mention, observations } = req.body as {
+      note?: number; mention?: string; observations?: string;
+    };
+
+    await pool.query(
+      `UPDATE memoires
+       SET note=$1, mention=$2, observations=$3, statut='SOUTENU', updated_at=NOW()
+       WHERE id=$4 AND tenant_id=$5`,
+      [note ?? null, mention ?? null, observations ?? null, id, tenantId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: delete a jury member ─────────────────────────────────────────────
+router.delete("/admin/memoires/:id/jury/:membreId", requireRole("admin"), async (req, res) => {
+  try {
+    const membreId = parseInt(req.params.membreId);
+    await pool.query(`DELETE FROM jury_membres WHERE id = $1`, [membreId]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: list teachers (for jury member picker) ────────────────────────────
+router.get("/admin/memoires-teachers", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const { rows } = await pool.query(
+      `SELECT id, name, email FROM users
+       WHERE tenant_id = $1 AND role = 'teacher'
+       ORDER BY name`,
+      [tenantId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+export default router;

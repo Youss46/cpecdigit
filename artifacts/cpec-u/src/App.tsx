@@ -85,6 +85,8 @@ import TeacherDevoirRapport from "@/pages/teacher/devoir-rapport";
 import StudentDevoirs from "@/pages/student/devoirs";
 import StudentDevoirSession from "@/pages/student/devoir-session";
 import StudentDevoirResultats from "@/pages/student/devoir-resultats";
+import AdminMemoires from "@/pages/admin/memoires";
+import StudentMemoires from "@/pages/student/memoires";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -199,6 +201,8 @@ function Router() {
       <Route path="/student/devoirs" component={StudentDevoirs} />
       <Route path="/student/devoirs/:id/resultats/:sessionId" component={StudentDevoirResultats} />
       <Route path="/student/devoirs/:id" component={StudentDevoirSession} />
+      <Route path="/admin/memoires" component={AdminMemoires} />
+      <Route path="/student/memoires" component={StudentMemoires} />
       <Route path="/settings" component={SettingsPage} />
 
       {/* Public: Bulletin verification (must come before /verify/:hash) */}

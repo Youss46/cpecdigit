@@ -25,6 +25,7 @@ import webauthnRouter from "./webauthn.js";
 import reclamationsRouter from "./reclamations.js";
 import bibliothequeRouter from "./bibliotheque.js";
 import devoirsRouter from "./devoirs.js";
+import memoiresRouter from "./memoires.js";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use("/auth", webauthnRouter);
 router.use(reclamationsRouter);
 router.use(bibliothequeRouter);
 router.use("/devoirs", devoirsRouter);
+router.use(memoiresRouter);
 
 export default router;
