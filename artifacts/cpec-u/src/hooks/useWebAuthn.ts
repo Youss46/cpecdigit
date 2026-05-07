@@ -88,7 +88,7 @@ export function useWebAuthnRegister() {
       });
       if (!optRes.ok) {
         const err = await optRes.json();
-        const msg = (err.detail ? `${err.error} — ${err.detail}` : err.error) ?? "Erreur lors de l'initialisation";
+        const msg = err.error ?? "Erreur lors de l'initialisation";
         setError(msg);
         setErrorKind("server");
         return false;

@@ -41,7 +41,6 @@ setInterval(() => {
 
 // POST /api/auth/webauthn/register/start
 router.post("/webauthn/register/start", requireAuth, async (req, res) => {
-  console.log("[WebAuthn] register/start — userId:", req.session?.userId, "tenantId:", req.session?.tenantId);
   try {
     const userId = req.session!.userId!;
     const [user] = await db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
@@ -85,13 +84,9 @@ router.post("/webauthn/register/start", requireAuth, async (req, res) => {
     // Store challenge in session
     req.session!.webauthnChallenge = options.challenge;
     res.json(options);
-  } catch (err: any) {
-    console.error("WebAuthn register/start error:", err?.message, err?.stack);
-    const isDev = process.env.NODE_ENV !== "production";
-    res.status(500).json({
-      error: "Erreur lors de la génération du défi",
-      ...(isDev ? { detail: err?.message ?? String(err) } : {}),
-    });
+  } catch (err) {
+    console.error("WebAuthn register/start error:", err);
+    res.status(500).json({ error: "Erreur lors de la génération du défi" });
   }
 });
 
@@ -192,7 +187,6 @@ router.delete("/webauthn/credentials/:id", requireAuth, async (req, res) => {
 // POST /api/auth/webauthn/authenticate/start
 // Body: { email: string }
 router.post("/webauthn/authenticate/start", async (req, res) => {
-  console.log("[WebAuthn] authenticate/start — email:", req.body?.email);
   try {
     const { email } = req.body;
     if (!email) { res.status(400).json({ error: "Email requis" }); return; }
@@ -226,13 +220,9 @@ router.post("/webauthn/authenticate/start", async (req, res) => {
     // Store challenge in memory keyed by email (expires in 5 minutes)
     authChallenges.set(email, { challenge: options.challenge, expiresAt: Date.now() + 5 * 60 * 1000 });
     res.json(options);
-  } catch (err: any) {
-    console.error("WebAuthn authenticate/start error:", err?.message, err?.stack);
-    const isDev = process.env.NODE_ENV !== "production";
-    res.status(500).json({
-      error: "Erreur lors de la génération du défi d'authentification",
-      ...(isDev ? { detail: err?.message ?? String(err) } : {}),
-    });
+  } catch (err) {
+    console.error("WebAuthn authenticate/start error:", err);
+    res.status(500).json({ error: "Erreur lors de la génération du défi d'authentification" });
   }
 });
 
