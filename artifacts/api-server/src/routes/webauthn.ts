@@ -10,7 +10,7 @@ import type {
   CredentialDeviceType,
 } from "@simplewebauthn/types";
 import { db } from "@workspace/db";
-import { usersTable, classEnrollmentsTable, classesTable } from "@workspace/db";
+import { usersTable, classEnrollmentsTable, classesTable, tenantsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 
@@ -292,6 +292,16 @@ router.post("/webauthn/authenticate/finish", async (req, res) => {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
 
+    const tenantId = user.tenantId!;
+
+    // Block login if the school has been deactivated
+    const [tenant] = await db.select({ active: tenantsTable.active })
+      .from(tenantsTable).where(eq(tenantsTable.id, tenantId)).limit(1);
+    if (!tenant || !tenant.active) {
+      res.status(401).json({ error: "AccountDisabled", message: "Votre compte a été désactivé." });
+      return;
+    }
+
     let classId: number | null = null;
     let className: string | null = null;
     if (user.role === "student") {
@@ -306,6 +316,7 @@ router.post("/webauthn/authenticate/finish", async (req, res) => {
     req.session!.userId = user.id;
     req.session!.role = user.role;
     req.session!.name = user.name;
+    req.session!.tenantId = tenantId;
     req.session!.user = {
       id: user.id,
       role: user.role,
