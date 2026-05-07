@@ -997,9 +997,53 @@ router.get("/:id/resultats/:sessionId", requireRole("student", "teacher", "admin
 // POST /api/devoirs/:id/sessions/:sessionId/annuler — annuler session (enseignant)
 router.post("/:id/sessions/:sessionId/annuler", requireRole("teacher", "admin"), async (req, res) => {
   try {
+    const devoirId = Number(req.params.id);
     const sessionId = Number(req.params.sessionId);
+
+    // Récupérer l'étudiant lié à cette session avant annulation
+    const { rows: [session] } = await pool.query(
+      `SELECT etudiant_id FROM devoir_sessions WHERE id = $1`,
+      [sessionId]
+    );
+
     await pool.query(`UPDATE devoir_sessions SET statut = 'annule' WHERE id = $1`, [sessionId]);
     await pool.query(`UPDATE devoir_resultats SET statut = 'annule' WHERE session_id = $1`, [sessionId]);
+
+    // Resynchroniser la note dans grades pour cet étudiant
+    if (session) {
+      const etudiantId = session.etudiant_id;
+
+      // Chercher d'autres sessions valides pour ce devoir et cet étudiant
+      const { rows: autresResultats } = await pool.query(
+        `SELECT dr.note_sur_20
+         FROM devoir_resultats dr
+         JOIN devoir_sessions ds ON ds.id = dr.session_id
+         WHERE ds.devoir_id = $1
+           AND ds.etudiant_id = $2
+           AND ds.statut IN ('soumis', 'expire', 'tricherie')
+         ORDER BY ds.soumis_le DESC
+         LIMIT 1`,
+        [devoirId, etudiantId]
+      );
+
+      if (autresResultats.length > 0) {
+        // Mettre à jour la note avec la meilleure session restante
+        const note = Math.round(autresResultats[0].note_sur_20 * 100) / 100;
+        await pool.query(
+          `UPDATE grades SET value = $1, updated_at = NOW()
+           WHERE student_id = $2 AND devoir_id = $3 AND source = 'devoir_en_ligne'`,
+          [note, etudiantId, devoirId]
+        );
+      } else {
+        // Aucune session valide restante → supprimer la note de la saisie
+        await pool.query(
+          `DELETE FROM grades
+           WHERE student_id = $1 AND devoir_id = $2 AND source = 'devoir_en_ligne'`,
+          [etudiantId, devoirId]
+        );
+      }
+    }
+
     res.json({ ok: true });
   } catch (err) {
     console.error("POST annuler:", err);
