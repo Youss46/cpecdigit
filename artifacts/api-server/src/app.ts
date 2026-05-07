@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import session from "express-session";
 import path from "path";
@@ -99,6 +99,20 @@ app.get(["/api/healthz", "/srv/healthz"], (_req, res) => res.json({ ok: true }))
 app.use(["/api/uploads", "/srv/uploads"], express.static(UPLOADS_DIR));
 app.use(["/api", "/srv"], tenantMiddleware);
 app.use(["/api", "/srv"], router);
+
+// Global JSON error handler — must have 4 params for Express to treat as error handler.
+// Ensures every unhandled error (CORS rejection, body-parse failure, etc.) returns
+// JSON instead of Express's default HTML page (which causes optRes.json() to crash
+// on the frontend with a SyntaxError).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err?.status ?? err?.statusCode ?? 500;
+  console.error("[global-error-handler]", err?.message ?? err);
+  res.status(status).json({
+    error: err?.message ?? "Internal server error",
+    _type: err?.constructor?.name ?? "Error",
+  });
+});
 
 // Serve the bundled frontend only when it was co-built alongside the backend
 // (monolithic / self-hosted deploy). On Railway the frontend lives on Vercel,
