@@ -535,7 +535,38 @@ router.patch("/:id/statut", requireRole("teacher", "admin"), async (req, res) =>
   try {
     const id = Number(req.params.id);
     const { statut } = req.body;
+
+    const { rows: [avant] } = await pool.query(`SELECT statut FROM devoirs WHERE id = $1`, [id]);
     await pool.query(`UPDATE devoirs SET statut = $1 WHERE id = $2`, [statut, id]);
+
+    // Notifier les étudiants lors d'une réouverture (clos → publie)
+    if (statut === "publie" && avant?.statut === "clos") {
+      const devoir = await getDevoir(id);
+      if (devoir) {
+        const { rows: students } = await pool.query(
+          `SELECT DISTINCT ce.student_id
+           FROM class_enrollments ce
+           JOIN devoir_classes dc ON dc.classe_id = ce.class_id
+           WHERE dc.devoir_id = $1`,
+          [id]
+        );
+        for (const s of students) {
+          await db.insert(notificationsTable).values({
+            userId: s.student_id,
+            type: "devoir_rouvert",
+            title: "Devoir réouvert",
+            message: `Le devoir « ${devoir.titre} » a été réouvert par votre enseignant. Vous pouvez maintenant le composer.`,
+          });
+          await sendPushToUser(s.student_id, {
+            title: "Devoir réouvert",
+            body: `« ${devoir.titre} » est à nouveau disponible.`,
+            url: "/student/devoirs",
+            tag: `devoir-rouvert-${id}`,
+          });
+        }
+      }
+    }
+
     res.json({ ok: true });
   } catch (err) {
     console.error("PATCH /devoirs/:id/statut:", err);
@@ -649,7 +680,9 @@ router.post("/:id/demarrer", requireRole("student"), async (req, res) => {
       return res.json({ session: s, questions: questionsForStudent, savedReponses });
     }
 
-    const tentativeNumero = sessions.length + 1;
+    // Exclure les sessions annulées du décompte des tentatives
+    const sessionsValides = sessions.filter((s: any) => s.statut !== "annule");
+    const tentativeNumero = sessionsValides.length + 1;
     if (tentativeNumero > devoir.nb_tentatives) {
       return res.status(403).json({ error: "Nombre maximum de tentatives atteint" });
     }
