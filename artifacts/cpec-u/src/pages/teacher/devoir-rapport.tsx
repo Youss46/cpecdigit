@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import {
   ArrowLeft, ShieldAlert, CheckCircle2, AlertTriangle, XCircle,
-  Clock, User, Eye, RotateCcw, Ban, ChevronDown, ChevronUp,
+  Clock, User, RotateCcw, Ban, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,6 +45,11 @@ export default function DevoirRapport() {
   const queryClient = useQueryClient();
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
 
+  // Dialogue annulation
+  const [annulerDialogOpen, setAnnulerDialogOpen] = useState(false);
+  const [pendingSessionId, setPendingSessionId] = useState<number | null>(null);
+  const [motif, setMotif] = useState("");
+
   const { data, isLoading } = useQuery<any>({
     queryKey: [`/api/devoirs/${id}/rapport`],
     queryFn: () => fetch(`/api/devoirs/${id}/rapport`, { credentials: "include" }).then(r => r.json()),
@@ -47,13 +57,22 @@ export default function DevoirRapport() {
   });
 
   const annulerMutation = useMutation({
-    mutationFn: (sessionId: number) =>
-      fetch(`/api/devoirs/${id}/sessions/${sessionId}/annuler`, { method: "POST", credentials: "include" }).then(r => r.json()),
+    mutationFn: ({ sessionId, motif }: { sessionId: number; motif: string }) =>
+      fetch(`/api/devoirs/${id}/sessions/${sessionId}/annuler`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motif }),
+      }).then(async r => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error ?? "Erreur");
+        return json;
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/devoirs/${id}/rapport`] });
-      toast({ title: "Session annulée" });
+      toast({ title: "Session annulée — l'étudiant a été notifié." });
+      closeAnnulerDialog();
     },
-    onError: () => toast({ title: "Erreur", variant: "destructive" }),
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const retentativeMutation = useMutation({
@@ -65,6 +84,28 @@ export default function DevoirRapport() {
     },
     onError: () => toast({ title: "Erreur", variant: "destructive" }),
   });
+
+  function openAnnulerDialog(sessionId: number) {
+    setPendingSessionId(sessionId);
+    setMotif("");
+    setAnnulerDialogOpen(true);
+  }
+
+  function closeAnnulerDialog() {
+    setAnnulerDialogOpen(false);
+    setPendingSessionId(null);
+    setMotif("");
+  }
+
+  function confirmAnnuler() {
+    if (!motif.trim()) {
+      toast({ title: "Le motif est obligatoire.", variant: "destructive" });
+      return;
+    }
+    if (pendingSessionId !== null) {
+      annulerMutation.mutate({ sessionId: pendingSessionId, motif: motif.trim() });
+    }
+  }
 
   function toggleExpand(id: number) {
     setExpandedSessions(prev => {
@@ -95,6 +136,49 @@ export default function DevoirRapport() {
   return (
     <AppLayout allowedRoles={["teacher", "admin"]}>
       <div className="max-w-5xl mx-auto p-4 space-y-6">
+
+        {/* Dialogue motif d'annulation */}
+        <Dialog open={annulerDialogOpen} onOpenChange={open => { if (!open) closeAnnulerDialog(); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-700">
+                <Ban className="w-5 h-5" /> Annuler la session
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-gray-600">
+                L'étudiant sera notifié de l'annulation. Sa note sera retirée de la saisie officielle.
+              </p>
+              <div>
+                <Label className="text-sm font-medium">
+                  Motif d'annulation <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  className="mt-1.5"
+                  rows={3}
+                  placeholder="Ex : Tricherie confirmée, session annulée suite à vérification des incidents détectés..."
+                  value={motif}
+                  onChange={e => setMotif(e.target.value)}
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 mt-1">Ce motif sera transmis à l'étudiant dans sa notification.</p>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={closeAnnulerDialog} disabled={annulerMutation.isPending}>
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmAnnuler}
+                disabled={annulerMutation.isPending || !motif.trim()}
+              >
+                {annulerMutation.isPending ? "Annulation..." : "Confirmer l'annulation"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Header */}
         <div className="flex items-center gap-3">
           <Link href="/teacher/devoirs">
@@ -179,7 +263,7 @@ export default function DevoirRapport() {
                               <Button
                                 size="sm" variant="outline"
                                 className="text-xs h-7 gap-1 text-red-500 border-red-200"
-                                onClick={e => { e.stopPropagation(); if (confirm("Annuler cette session ?")) annulerMutation.mutate(s.id); }}
+                                onClick={e => { e.stopPropagation(); openAnnulerDialog(s.id); }}
                               >
                                 <Ban className="w-3 h-3" /> Annuler
                               </Button>
@@ -192,7 +276,18 @@ export default function DevoirRapport() {
 
                     {/* Détail incidents */}
                     {expanded && (
-                      <div className="border-t px-4 pb-4 pt-3">
+                      <div className="border-t px-4 pb-4 pt-3 space-y-3">
+                        {/* Motif d'annulation si applicable */}
+                        {s.statut === "annule" && s.motif_annulation && (
+                          <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                            <Ban className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-semibold text-gray-600">Motif d'annulation : </span>
+                              <span className="text-gray-700">{s.motif_annulation}</span>
+                            </div>
+                          </div>
+                        )}
+
                         {s.incidents?.length === 0 ? (
                           <p className="text-sm text-gray-400">Aucun incident enregistré.</p>
                         ) : (
@@ -220,7 +315,7 @@ export default function DevoirRapport() {
 
                         {/* Résultats */}
                         {s.resultat && (
-                          <div className="mt-3 pt-3 border-t">
+                          <div className="pt-3 border-t">
                             <p className="text-xs font-semibold text-gray-600 mb-1">Résultats</p>
                             <div className="flex gap-4 text-sm">
                               <span>Score : <strong>{s.resultat.score_brut?.toFixed(1)} / {s.resultat.score_possible?.toFixed(1)}</strong></span>

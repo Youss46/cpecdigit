@@ -999,6 +999,11 @@ router.post("/:id/sessions/:sessionId/annuler", requireRole("teacher", "admin"),
   try {
     const devoirId = Number(req.params.id);
     const sessionId = Number(req.params.sessionId);
+    const { motif } = req.body;
+
+    if (!motif || !String(motif).trim()) {
+      return res.status(400).json({ error: "Le motif d'annulation est obligatoire." });
+    }
 
     // Récupérer l'étudiant lié à cette session avant annulation
     const { rows: [session] } = await pool.query(
@@ -1006,7 +1011,10 @@ router.post("/:id/sessions/:sessionId/annuler", requireRole("teacher", "admin"),
       [sessionId]
     );
 
-    await pool.query(`UPDATE devoir_sessions SET statut = 'annule' WHERE id = $1`, [sessionId]);
+    await pool.query(
+      `UPDATE devoir_sessions SET statut = 'annule', motif_annulation = $1 WHERE id = $2`,
+      [String(motif).trim(), sessionId]
+    );
     await pool.query(`UPDATE devoir_resultats SET statut = 'annule' WHERE session_id = $1`, [sessionId]);
 
     // Resynchroniser la note dans grades pour cet étudiant
@@ -1042,6 +1050,22 @@ router.post("/:id/sessions/:sessionId/annuler", requireRole("teacher", "admin"),
           [etudiantId, devoirId]
         );
       }
+
+      // Notifier l'étudiant
+      const devoir = await getDevoir(devoirId);
+      const titreDevoir = devoir?.titre ?? "un devoir";
+      await db.insert(notificationsTable).values({
+        userId: etudiantId,
+        type: "devoir_annule",
+        title: "Session de devoir annulée",
+        message: `Votre session pour le devoir « ${titreDevoir} » a été annulée par votre enseignant. Motif : ${String(motif).trim()}`,
+      });
+      await sendPushToUser(etudiantId, {
+        title: "Session annulée",
+        body: `Devoir « ${titreDevoir} » — Motif : ${String(motif).trim()}`,
+        url: "/student/devoirs",
+        tag: `devoir-annule-${sessionId}`,
+      });
     }
 
     res.json({ ok: true });

@@ -76,6 +76,7 @@ export async function ensureDevoirsSchema() {
     await client.query(`ALTER TABLE devoir_sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)`);
     await client.query(`ALTER TABLE devoir_sessions ADD COLUMN IF NOT EXISTS user_agent TEXT`);
     await client.query(`ALTER TABLE devoir_sessions ADD COLUMN IF NOT EXISTS watermark_actif BOOLEAN NOT NULL DEFAULT TRUE`);
+    await client.query(`ALTER TABLE devoir_sessions ADD COLUMN IF NOT EXISTS motif_annulation TEXT`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS devoir_reponses_etudiants (
