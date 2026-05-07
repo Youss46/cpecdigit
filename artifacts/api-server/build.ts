@@ -62,7 +62,11 @@ async function buildAll() {
     format: "esm",
     outfile: path.resolve(distDir, "index.mjs"),
     banner: {
-      js: `import { createRequire } from 'module'; const require = createRequire(import.meta.url);`,
+      // createRequire: enables require() in ESM bundles (needed by some deps).
+      // webcrypto polyfill: @simplewebauthn/server needs globalThis.crypto which
+      // is only auto-set on Node.js 19+. On Node.js 18 (Railway default) we must
+      // inject it manually from node:crypto.webcrypto before any module code runs.
+      js: `import { createRequire } from 'module'; const require = createRequire(import.meta.url); const { webcrypto: __wc } = require('node:crypto'); if (!globalThis.crypto) globalThis.crypto = __wc;`,
     },
     define: {
       "process.env.NODE_ENV": '"production"',

@@ -1,0 +1,78 @@
+## AI
+
+### Analyzing network data
+
+**Request:**
+````
+Request URL: https://api.m15-edutech.ci/api/auth/webauthn/register/start
+
+Request headers:
+:authority: api.m15-edutech.ci
+:method: POST
+:path: /api/auth/webauthn/register/start
+:scheme: https
+accept: */*
+accept-encoding: gzip, deflate, br, zstd
+accept-language: fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7
+content-length: <redacted>
+content-type: application/json
+cookie: <redacted>
+origin: https://www.m15-edutech.ci
+priority: <redacted>
+referer: https://www.m15-edutech.ci/
+sec-ch-ua: <redacted>
+sec-ch-ua-mobile: <redacted>
+sec-ch-ua-platform: <redacted>
+sec-fetch-dest: <redacted>
+sec-fetch-mode: <redacted>
+sec-fetch-site: <redacted>
+user-agent: Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
+````
+
+**Response:**
+````
+Response headers:
+access-control-allow-credentials: true
+access-control-allow-origin: https://www.m15-edutech.ci
+content-length: <redacted>
+content-type: application/json; charset=utf-8
+date: Thu, 07 May 2026 22:55:36 GMT
+etag: <redacted>
+server: railway-edge
+vary: Origin
+x-powered-by: Express
+x-railway-edge: <redacted>
+x-railway-request-id: <redacted>
+
+Response body:
+{"error":"Erreur lors de la génération du défi","_debug":"An instance of the Crypto API could not be located","_name":"MissingWebCrypto"}
+
+Response status: 500 
+Network request status: finished
+````
+
+**Timing:**
+````
+Queued at (timestamp): 383.1 s
+Started at (timestamp): 383.3 s
+Queueing (duration): 186 ms
+Connection start (stalled) (duration): 0.6 ms
+Request sent (duration): 6 ms
+Waiting for server response (duration): 169 ms
+Content download (duration): 2 ms
+Duration (duration): 364 ms
+````
+
+**Request initiator chain:**
+````
+- URL: https://api.m15-edutech.ci/api/auth/webauthn/register/start
+````
+
+### Answer
+
+**Root Cause**: The server failed to generate a WebAuthn registration challenge because it cannot access a Web Crypto API instance. The error message `MissingWebCrypto` indicates the server-side environment (likely a Node.js/Express instance on Railway) is missing the required cryptographic libraries or global `crypto` object necessary for secure random challenge generation.
+
+**Suggestions**:
+*   **Update Runtime**: Ensure the server is running on Node.js v19 or higher, where the Web Crypto API is available globally. 
+*   **Polyfill Crypto**: If using an older Node.js version, explicitly import and globalize the crypto module: `globalThis.crypto = require('node:crypto').webcrypto;`.
+*   **Check Dependencies**: Verify that the WebAuthn library (e.g., `@simplewebauthn/server`) is correctly configured for the target environment.
