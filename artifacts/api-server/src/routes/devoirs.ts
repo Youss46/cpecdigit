@@ -830,8 +830,7 @@ router.get("/:id/rapport", requireRole("teacher", "admin"), async (req, res) => 
 
     const { rows: sessions } = await pool.query(
       `SELECT ds.*, u.name AS etudiant_nom,
-              (SELECT COUNT(*) FROM devoir_incidents WHERE session_id = ds.id) AS nb_incidents_reel,
-              (SELECT * FROM devoir_resultats WHERE session_id = ds.id LIMIT 1) AS resultat
+              (SELECT COUNT(*) FROM devoir_incidents WHERE session_id = ds.id) AS nb_incidents_reel
        FROM devoir_sessions ds
        JOIN users u ON u.id = ds.etudiant_id
        WHERE ds.devoir_id = $1
