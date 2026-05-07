@@ -440,6 +440,96 @@ router.delete("/:id", requireRole("teacher", "admin"), async (req, res) => {
   }
 });
 
+// PUT /api/devoirs/:id — modifier un devoir (enseignant propriétaire)
+router.put("/:id", requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const userId = req.session!.userId!;
+    const role = req.session!.role!;
+
+    const devoir = await getDevoir(id);
+    if (!devoir) return res.status(404).json({ error: "Devoir introuvable" });
+    if (role !== "admin" && devoir.enseignant_id !== userId) {
+      return res.status(403).json({ error: "Accès refusé" });
+    }
+
+    const {
+      titre, description, matiereId, classeIds, typeDevoir,
+      dureeMinutes, dateDebut, dateFin, nbTentatives, noteSur,
+      optionsAntitiche, questions,
+    } = req.body;
+
+    if (!titre || !dateDebut || !dateFin) {
+      return res.status(400).json({ error: "Champs obligatoires manquants" });
+    }
+
+    // Vérifier si des sessions existent (non annulées)
+    const { rows: [{ count }] } = await pool.query(
+      `SELECT COUNT(*) FROM devoir_sessions WHERE devoir_id = $1 AND statut != 'annule'`,
+      [id]
+    );
+    const hasSessions = Number(count) > 0;
+
+    // Mettre à jour les métadonnées (toujours autorisé)
+    await pool.query(
+      `UPDATE devoirs
+       SET titre=$1, description=$2, duree_minutes=$3, date_debut=$4, date_fin=$5,
+           nb_tentatives=$6, note_sur=$7, type_devoir=$8, options_antitiche=$9
+       WHERE id=$10`,
+      [titre, description ?? null, dureeMinutes ?? 60, dateDebut, dateFin,
+       nbTentatives ?? 1, noteSur ?? 20, typeDevoir ?? "exercice",
+       JSON.stringify(optionsAntitiche ?? {}), id]
+    );
+
+    // Mettre à jour classes + questions seulement si aucune session démarrée
+    if (!hasSessions && questions?.length) {
+      if (classeIds?.length) {
+        if (role !== "admin") {
+          const { rows: affectations } = await pool.query(
+            `SELECT class_id FROM teacher_assignments WHERE teacher_id = $1 AND subject_id = $2 AND class_id = ANY($3)`,
+            [userId, matiereId, classeIds]
+          );
+          const classesAutorisees = affectations.map((a: any) => a.class_id);
+          const classesNonAutorisees = (classeIds as number[]).filter(id => !classesAutorisees.includes(id));
+          if (classesNonAutorisees.length > 0) {
+            return res.status(403).json({ error: `Vous n'êtes pas affecté à cette matière pour ${classesNonAutorisees.length} classe(s).` });
+          }
+        }
+        await pool.query(`DELETE FROM devoir_classes WHERE devoir_id = $1`, [id]);
+        for (const classeId of classeIds) {
+          await pool.query(`INSERT INTO devoir_classes (devoir_id, classe_id) VALUES ($1, $2)`, [id, classeId]);
+        }
+      }
+
+      await pool.query(`DELETE FROM devoir_questions WHERE devoir_id = $1`, [id]);
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const qRes = await pool.query(
+          `INSERT INTO devoir_questions (devoir_id, texte, type, points, ordre, explication, valeur_numerique, tolerance_numerique)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+          [id, q.texte, q.type, q.points ?? 1, i,
+           q.explication ?? null, q.valeurNumerique ?? null, q.toleranceNumerique ?? 0]
+        );
+        const qId = qRes.rows[0].id;
+        if (q.reponses?.length) {
+          for (let j = 0; j < q.reponses.length; j++) {
+            const r = q.reponses[j];
+            await pool.query(
+              `INSERT INTO devoir_reponses_possibles (question_id, texte, est_correcte, ordre) VALUES ($1,$2,$3,$4)`,
+              [qId, r.texte, r.estCorrecte ?? false, j]
+            );
+          }
+        }
+      }
+    }
+
+    res.json({ ok: true, hasSessions });
+  } catch (err) {
+    console.error("PUT /devoirs/:id:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 // PATCH /api/devoirs/:id/statut — ouvrir/clôturer
 router.patch("/:id/statut", requireRole("teacher", "admin"), async (req, res) => {
   try {
