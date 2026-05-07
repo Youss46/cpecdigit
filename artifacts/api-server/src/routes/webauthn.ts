@@ -84,9 +84,13 @@ router.post("/webauthn/register/start", requireAuth, async (req, res) => {
     // Store challenge in session
     req.session!.webauthnChallenge = options.challenge;
     res.json(options);
-  } catch (err) {
+  } catch (err: any) {
     console.error("WebAuthn register/start error:", err);
-    res.status(500).json({ error: "Erreur lors de la génération du défi" });
+    res.status(500).json({
+      error: "Erreur lors de la génération du défi",
+      _debug: String(err?.message ?? err),
+      _name: err?.name,
+    });
   }
 });
 
