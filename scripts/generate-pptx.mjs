@@ -1,996 +1,621 @@
 import PptxGenJS from "pptxgenjs";
+import { mkdirSync } from "fs";
+
+mkdirSync("dist", { recursive: true });
 
 const pptx = new PptxGenJS();
-pptx.layout = "LAYOUT_WIDE"; // 13.33" x 7.5"
-pptx.author = "M15 EduTech";
+pptx.layout = "LAYOUT_WIDE";
+pptx.author  = "M15 EduTech";
 pptx.company = "M15 EduTech";
-pptx.subject = "CPEC-U — Plateforme de Gestion Académique";
-pptx.title = "CPEC-U · M15 EduTech";
+pptx.title   = "M15 EduTech — Plateforme SaaS Académique";
 
-// ─── DESIGN SYSTEM ───────────────────────────────────────────────────────────
+// ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
-  bg:       "060C1A",   // deep navy-black
-  surface:  "0D1B32",   // dark navy surface
-  surface2: "111F38",   // lighter navy card
-  gold:     "E8A838",   // warm amber-gold (prestige, Afrique)
-  goldMid:  "D4912A",   // gold mid
-  blue:     "3A7EFF",   // electric blue (tech)
-  blueDeep: "1A4BAA",   // deeper blue for contrast
-  white:    "FFFFFF",
-  offWhite: "E2EAF5",
-  gray:     "94A3B8",
-  grayLight:"C8D6E8",
-  dark:     "1E2D45",
+  bg:      "060C1A",
+  surface: "0D1B32",
+  card:    "111F38",
+  gold:    "E8A838",
+  goldLight: "F5C842",
+  blue:    "3A7EFF",
+  teal:    "0EA5B0",
+  green:   "16A34A",
+  purple:  "7C3AED",
+  red:     "DC2626",
+  white:   "FFFFFF",
+  offWhite:"E2EAF5",
+  gray:    "94A3B8",
+  dark:    "1A2C46",
 };
+const F = { display: "Calibri", body: "Calibri" };
+const TOTAL = 15;
 
-const F = {
-  display: "Space Grotesk",
-  body:    "DM Sans",
-};
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-
-function addBg(slide, color = C.bg) {
-  slide.background = { color };
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+function bg(s)  { s.background = { color: C.bg }; }
+function topBar(s, w = 13.33) {
+  s.addShape(pptx.ShapeType.rect, { x:0, y:0, w, h:0.055, fill:{color:C.gold}, line:{color:C.gold} });
 }
-
-// Top gold stripe
-function addTopStripe(slide, wFraction = 0.35) {
-  slide.addShape(pptx.ShapeType.rect, {
-    x: 0, y: 0, w: 13.33 * wFraction, h: 0.055,
-    fill: { color: C.gold }, line: { color: C.gold },
+function botBar(s) {
+  s.addShape(pptx.ShapeType.rect, { x:0, y:7.445, w:13.33, h:0.055, fill:{color:C.blue}, line:{color:C.blue} });
+}
+function footer(s, n) {
+  s.addText("M15 EduTech  |  www.m15-edutech.ci", {
+    x:0, y:7.1, w:13.33, h:0.28, align:"center",
+    fontFace:F.body, fontSize:8.5, color:C.gray,
   });
-}
-
-// Bottom blue stripe
-function addBottomStripe(slide) {
-  slide.addShape(pptx.ShapeType.rect, {
-    x: 0, y: 7.445, w: 13.33, h: 0.055,
-    fill: { color: C.blue }, line: { color: C.blue },
+  s.addText(`${n} / ${TOTAL}`, {
+    x:12.5, y:7.1, w:0.7, h:0.28, align:"right",
+    fontFace:F.body, fontSize:8.5, color:C.gray,
   });
 }
-
-// Footer label (right-aligned)
-function addFooter(slide, label = "CPEC-U · M15 EduTech") {
-  slide.addText(label, {
-    x: 0, y: 7.15, w: 13.33, h: 0.25,
-    align: "right", valign: "middle",
-    fontFace: F.body, fontSize: 8.5,
-    color: C.gray, italic: false,
-    margin: [0, 0.25, 0, 0],
-  });
+function rule(s, x, y, w, color=C.gold) {
+  s.addShape(pptx.ShapeType.rect, { x, y, w, h:0.028, fill:{color}, line:{color} });
+}
+function badge(s, text, x, y, color=C.gold) {
+  const w = Math.max(1.1, text.length * 0.092 + 0.4);
+  s.addShape(pptx.ShapeType.rect, { x, y, w, h:0.26, fill:{color}, line:{color} });
+  s.addText(text.toUpperCase(), { x, y, w, h:0.26, align:"center", valign:"middle",
+    fontFace:F.body, fontSize:8, bold:true, color:C.bg });
+}
+function card(s, x, y, w, h, borderColor=C.blue) {
+  s.addShape(pptx.ShapeType.rect, { x, y, w, h,
+    fill:{color:C.card}, line:{color:borderColor, width:0.75} });
+}
+function leftAccent(s, x, y, h, color=C.gold) {
+  s.addShape(pptx.ShapeType.rect, { x, y, w:0.06, h, fill:{color}, line:{color} });
+}
+function heading(s, text, x, y, w, size=32, color=C.white) {
+  s.addText(text, { x, y, w, h:1.1, align:"left", valign:"top",
+    fontFace:F.display, fontSize:size, bold:true, color, charSpacing:-0.3 });
+}
+function bullets(s, items, x, y, w, h, size=12, color=C.offWhite) {
+  const rows = items.map(t => ({
+    text: t,
+    options: { bullet:{code:"25B8"}, color, fontSize:size, fontFace:F.body,
+               paraSpaceAfter:7, lineSpacingMultiple:1.35 },
+  }));
+  s.addText(rows, { x, y, w, h, valign:"top" });
 }
 
-function addSlideNumber(slide, n, total = 10) {
-  slide.addText(`${n}  /  ${total}`, {
-    x: 0, y: 7.15, w: 1.2, h: 0.25,
-    align: "left", valign: "middle",
-    fontFace: F.body, fontSize: 8.5,
-    color: C.gray,
-    margin: [0, 0, 0, 0.35],
-  });
-}
-
-// Section badge (gold pill label)
-function addBadge(slide, text, x, y) {
-  slide.addShape(pptx.ShapeType.rect, {
-    x, y, w: text.length * 0.085 + 0.35, h: 0.22,
-    fill: { color: C.gold }, line: { color: C.gold },
-  });
-  slide.addText(text.toUpperCase(), {
-    x: x + 0.015, y, w: text.length * 0.085 + 0.35, h: 0.22,
-    align: "center", valign: "middle",
-    fontFace: F.body, fontSize: 7.5, bold: true,
-    color: C.bg,
-  });
-}
-
-// Big display headline
-function headline(slide, text, x, y, w, size = 36, color = C.white, align = "left") {
-  slide.addText(text, {
-    x, y, w, h: 1.1,
-    align, valign: "top",
-    fontFace: F.display, fontSize: size, bold: true,
-    color,
-    charSpacing: -0.5,
-  });
-}
-
-// Body paragraph
-function body(slide, text, x, y, w, h = 0.35, size = 12.5, color = C.offWhite) {
-  slide.addText(text, {
-    x, y, w, h,
-    align: "left", valign: "top",
-    fontFace: F.body, fontSize: size,
-    color, lineSpacingMultiple: 1.4,
-  });
-}
-
-// Accent line (horizontal rule)
-function rule(slide, x, y, w, color = C.gold, h = 0.03) {
-  slide.addShape(pptx.ShapeType.rect, {
-    x, y, w, h,
-    fill: { color }, line: { color },
-  });
-}
-
-// Card (dark surface)
-function card(slide, x, y, w, h) {
-  slide.addShape(pptx.ShapeType.rect, {
-    x, y, w, h,
-    fill: { color: C.surface2 },
-    line: { color: "1E3A60", width: 0.5 },
-    shadow: { type: "outer", color: "000000", opacity: 0.3, blur: 12, offset: 4, angle: 270 },
-  });
-}
-
-// Stat block: big number + label
-function stat(slide, number, label, x, y) {
-  slide.addText(number, {
-    x, y, w: 2.6, h: 0.75,
-    align: "center", valign: "middle",
-    fontFace: F.display, fontSize: 40, bold: true,
-    color: C.gold,
-  });
-  slide.addText(label, {
-    x, y: y + 0.65, w: 2.6, h: 0.4,
-    align: "center", valign: "middle",
-    fontFace: F.body, fontSize: 10.5,
-    color: C.gray,
-  });
-}
-
-// Dot bullet
-function bullet(slide, text, x, y, size = 11.5) {
-  slide.addShape(pptx.ShapeType.rect, {
-    x: x - 0.18, y: y + 0.065, w: 0.055, h: 0.055,
-    fill: { color: C.gold }, line: { color: C.gold },
-  });
-  slide.addText(text, {
-    x, y, w: 5.0, h: 0.35,
-    align: "left", valign: "middle",
-    fontFace: F.body, fontSize: size,
-    color: C.offWhite,
-  });
-}
-
-// Tech badge pill (dark + blue outline)
-function techBadge(slide, label, x, y) {
-  const w = label.length * 0.078 + 0.45;
-  slide.addShape(pptx.ShapeType.rect, {
-    x, y, w, h: 0.28,
-    fill: { color: C.dark },
-    line: { color: C.blue, width: 0.75 },
-  });
-  slide.addText(label, {
-    x, y, w, h: 0.28,
-    align: "center", valign: "middle",
-    fontFace: F.body, fontSize: 9, bold: false,
-    color: C.blue,
-  });
-  return w;
-}
-
-// ─── SLIDE 1 — TITRE ─────────────────────────────────────────────────────────
+// ─── SLIDE 1 — Titre ──────────────────────────────────────────────────────────
 {
   const s = pptx.addSlide();
-  addBg(s);
-
-  // Background gradient feel: large dark shapes
-  s.addShape(pptx.ShapeType.rect, {
-    x: 7.2, y: 0, w: 6.13, h: 7.5,
-    fill: { color: C.surface }, line: { color: C.surface },
-  });
-  // Grid accent lines (vertical)
-  for (let i = 0; i < 6; i++) {
-    s.addShape(pptx.ShapeType.rect, {
-      x: 7.2 + i * 0.95, y: 0, w: 0.008, h: 7.5,
-      fill: { color: "142840" }, line: { color: "142840" },
-    });
-  }
-  // Horizontal lines
-  for (let i = 1; i < 8; i++) {
-    s.addShape(pptx.ShapeType.rect, {
-      x: 7.2, y: i * 0.94, w: 6.13, h: 0.008,
-      fill: { color: "142840" }, line: { color: "142840" },
-    });
-  }
-
-  // Gold vertical accent bar
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0.5, y: 1.5, w: 0.07, h: 2.8,
-    fill: { color: C.gold }, line: { color: C.gold },
-  });
-  // Blue thin bar below gold
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0.5, y: 4.3, w: 0.07, h: 1.2,
-    fill: { color: C.blue }, line: { color: C.blue },
-  });
-
-  // Institution label
-  addBadge(s, "INP-HB · Côte d'Ivoire", 0.85, 1.58);
-
-  // Main title
-  s.addText("CPEC-U", {
-    x: 0.85, y: 2.0, w: 6.0, h: 1.45,
-    fontFace: F.display, fontSize: 82, bold: true,
-    color: C.white, charSpacing: -2,
-  });
-
-  // Subtitle
-  s.addText("Plateforme de Gestion Académique", {
-    x: 0.85, y: 3.42, w: 6.0, h: 0.6,
-    fontFace: F.display, fontSize: 22, bold: false,
-    color: C.gold, charSpacing: 0.5,
-  });
-
-  rule(s, 0.85, 4.15, 4.5, C.blue, 0.025);
-
-  // Body
-  s.addText("Solution SaaS multi-tenant dédiée à l'INP-HB,\ncouvrant la scolarité, les notes, les absences\net la vie étudiante — de bout en bout.", {
-    x: 0.85, y: 4.3, w: 6.2, h: 1.1,
-    fontFace: F.body, fontSize: 13.5,
-    color: C.offWhite, lineSpacingMultiple: 1.55,
-  });
-
-  // Right panel — app tag lines
-  const tags = [
-    ["Multi-tenant",    "Une instance, N établissements"],
-    ["Temps réel",      "Données synchronisées instantanément"],
-    ["Sécurisé",        "Auth multi-rôle, sessions protégées"],
-    ["Moderne",         "React · Express · PostgreSQL"],
-  ];
-  tags.forEach(([title, sub], i) => {
-    const y = 1.0 + i * 1.45;
-    s.addShape(pptx.ShapeType.rect, {
-      x: 7.5, y, w: 5.5, h: 1.25,
-      fill: { color: C.dark },
-      line: { color: "1E3A60", width: 0.5 },
-    });
-    s.addShape(pptx.ShapeType.rect, {
-      x: 7.5, y, w: 0.055, h: 1.25,
-      fill: { color: C.gold }, line: { color: C.gold },
-    });
-    s.addText(title, {
-      x: 7.7, y: y + 0.2, w: 5.1, h: 0.38,
-      fontFace: F.display, fontSize: 14, bold: true,
-      color: C.white,
-    });
-    s.addText(sub, {
-      x: 7.7, y: y + 0.58, w: 5.1, h: 0.38,
-      fontFace: F.body, fontSize: 11,
-      color: C.gray,
-    });
-  });
-
-  // Bottom bar
-  addBottomStripe(s);
-  s.addText("M15 EduTech  —  Mai 2025", {
-    x: 0.85, y: 7.1, w: 4, h: 0.28,
-    fontFace: F.body, fontSize: 9,
-    color: C.gray,
-  });
-}
-
-// ─── SLIDE 2 — CONSTAT ───────────────────────────────────────────────────────
-{
-  const s = pptx.addSlide();
-  addBg(s);
-  addTopStripe(s, 0.25);
-  addBottomStripe(s);
-  addFooter(s);
-  addSlideNumber(s, 2);
-
-  addBadge(s, "Contexte", 0.6, 0.55);
-
-  s.addText("Le défi de la gestion académique", {
-    x: 0.6, y: 0.9, w: 7.5, h: 0.9,
-    fontFace: F.display, fontSize: 34, bold: true,
-    color: C.white, charSpacing: -0.5,
-  });
-
-  rule(s, 0.6, 1.82, 2.8, C.gold, 0.025);
-
-  s.addText("Les établissements académiques africains font face à des défis\nd'organisation que les outils traditionnels ne résolvent plus.", {
-    x: 0.6, y: 1.95, w: 7.8, h: 0.7,
-    fontFace: F.body, fontSize: 13,
-    color: C.gray, lineSpacingMultiple: 1.5,
-  });
-
-  // 3 pain cards
-  const pains = [
-    {
-      icon: "01",
-      title: "Gestion fragmentée",
-      desc: "Emplois du temps sur papier, notes dans des tableurs disparates, aucune vision consolidée pour la direction.",
-    },
-    {
-      icon: "02",
-      title: "Suivi étudiant lacunaire",
-      desc: "Absences non centralisées, paiements de frais non tracés, bulletins générés manuellement avec risques d'erreur.",
-    },
-    {
-      icon: "03",
-      title: "Communication silotée",
-      desc: "Enseignants, étudiants et administration sans canal commun. L'information circule lentement et se perd.",
-    },
-  ];
-
-  pains.forEach((p, i) => {
-    const x = 0.6 + i * 4.2;
-    card(s, x, 2.85, 3.85, 3.85);
-
-    // Number
-    s.addText(p.icon, {
-      x: x + 0.25, y: 2.95, w: 0.8, h: 0.55,
-      fontFace: F.display, fontSize: 28, bold: true,
-      color: C.gold,
-    });
-
-    // Title
-    s.addText(p.title, {
-      x: x + 0.25, y: 3.55, w: 3.3, h: 0.45,
-      fontFace: F.display, fontSize: 14.5, bold: true,
-      color: C.white,
-    });
-
-    rule(s, x + 0.25, 4.02, 0.8, C.gold, 0.025);
-
-    // Desc
-    s.addText(p.desc, {
-      x: x + 0.25, y: 4.15, w: 3.35, h: 1.3,
-      fontFace: F.body, fontSize: 11.5,
-      color: C.offWhite, lineSpacingMultiple: 1.5,
-    });
-  });
-}
-
-// ─── SLIDE 3 — LA SOLUTION ────────────────────────────────────────────────────
-{
-  const s = pptx.addSlide();
-  addBg(s);
-  addTopStripe(s, 1.0);  // full width gold stripe
-  addBottomStripe(s);
-  addFooter(s);
-  addSlideNumber(s, 3);
-
-  // Left dark panel
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0, y: 0.055, w: 5.8, h: 7.39,
-    fill: { color: C.surface }, line: { color: C.surface },
-  });
-
-  addBadge(s, "Solution", 0.55, 0.7);
-
-  s.addText("CPEC-U", {
-    x: 0.55, y: 1.1, w: 5.0, h: 0.95,
-    fontFace: F.display, fontSize: 54, bold: true,
-    color: C.white, charSpacing: -1.5,
-  });
-
-  s.addText("Une plateforme unique pour\nunifier l'académique, le\npédagogique et l'administratif.", {
-    x: 0.55, y: 2.1, w: 4.9, h: 1.3,
-    fontFace: F.body, fontSize: 15.5,
-    color: C.offWhite, lineSpacingMultiple: 1.6,
-  });
-
-  rule(s, 0.55, 3.55, 3.5, C.gold, 0.025);
-
-  s.addText("Pensé pour les grandes structures comme l'INP-HB\navec plusieurs écoles, filières et populations distinctes.", {
-    x: 0.55, y: 3.72, w: 5.0, h: 0.9,
-    fontFace: F.body, fontSize: 12.5,
-    color: C.gray, lineSpacingMultiple: 1.5,
-  });
-
-  // Right: 4 key stats in a 2×2 grid
-  const stats = [
-    ["Multi-école",    "1 plateforme, N établissements"],
-    ["Temps réel",     "Synchronisation instantanée"],
-    ["Multi-rôle",     "Directeur · Enseignant · Élève"],
-    ["Full-stack",     "React · Express · PostgreSQL"],
-  ];
-
-  stats.forEach(([title, sub], i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const x = 6.2 + col * 3.4;
-    const y = 0.9 + row * 2.85;
-
-    card(s, x, y, 3.1, 2.55);
-
-    // Icon number
-    s.addShape(pptx.ShapeType.rect, {
-      x: x + 0.25, y: y + 0.3, w: 0.42, h: 0.42,
-      fill: { color: C.gold }, line: { color: C.gold },
-    });
-    s.addText(`0${i + 1}`, {
-      x: x + 0.25, y: y + 0.3, w: 0.42, h: 0.42,
-      fontFace: F.display, fontSize: 11, bold: true,
-      color: C.bg, align: "center", valign: "middle",
-    });
-
-    s.addText(title, {
-      x: x + 0.25, y: y + 0.95, w: 2.7, h: 0.45,
-      fontFace: F.display, fontSize: 15, bold: true,
-      color: C.white,
-    });
-    s.addText(sub, {
-      x: x + 0.25, y: y + 1.42, w: 2.7, h: 0.65,
-      fontFace: F.body, fontSize: 11,
-      color: C.gray, lineSpacingMultiple: 1.4,
-    });
-  });
-}
-
-// ─── SLIDE 4 — ARCHITECTURE ───────────────────────────────────────────────────
-{
-  const s = pptx.addSlide();
-  addBg(s);
-  addTopStripe(s, 0.4);
-  addBottomStripe(s);
-  addFooter(s);
-  addSlideNumber(s, 4);
-
-  addBadge(s, "Architecture", 0.6, 0.55);
-
-  s.addText("Stack technique & déploiement", {
-    x: 0.6, y: 0.9, w: 8.0, h: 0.8,
-    fontFace: F.display, fontSize: 34, bold: true,
-    color: C.white, charSpacing: -0.5,
-  });
-
-  rule(s, 0.6, 1.72, 3.2, C.gold, 0.025);
-
-  // Architecture diagram (3 layers)
-  const layers = [
-    {
-      label: "Frontend",
-      tech: ["React 18", "Vite", "Tailwind CSS", "shadcn/ui"],
-      color: C.blue,
-      x: 0.6,
-    },
-    {
-      label: "Backend",
-      tech: ["Node.js", "Express", "Drizzle ORM", "TypeScript"],
-      color: C.gold,
-      x: 4.85,
-    },
-    {
-      label: "Infrastructure",
-      tech: ["PostgreSQL", "Railway", "Vercel", "Resend"],
-      color: "2EC2A0",
-      x: 9.1,
-    },
-  ];
-
-  layers.forEach((layer) => {
-    // Column header
-    s.addShape(pptx.ShapeType.rect, {
-      x: layer.x, y: 2.05, w: 3.8, h: 0.5,
-      fill: { color: layer.color }, line: { color: layer.color },
-    });
-    s.addText(layer.label, {
-      x: layer.x, y: 2.05, w: 3.8, h: 0.5,
-      fontFace: F.display, fontSize: 14.5, bold: true,
-      color: layer.label === "Backend" ? C.bg : C.bg,
-      align: "center", valign: "middle",
-    });
-
-    // Tech list
-    layer.tech.forEach((t, i) => {
-      card(s, layer.x, 2.7 + i * 1.0, 3.8, 0.82);
-      s.addText(t, {
-        x: layer.x + 0.3, y: 2.7 + i * 1.0, w: 3.2, h: 0.82,
-        fontFace: F.body, fontSize: 13.5, bold: false,
-        color: C.offWhite, valign: "middle",
-      });
-      s.addShape(pptx.ShapeType.rect, {
-        x: layer.x, y: 2.7 + i * 1.0, w: 0.045, h: 0.82,
-        fill: { color: layer.color }, line: { color: layer.color },
-      });
-    });
-  });
-
-  // Bottom: architecture principle
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0.6, y: 6.7, w: 12.13, h: 0.42,
-    fill: { color: C.dark },
-    line: { color: "1E3A60", width: 0.5 },
-  });
-  s.addText("Architecture multi-tenant  ·  Isolation complète des données par école  ·  Sessions sécurisées  ·  API REST documentée", {
-    x: 0.6, y: 6.7, w: 12.13, h: 0.42,
-    fontFace: F.body, fontSize: 11.5,
-    color: C.gray, align: "center", valign: "middle",
-  });
-}
-
-// ─── SLIDE 5 — GESTION ACADÉMIQUE ────────────────────────────────────────────
-{
-  const s = pptx.addSlide();
-  addBg(s);
-  addTopStripe(s, 0.3);
-  addBottomStripe(s);
-  addFooter(s);
-  addSlideNumber(s, 5);
-
-  addBadge(s, "Fonctionnalités", 0.6, 0.55);
-
-  s.addText("Gestion académique complète", {
-    x: 0.6, y: 0.9, w: 8.0, h: 0.8,
-    fontFace: F.display, fontSize: 34, bold: true,
-    color: C.white, charSpacing: -0.5,
-  });
-
-  rule(s, 0.6, 1.72, 3.8, C.gold, 0.025);
-
-  const features = [
-    {
-      title: "Classes & Filières",
-      items: ["Création et organisation des classes", "Gestion des filières et niveaux", "Affectation des enseignants", "Emplois du temps intégrés"],
-    },
-    {
-      title: "Notes & Bulletins",
-      items: ["Saisie des notes par matière", "Calcul automatique des moyennes", "Génération de bulletins PDF", "Classements et statistiques"],
-    },
-    {
-      title: "Emplois du temps",
-      items: ["Planning hebdomadaire visuel", "Gestion des salles et horaires", "Affichage par classe ou enseignant", "Export PDF"],
-    },
-  ];
-
-  features.forEach((f, i) => {
-    const x = 0.6 + i * 4.28;
-    card(s, x, 2.05, 3.9, 4.65);
-
-    s.addShape(pptx.ShapeType.rect, {
-      x, y: 2.05, w: 3.9, h: 0.52,
-      fill: { color: C.surface2 },
-      line: { color: C.gold, width: 0.75 },
-    });
-    s.addText(f.title, {
-      x: x + 0.22, y: 2.05, w: 3.5, h: 0.52,
-      fontFace: F.display, fontSize: 13.5, bold: true,
-      color: C.gold, valign: "middle",
-    });
-
-    f.items.forEach((item, j) => {
-      s.addShape(pptx.ShapeType.rect, {
-        x: x + 0.22, y: 2.9 + j * 0.82 - 0.05, w: 0.06, h: 0.06,
-        fill: { color: C.gold }, line: { color: C.gold },
-      });
-      s.addText(item, {
-        x: x + 0.38, y: 2.8 + j * 0.82, w: 3.3, h: 0.7,
-        fontFace: F.body, fontSize: 11.5,
-        color: C.offWhite, valign: "middle", lineSpacingMultiple: 1.3,
-      });
-    });
-  });
-}
-
-// ─── SLIDE 6 — VIE ÉTUDIANTE ──────────────────────────────────────────────────
-{
-  const s = pptx.addSlide();
-  addBg(s);
-
-  // Right accent panel
-  s.addShape(pptx.ShapeType.rect, {
-    x: 7.8, y: 0, w: 5.53, h: 7.5,
-    fill: { color: C.surface }, line: { color: C.surface },
-  });
-
-  addTopStripe(s, 0.55);
-  addBottomStripe(s);
-  addFooter(s);
-  addSlideNumber(s, 6);
-
-  addBadge(s, "Vie Étudiante", 0.6, 0.55);
-
-  s.addText("Suivi complet\nde l'étudiant", {
-    x: 0.6, y: 0.9, w: 7.0, h: 1.45,
-    fontFace: F.display, fontSize: 38, bold: true,
-    color: C.white, charSpacing: -0.5, lineSpacingMultiple: 1.2,
-  });
-
-  rule(s, 0.6, 2.42, 3.5, C.gold, 0.025);
-
-  s.addText("Chaque étudiant dispose d'un profil centralisé\ncouvrant sa scolarité de l'inscription à la diplomation.", {
-    x: 0.6, y: 2.6, w: 6.8, h: 0.7,
-    fontFace: F.body, fontSize: 13,
-    color: C.gray, lineSpacingMultiple: 1.5,
-  });
-
-  // Left feature list
-  const leftFeatures = [
-    ["Gestion des absences",   "Pointage, justificatifs, seuils d'alerte"],
-    ["Paiements de frais",     "Suivi des tranches, relances automatisées"],
-    ["Dossier étudiant",       "Documents, historique, parcours complet"],
-    ["Messagerie interne",     "Communication directe enseignant–élève"],
-  ];
-
-  leftFeatures.forEach(([title, sub], i) => {
-    const y = 3.45 + i * 0.82;
-    s.addShape(pptx.ShapeType.rect, {
-      x: 0.6, y, w: 0.35, h: 0.62,
-      fill: { color: i === 0 ? C.gold : C.dark },
-      line: { color: i === 0 ? C.gold : "1E3A60", width: 0.5 },
-    });
-    s.addText(`0${i + 1}`, {
-      x: 0.6, y, w: 0.35, h: 0.62,
-      fontFace: F.display, fontSize: 11, bold: true,
-      color: i === 0 ? C.bg : C.gray,
-      align: "center", valign: "middle",
-    });
-    s.addText(title, {
-      x: 1.1, y: y + 0.02, w: 6.4, h: 0.3,
-      fontFace: F.display, fontSize: 12.5, bold: true,
-      color: C.white,
-    });
-    s.addText(sub, {
-      x: 1.1, y: y + 0.3, w: 6.4, h: 0.28,
-      fontFace: F.body, fontSize: 11,
-      color: C.gray,
-    });
-  });
-
-  // Right panel: quick stats
-  const rightStats = [
-    ["Profil étudiant",   "Dossier académique unifié, accessible en temps réel par les équipes pédagogiques."],
-    ["Bibliothèque",      "Catalogue de ressources numériques accessible à tous les étudiants de l'établissement."],
-    ["Recommandations",   "Algorithme de recommandations pédagogiques basé sur les performances individuelles."],
-  ];
-
-  rightStats.forEach(([title, desc], i) => {
-    const y = 0.6 + i * 2.15;
-    card(s, 8.05, y, 4.95, 1.85);
-    s.addShape(pptx.ShapeType.rect, {
-      x: 8.05, y, w: 0.05, h: 1.85,
-      fill: { color: C.blue }, line: { color: C.blue },
-    });
-    s.addText(title, {
-      x: 8.25, y: y + 0.3, w: 4.55, h: 0.38,
-      fontFace: F.display, fontSize: 13.5, bold: true,
-      color: C.white,
-    });
-    s.addText(desc, {
-      x: 8.25, y: y + 0.72, w: 4.55, h: 0.88,
-      fontFace: F.body, fontSize: 11,
-      color: C.gray, lineSpacingMultiple: 1.4,
-    });
-  });
-}
-
-// ─── SLIDE 7 — ESPACE DIRECTION ───────────────────────────────────────────────
-{
-  const s = pptx.addSlide();
-  addBg(s);
-  addTopStripe(s, 1.0); // full gold top
-  addBottomStripe(s);
-  addFooter(s);
-  addSlideNumber(s, 7);
-
-  addBadge(s, "Direction", 0.6, 0.7);
-
-  s.addText("Un tableau de bord\npour les décideurs", {
-    x: 0.6, y: 1.05, w: 6.5, h: 1.6,
-    fontFace: F.display, fontSize: 38, bold: true,
-    color: C.white, charSpacing: -0.5, lineSpacingMultiple: 1.2,
-  });
-
-  rule(s, 0.6, 2.7, 3.0, C.gold, 0.025);
-
-  s.addText("Le directeur dispose d'une vision globale consolidée\nen temps réel — sans extraction manuelle.", {
-    x: 0.6, y: 2.85, w: 5.8, h: 0.75,
-    fontFace: F.body, fontSize: 13,
-    color: C.gray, lineSpacingMultiple: 1.5,
-  });
-
-  // Director capabilities
-  const caps = [
-    "Gestion des établissements et des licences",
-    "Suivi des performances académiques globales",
-    "Rapport de taux d'assiduité en temps réel",
-    "Supervision des enseignants et des classes",
-    "Administration des accès et des rôles",
-  ];
-
-  caps.forEach((c, i) => {
-    s.addShape(pptx.ShapeType.rect, {
-      x: 0.6, y: 3.75 + i * 0.58, w: 0.06, h: 0.06,
-      fill: { color: C.gold }, line: { color: C.gold },
-    });
-    s.addText(c, {
-      x: 0.82, y: 3.68 + i * 0.58, w: 5.2, h: 0.52,
-      fontFace: F.body, fontSize: 12.5,
-      color: C.offWhite, valign: "middle",
-    });
-  });
-
-  // Right: dashboard mock cards (2 × 2)
-  const dCards = [
-    { label: "Étudiants actifs",  value: "1 247",  delta: "+12 ce mois" },
-    { label: "Taux de présence",  value: "91 %",   delta: "Cible : 90 %" },
-    { label: "Bulletins générés", value: "3 812",  delta: "Semestre 1" },
-    { label: "Paiements à jour",  value: "87 %",   delta: "Taux de recouvrement" },
-  ];
-
-  dCards.forEach((dc, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const x = 6.8 + col * 3.35;
-    const y = 0.8 + row * 3.0;
-
-    card(s, x, y, 3.1, 2.55);
-
-    s.addText(dc.value, {
-      x, y: y + 0.45, w: 3.1, h: 0.95,
-      fontFace: F.display, fontSize: 42, bold: true,
-      color: C.gold, align: "center",
-    });
-    s.addText(dc.label, {
-      x, y: y + 1.42, w: 3.1, h: 0.45,
-      fontFace: F.body, fontSize: 12.5,
-      color: C.offWhite, align: "center",
-    });
-    s.addText(dc.delta, {
-      x, y: y + 1.88, w: 3.1, h: 0.38,
-      fontFace: F.body, fontSize: 10.5,
-      color: C.gray, align: "center",
-    });
-  });
-}
-
-// ─── SLIDE 8 — MULTI-TENANT & SÉCURITÉ ───────────────────────────────────────
-{
-  const s = pptx.addSlide();
-  addBg(s);
-  addTopStripe(s, 0.45);
-  addBottomStripe(s);
-  addFooter(s);
-  addSlideNumber(s, 8);
-
-  addBadge(s, "Sécurité & Infrastructure", 0.6, 0.55);
-
-  s.addText("Données isolées,\ninfrastructure robuste", {
-    x: 0.6, y: 0.9, w: 8.5, h: 1.45,
-    fontFace: F.display, fontSize: 36, bold: true,
-    color: C.white, charSpacing: -0.5, lineSpacingMultiple: 1.2,
-  });
-
-  rule(s, 0.6, 2.42, 4.0, C.gold, 0.025);
-
-  // Left: security principles
-  const principles = [
-    ["Isolation multi-tenant",    "Chaque école voit uniquement ses propres données. L'accès inter-tenant est architecturalement impossible."],
-    ["Sessions sécurisées",       "express-session avec invalidation immédiate à la modification des credentials. Cookies HttpOnly."],
-    ["Contrôle d'accès par rôle", "Superadmin · Directeur · Enseignant · Étudiant — chaque rôle voit exactement ce qui le concerne."],
-    ["Licences & expiration",     "Chaque établissement a une licence à durée définie. Accès coupé automatiquement à expiration."],
-  ];
-
-  principles.forEach(([title, desc], i) => {
-    const y = 2.65 + i * 1.05;
-    s.addShape(pptx.ShapeType.rect, {
-      x: 0.6, y, w: 3.9, h: 0.88,
-      fill: { color: C.dark },
-      line: { color: "1E3A60", width: 0.5 },
-    });
-    s.addShape(pptx.ShapeType.rect, {
-      x: 0.6, y, w: 0.045, h: 0.88,
-      fill: { color: C.gold }, line: { color: C.gold },
-    });
-    s.addText(title, {
-      x: 0.78, y: y + 0.04, w: 3.55, h: 0.3,
-      fontFace: F.display, fontSize: 11.5, bold: true,
-      color: C.white,
-    });
-    s.addText(desc, {
-      x: 0.78, y: y + 0.34, w: 3.55, h: 0.5,
-      fontFace: F.body, fontSize: 9.5,
-      color: C.gray, lineSpacingMultiple: 1.35,
-    });
-  });
-
-  // Right: deployment stack
-  s.addText("Déploiement", {
-    x: 5.2, y: 2.55, w: 4.0, h: 0.5,
-    fontFace: F.display, fontSize: 16, bold: true,
-    color: C.white,
-  });
-
-  const deploys = [
-    { label: "Railway",     role: "API · Backend · Base de données",  color: C.blue },
-    { label: "Vercel",      role: "Frontend · CDN mondial",           color: C.gold },
-    { label: "PostgreSQL",  role: "Données relationnelles + migrations", color: "2EC2A0" },
-    { label: "Resend",      role: "Emails transactionnels",           color: "A78BFA" },
-  ];
-
-  deploys.forEach((d, i) => {
-    const y = 3.15 + i * 1.02;
-    s.addShape(pptx.ShapeType.rect, {
-      x: 5.2, y, w: 7.5, h: 0.82,
-      fill: { color: C.surface2 },
-      line: { color: "1E3A60", width: 0.5 },
-    });
-    s.addShape(pptx.ShapeType.rect, {
-      x: 5.2, y, w: 0.045, h: 0.82,
-      fill: { color: d.color }, line: { color: d.color },
-    });
-    s.addText(d.label, {
-      x: 5.4, y: y + 0.04, w: 2.5, h: 0.35,
-      fontFace: F.display, fontSize: 13.5, bold: true,
-      color: C.white,
-    });
-    s.addText(d.role, {
-      x: 5.4, y: y + 0.38, w: 7.0, h: 0.35,
-      fontFace: F.body, fontSize: 11,
-      color: C.gray,
-    });
-  });
-}
-
-// ─── SLIDE 9 — DÉMO & ACCÈS ───────────────────────────────────────────────────
-{
-  const s = pptx.addSlide();
-  addBg(s);
-
-  // Big gold accent block (left half background)
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0, y: 0, w: 6.2, h: 7.5,
-    fill: { color: C.surface }, line: { color: C.surface },
-  });
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0, y: 0, w: 0.18, h: 7.5,
-    fill: { color: C.gold }, line: { color: C.gold },
-  });
-
-  addTopStripe(s, 0.46);
-  addBottomStripe(s);
-  addSlideNumber(s, 9);
-
-  addBadge(s, "Démonstration", 0.55, 0.55);
-
-  s.addText("Essayez CPEC-U\nen direct", {
-    x: 0.55, y: 0.95, w: 5.5, h: 1.55,
-    fontFace: F.display, fontSize: 42, bold: true,
-    color: C.white, charSpacing: -0.8, lineSpacingMultiple: 1.15,
-  });
-
-  rule(s, 0.55, 2.58, 3.5, C.gold, 0.025);
-
-  s.addText("Plateforme hébergée et accessible depuis n'importe\nquel appareil connecté. Aucune installation requise.", {
-    x: 0.55, y: 2.75, w: 5.4, h: 0.8,
-    fontFace: F.body, fontSize: 13.5,
-    color: C.gray, lineSpacingMultiple: 1.5,
-  });
-
-  // Access cards
-  const accesses = [
-    { label: "URL de production",    value: "m15-edutech.ci",        color: C.blue },
-    { label: "Compte démo directeur", value: "youss@gmail.com",      color: C.gold },
-    { label: "Accès développeur",    value: "/dev — token sécurisé", color: "2EC2A0" },
-  ];
-
-  accesses.forEach((a, i) => {
-    const y = 3.75 + i * 1.02;
-    s.addShape(pptx.ShapeType.rect, {
-      x: 0.55, y, w: 5.35, h: 0.85,
-      fill: { color: C.dark },
-      line: { color: a.color, width: 0.6 },
-    });
-    s.addText(a.label, {
-      x: 0.8, y: y + 0.08, w: 4.8, h: 0.3,
-      fontFace: F.body, fontSize: 10.5,
-      color: C.gray,
-    });
-    s.addText(a.value, {
-      x: 0.8, y: y + 0.4, w: 4.8, h: 0.35,
-      fontFace: F.display, fontSize: 13.5, bold: true,
-      color: C.white,
-    });
-  });
-
+  bg(s);
   // Right panel
-  s.addText("Interface responsive,\naccessible sur ordinateur,\ntablette et mobile.", {
-    x: 6.6, y: 1.5, w: 6.2, h: 1.4,
-    fontFace: F.body, fontSize: 16,
-    color: C.offWhite, lineSpacingMultiple: 1.6, align: "center",
-  });
-
-  // Big URL display
   s.addShape(pptx.ShapeType.rect, {
-    x: 6.6, y: 3.1, w: 6.2, h: 1.05,
-    fill: { color: C.dark },
-    line: { color: C.gold, width: 1.0 },
+    x:7.0, y:0, w:6.33, h:7.5, fill:{color:C.surface}, line:{color:C.surface} });
+  // Grid lines decoration on right
+  for (let i=0;i<6;i++) s.addShape(pptx.ShapeType.rect,{
+    x:7.0+i*0.95,y:0,w:0.008,h:7.5,fill:{color:"142840"},line:{color:"142840"}});
+  for (let i=1;i<8;i++) s.addShape(pptx.ShapeType.rect,{
+    x:7.0,y:i*0.94,w:6.33,h:0.008,fill:{color:"142840"},line:{color:"142840"}});
+  // Gold left accent bar
+  s.addShape(pptx.ShapeType.rect,{x:0.5,y:1.4,w:0.07,h:3.2,fill:{color:C.gold},line:{color:C.gold}});
+  // badge
+  badge(s, "Plateforme SaaS Académique", 0.85, 1.45);
+  // Main title
+  s.addText("M15 EduTech", { x:0.85, y:1.85, w:5.8, h:1.5,
+    fontFace:F.display, fontSize:72, bold:true, color:C.white, charSpacing:-2 });
+  // Gold subtitle
+  s.addText("Gestion académique multi-tenant\npour l'enseignement supérieur", {
+    x:0.85, y:3.38, w:5.8, h:0.9,
+    fontFace:F.body, fontSize:16.5, color:C.gold, lineSpacingMultiple:1.5 });
+  rule(s, 0.85, 4.4, 5.0, C.blue);
+  s.addText("Multi-rôles  ·  PWA  ·  WebAuthn  ·  Notifications Push  ·  Export PDF", {
+    x:0.85, y:4.55, w:5.8, h:0.35,
+    fontFace:F.body, fontSize:11, color:C.gray });
+  // Right panel — 4 highlights
+  const hl = [
+    ["Multi-tenant",  "Une instance, N établissements isolés"],
+    ["5 rôles",       "Directeur · Enseignant · Étudiant · Parent"],
+    ["PWA",           "Installable, sync hors-ligne, mobile-first"],
+    ["Sécurisé",      "WebAuthn biométrique + sessions protégées"],
+  ];
+  hl.forEach(([t,d],i)=>{
+    const y = 0.7 + i*1.65;
+    card(s, 7.25, y, 5.75, 1.42, C.blue);
+    leftAccent(s, 7.25, y, 1.42, C.gold);
+    s.addText(t, { x:7.48, y:y+0.2, w:5.3, h:0.38,
+      fontFace:F.display, fontSize:14.5, bold:true, color:C.white });
+    s.addText(d, { x:7.48, y:y+0.62, w:5.3, h:0.5,
+      fontFace:F.body, fontSize:11.5, color:C.gray, lineSpacingMultiple:1.4 });
   });
-  s.addText("m15-edutech.ci", {
-    x: 6.6, y: 3.1, w: 6.2, h: 1.05,
-    fontFace: F.display, fontSize: 26, bold: true,
-    color: C.gold, align: "center", valign: "middle",
-  });
-
-  s.addText("Déployé sur Vercel  ·  API sur Railway  ·  Base en production", {
-    x: 6.6, y: 4.3, w: 6.2, h: 0.4,
-    fontFace: F.body, fontSize: 10.5,
-    color: C.gray, align: "center",
-  });
+  botBar(s);
+  s.addText("Mai 2025", { x:0.85, y:7.1, w:3, h:0.28,
+    fontFace:F.body, fontSize:8.5, color:C.gray });
 }
 
-// ─── SLIDE 10 — CONCLUSION ────────────────────────────────────────────────────
+// ─── SLIDE 2 — Vue d'ensemble ─────────────────────────────────────────────────
 {
   const s = pptx.addSlide();
-  addBg(s);
-
-  // Full-screen decorative background elements
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0, y: 0, w: 13.33, h: 7.5,
-    fill: { color: C.bg }, line: { color: C.bg },
-  });
-
-  // Large rotated accent shapes
-  s.addShape(pptx.ShapeType.rect, {
-    x: 8.5, y: -0.5, w: 5.5, h: 8.5,
-    fill: { color: C.surface }, line: { color: C.surface },
-    rotate: 15,
-  });
-  s.addShape(pptx.ShapeType.rect, {
-    x: 10.5, y: 0, w: 3, h: 7.5,
-    fill: { color: C.dark }, line: { color: C.dark },
-  });
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0, y: 6.5, w: 13.33, h: 1.0,
-    fill: { color: C.dark }, line: { color: C.dark },
-  });
-
-  addTopStripe(s, 1.0); // full gold
-  addBottomStripe(s);
-
-  // Left content
-  s.addText("CPEC-U", {
-    x: 0.7, y: 0.9, w: 7.0, h: 1.3,
-    fontFace: F.display, fontSize: 68, bold: true,
-    color: C.white, charSpacing: -2,
-  });
-
-  rule(s, 0.7, 2.28, 5.0, C.gold, 0.04);
-
-  s.addText("La plateforme académique de l'INP-HB,\nconstruite pour aujourd'hui\net extensible pour demain.", {
-    x: 0.7, y: 2.48, w: 7.5, h: 1.4,
-    fontFace: F.body, fontSize: 17,
-    color: C.offWhite, lineSpacingMultiple: 1.6,
-  });
-
-  // Value summary
-  const values = [
-    "Centralisation de la gestion académique",
-    "Autonomie pour chaque établissement",
-    "Transparence pour les étudiants et les familles",
-    "Décisions fondées sur des données fiables",
+  bg(s); topBar(s,5.5); botBar(s); footer(s,2);
+  badge(s,"Vue d'ensemble",0.6,0.6);
+  heading(s,"Solution complète pour l'académique",0.6,0.95,12.0,33);
+  rule(s,0.6,2.0,3.5);
+  // 4 feature cards 2×2
+  const cards = [
+    { t:"Gestion Académique", d:"Classes, matières, semestres, promotions et emplois du temps unifiés.", color:C.blue },
+    { t:"Multi-Tenant & Rôles", d:"5 rôles distincts — Directeur, Scolarité, Planificateur, Enseignant, Étudiant, Parent.", color:C.purple },
+    { t:"PWA & Mobile", d:"Application Progressive Web App : installable sur tous les appareils, fonctionnelle hors-ligne.", color:C.teal },
+    { t:"Sécurisé & Traçable", d:"WebAuthn biométrique, sessions sécurisées, audit trail, isolation totale par tenant.", color:C.gold },
   ];
-
-  values.forEach((v, i) => {
-    s.addShape(pptx.ShapeType.rect, {
-      x: 0.7, y: 4.15 + i * 0.54, w: 0.08, h: 0.08,
-      fill: { color: C.gold }, line: { color: C.gold },
-    });
-    s.addText(v, {
-      x: 0.95, y: 4.08 + i * 0.54, w: 6.5, h: 0.48,
-      fontFace: F.body, fontSize: 13.5,
-      color: C.offWhite, valign: "middle",
-    });
-  });
-
-  // Contact card
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0.7, y: 6.42, w: 7.0, h: 0.7,
-    fill: { color: C.dark },
-    line: { color: "1E3A60", width: 0.5 },
-  });
-  s.addText("M15 EduTech  ·  contact@m15-edutech.ci  ·  m15-edutech.ci", {
-    x: 0.7, y: 6.42, w: 7.0, h: 0.7,
-    fontFace: F.body, fontSize: 11.5,
-    color: C.gray, align: "center", valign: "middle",
+  cards.forEach((c,i)=>{
+    const x = 0.6 + (i%2)*6.45;
+    const y = 2.25 + Math.floor(i/2)*2.48;
+    card(s,x,y,6.1,2.22,c.color);
+    leftAccent(s,x,y,2.22,c.color);
+    s.addText(c.t,{ x:x+0.25,y:y+0.28,w:5.6,h:0.48,
+      fontFace:F.display,fontSize:16,bold:true,color:C.white });
+    rule(s,x+0.25,y+0.8,1.2,c.color);
+    s.addText(c.d,{ x:x+0.25,y:y+0.95,w:5.6,h:1.1,
+      fontFace:F.body,fontSize:12.5,color:C.offWhite,lineSpacingMultiple:1.5 });
   });
 }
 
-// ─── EXPORT ───────────────────────────────────────────────────────────────────
-await pptx.writeFile({ fileName: "CPEC-U_Presentation_M15EduTech.pptx" });
-console.log("✓ PPTX generated: CPEC-U_Presentation_M15EduTech.pptx");
+// ─── SLIDE 3 — Architecture Technique ────────────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,7); botBar(s); footer(s,3);
+  badge(s,"Architecture Technique",0.6,0.6);
+  heading(s,"Stack & Déploiement",0.6,0.95,10,33);
+  rule(s,0.6,2.0,3.0);
+
+  const layers = [
+    { label:"FRONTEND", color:C.blue, items:[
+      "React 19 + Vite 7","Tailwind CSS 4 + shadcn/ui",
+      "TanStack Query + Wouter","Framer Motion + PWA","Orval codegen (React Query)"] },
+    { label:"BACKEND", color:C.green, items:[
+      "Express 5 + TypeScript","Drizzle ORM + PostgreSQL",
+      "express-session (cookies SameSite=None)","Multer (uploads 50 Mo)","Web Push VAPID"] },
+    { label:"INFRA", color:C.gold, items:[
+      "Vercel (frontend, CDN global)","Railway (API, auto-scaling)",
+      "PostgreSQL (Replit / prod)","Resend (emails transac.)","pnpm monorepo workspaces"] },
+  ];
+  layers.forEach((l,i)=>{
+    const x = 0.55 + i*4.28;
+    s.addShape(pptx.ShapeType.rect,{x,y:2.25,w:4.0,h:0.52,
+      fill:{color:l.color},line:{color:l.color}});
+    s.addText(l.label,{x,y:2.25,w:4.0,h:0.52,align:"center",valign:"middle",
+      fontFace:F.display,fontSize:14,bold:true,color:i===2?C.bg:C.white});
+    l.items.forEach((item,j)=>{
+      card(s,x,2.88+j*0.84,4.0,0.76,l.color);
+      leftAccent(s,x,2.88+j*0.84,0.76,l.color);
+      s.addText(item,{x:x+0.22,y:2.88+j*0.84,w:3.65,h:0.76,
+        fontFace:F.body,fontSize:12,color:C.offWhite,valign:"middle"});
+    });
+  });
+  // Bottom principles strip
+  s.addShape(pptx.ShapeType.rect,{x:0.55,y:7.0,w:12.23,h:0.38,
+    fill:{color:C.dark},line:{color:C.blue,width:0.75}});
+  s.addText("API REST documentée (OpenAPI + Zod)  ·  Cookies cross-origin SameSite=None  ·  Migration auto au démarrage  ·  Health check /api/healthz",{
+    x:0.55,y:7.0,w:12.23,h:0.38,align:"center",valign:"middle",
+    fontFace:F.body,fontSize:10.5,color:C.gray});
+}
+
+// ─── SLIDE 4 — Multi-Tenancy & Rôles ─────────────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,13.33); botBar(s); footer(s,4);
+  badge(s,"Multi-Tenancy & Rôles",0.6,0.6);
+  heading(s,"Architecture multi-école, accès par rôle",0.6,0.95,12,33);
+  rule(s,0.6,2.0,4.0);
+
+  // Role badges
+  const roles=[
+    {r:"Directeur",c:C.purple},{r:"Scolarité",c:C.blue},
+    {r:"Planificateur",c:C.teal},{r:"Enseignant",c:C.green},
+    {r:"Étudiant",c:C.gold},{r:"Parent",c:"9D174D"},
+  ];
+  roles.forEach((ro,i)=>{
+    s.addShape(pptx.ShapeType.rect,{x:0.55+i*2.2,y:2.25,w:2.0,h:0.52,
+      fill:{color:ro.c},line:{color:ro.c}});
+    s.addText(ro.r,{x:0.55+i*2.2,y:2.25,w:2.0,h:0.52,align:"center",valign:"middle",
+      fontFace:F.display,fontSize:12.5,bold:true,color:ro.c===C.gold?C.bg:C.white});
+  });
+
+  // Two columns
+  const leftItems=[
+    "Résolution du tenant à la connexion par email",
+    "Chaque table porte un tenantId (clé étrangère vers tenants)",
+    "Emails uniques par (email, tenantId) — pas globalement",
+    "Session stocke userId + role + tenantId après connexion",
+    "Middleware tenantMiddleware sur toutes les routes /api",
+  ];
+  const rightItems=[
+    "Portail super-admin /dev — protégé par DEV_MASTER_KEY",
+    "Token SHA-256 côté client — pas de cookie de session",
+    "Créer établissement + admin + clé d'activation en un seul formulaire",
+    "Gérer directeurs, tenants et clés depuis /dev",
+    "5 rôles distincts avec portails et permissions dédiés",
+  ];
+  s.addText("Architecture Multi-Tenant",{x:0.6,y:2.95,w:5.8,h:0.4,
+    fontFace:F.display,fontSize:14.5,bold:true,color:C.goldLight});
+  bullets(s,leftItems,0.75,3.4,5.65,3.4,12.5);
+  s.addText("Gestion & Administration",{x:6.8,y:2.95,w:5.9,h:0.4,
+    fontFace:F.display,fontSize:14.5,bold:true,color:C.goldLight});
+  bullets(s,rightItems,6.95,3.4,5.75,3.4,12.5);
+  // Vertical rule
+  s.addShape(pptx.ShapeType.rect,{x:6.55,y:2.95,w:0.028,h:4.0,fill:{color:C.dark},line:{color:C.dark}});
+}
+
+// ─── SLIDE 5 — Gestion Académique ────────────────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,4.5); botBar(s); footer(s,5);
+  badge(s,"Gestion Académique",0.6,0.6);
+  heading(s,"Classes, matières, semestres & promotions",0.6,0.95,12,33);
+  rule(s,0.6,2.0,5.0);
+
+  // LMD badges
+  const lmds=[["L1","1D4ED8"],["L2","2563EB"],["L3","3B82F6"],["M1",C.purple],["M2","9333EA"]];
+  lmds.forEach(([l,c],i)=>{
+    s.addShape(pptx.ShapeType.rect,{x:0.55+i*1.55,y:2.28,w:1.38,h:0.52,fill:{color:c},line:{color:c}});
+    s.addText(l,{x:0.55+i*1.55,y:2.28,w:1.38,h:0.52,align:"center",valign:"middle",
+      fontFace:F.display,fontSize:16,bold:true,color:C.white});
+  });
+  s.addShape(pptx.ShapeType.rect,{x:8.3,y:2.28,w:4.5,h:0.52,fill:{color:C.dark},line:{color:C.gold,width:0.75}});
+  s.addText("Référentiel LMD",{x:8.3,y:2.28,w:4.5,h:0.52,align:"center",valign:"middle",
+    fontFace:F.body,fontSize:13,color:C.goldLight});
+
+  bullets(s,[
+    "Classes & filières : groupes d'étudiants par niveau et spécialité",
+    "Matières et unités d'enseignement (UE) associées aux classes",
+    "Semestres liés aux classes — niveauLmd (L1–M2) + numéro 1 ou 2",
+    "Contrainte unique : max 2 semestres par classe par année académique",
+    "Promotions annuelles : affectation des étudiants par classe et année",
+    "Page admin : semestres groupés par classe, indicateurs de progression",
+  ],0.6,3.0,12.2,4.2,14.5);
+}
+
+// ─── SLIDE 6 — Notes & Bulletins ─────────────────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,13.33); botBar(s); footer(s,6);
+  badge(s,"Notes & Bulletins",0.6,0.6);
+  heading(s,"De la saisie au bulletin PDF vérifié par QR code",0.6,0.95,11.5,33);
+  rule(s,0.6,2.0,5.5);
+
+  // Workflow steps
+  const steps=[
+    {t:"Saisie",d:"Enseignant saisit les notes par matière",c:C.blue},
+    {t:"Approbation",d:"Validation du responsable pédagogique",c:C.teal},
+    {t:"Rattrapage",d:"Sessions configurables par semestre",c:C.purple},
+    {t:"Jury Spécial",d:"Délibérations fin d'année + PV PDF",c:"7C3AED"},
+    {t:"Bulletin",d:"PDF jsPDF + QR code unique par bulletin",c:C.gold},
+  ];
+  steps.forEach((st,i)=>{
+    card(s,0.55+i*2.56,2.28,2.38,2.0,st.c);
+    s.addShape(pptx.ShapeType.rect,{x:0.55+i*2.56,y:2.28,w:2.38,h:0.5,fill:{color:st.c},line:{color:st.c}});
+    s.addText(st.t,{x:0.55+i*2.56,y:2.28,w:2.38,h:0.5,align:"center",valign:"middle",
+      fontFace:F.display,fontSize:13,bold:true,color:i===4?C.bg:C.white});
+    s.addText(st.d,{x:0.72+i*2.56,y:2.95,w:2.05,h:1.15,
+      fontFace:F.body,fontSize:11.5,color:C.offWhite,lineSpacingMultiple:1.4,valign:"top"});
+    if(i<4){
+      s.addShape(pptx.ShapeType.rect,{x:2.93+i*2.56,y:3.08,w:0.18,h:0.14,fill:{color:C.gray},line:{color:C.gray}});
+    }
+  });
+
+  bullets(s,[
+    "Calcul automatique des moyennes pondérées par coefficient",
+    "Approbation requise avant publication — workflow contrôlé",
+    "Jury Spécial : traceabilité complète, mise à jour des bulletins, PV PDF généré",
+    "Bulletins PDF avec logo institutionnel, barre dorée, tableau jspdf-autotable",
+    "QR code unique par bulletin — page publique /verify/:code pour authentification",
+  ],0.6,4.55,12.2,2.45,13.5);
+}
+
+// ─── SLIDE 7 — Emplois du Temps & Assiduité ──────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,6.0); botBar(s); footer(s,7);
+  badge(s,"Emplois du Temps & Assiduité",0.6,0.6);
+  heading(s,"Planification, émargement & suivi des heures",0.6,0.95,11.5,33);
+  rule(s,0.6,2.0,5.0);
+
+  // Left col
+  s.addText("Planification",{x:0.6,y:2.28,w:5.8,h:0.42,
+    fontFace:F.display,fontSize:15,bold:true,color:C.goldLight});
+  s.addShape(pptx.ShapeType.rect,{x:0.6,y:2.72,w:1.0,h:0.028,fill:{color:C.gold},line:{color:C.gold}});
+  bullets(s,[
+    "Créneaux : salle, enseignant, groupe, matière",
+    "Détection automatique de conflits de salle et d'enseignant",
+    "Programmation par période — génération en masse",
+    "Vues filtrées par rôle (admin, enseignant, étudiant)",
+    "Export PDF des emplois du temps",
+  ],0.75,2.85,5.65,3.5,13.5);
+
+  // Right col — Suivi des heures
+  s.addText("Suivi des Heures",{x:7.0,y:2.28,w:5.8,h:0.42,
+    fontFace:F.display,fontSize:15,bold:true,color:C.goldLight});
+  s.addShape(pptx.ShapeType.rect,{x:7.0,y:2.72,w:1.0,h:0.028,fill:{color:C.gold},line:{color:C.gold}});
+  bullets(s,[
+    "Heure réalisée = feuille d'émargement soumise (sentAt ≠ null)",
+    "Aucune validation admin requise — statut calculé dynamiquement",
+    "Statuts : À_JOUR / À_SURVEILLER / EN_RETARD / NON_DÉMARRÉ",
+    "Calculé en temps réel vs. avancement du semestre",
+    "Page admin : planifiées / réalisées / restantes + export CSV",
+  ],7.15,2.85,5.65,3.5,13.5);
+
+  // Vertical rule
+  s.addShape(pptx.ShapeType.rect,{x:6.6,y:2.28,w:0.028,h:4.3,fill:{color:C.dark},line:{color:C.dark}});
+
+  // Status badge row
+  const statuses=[
+    {l:"À_JOUR",c:C.green},{l:"À_SURVEILLER",c:C.gold},
+    {l:"EN_RETARD",c:C.red},{l:"NON_DÉMARRÉ",c:C.gray},
+  ];
+  statuses.forEach((st,i)=>{
+    s.addShape(pptx.ShapeType.rect,{x:7.0+i*1.55,y:6.65,w:1.42,h:0.38,fill:{color:st.c},line:{color:st.c}});
+    s.addText(st.l,{x:7.0+i*1.55,y:6.65,w:1.42,h:0.38,align:"center",valign:"middle",
+      fontFace:F.body,fontSize:9.5,bold:true,color:[C.gold,C.green].includes(st.c)?C.bg:C.white});
+  });
+}
+
+// ─── SLIDE 8 — Devoirs & Évaluations ─────────────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,8); botBar(s); footer(s,8);
+  badge(s,"Devoirs & Évaluations en Ligne",0.6,0.6);
+  heading(s,"Évaluations interactives avec anti-triche intégré",0.6,0.95,11.5,33);
+  rule(s,0.6,2.0,5.0);
+
+  // 7 question types
+  const qtypes=["QCM","QCM multiple","Vrai / Faux","Texte libre","Ordre","Correspondance","Numérique"];
+  qtypes.forEach((qt,i)=>{
+    const col=i%4, row=Math.floor(i/4);
+    card(s,0.55+col*3.2,2.28+row*0.72,3.0,0.64,C.blue);
+    s.addText(qt,{x:0.55+col*3.2,y:2.28+row*0.72,w:3.0,h:0.64,align:"center",valign:"middle",
+      fontFace:F.display,fontSize:13.5,bold:true,color:C.offWhite});
+  });
+
+  // Anti-cheat panel
+  s.addShape(pptx.ShapeType.rect,{x:0.55,y:3.55,w:12.23,h:0.48,
+    fill:{color:"7F1D1D"},line:{color:C.red,width:1}});
+  s.addText("Système Anti-Triche",{x:0.55,y:3.55,w:12.23,h:0.48,align:"center",valign:"middle",
+    fontFace:F.display,fontSize:14,bold:true,color:C.white});
+
+  bullets(s,[
+    "Plein écran obligatoire via requestFullscreen API — quitter = incident enregistré",
+    "Blocage copier-coller, clic droit, raccourcis clavier Ctrl+C/V/U/A et PrintScreen",
+    "Détection changement d'onglet via visibilitychange — 3 infractions = auto-soumission TRICHERIE_DETECTEE",
+    "Mélange Fisher-Yates côté serveur (seed unique par étudiant) — stable au rechargement de page",
+    "Timer côté serveur (fin_prevue en DB) — auto-sauvegarde toutes les 30s — rapport de surveillance enseignant",
+  ],0.7,4.18,12.05,2.75,12.5);
+}
+
+// ─── SLIDE 9 — Mémoires & Soutenances ────────────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,9); botBar(s); footer(s,9);
+  badge(s,"Mémoires & Soutenances",0.6,0.6);
+  heading(s,"Cycle de vie complet du mémoire à l'archivage",0.6,0.95,11.5,33);
+  rule(s,0.6,2.0,5.0);
+
+  // Status workflow
+  const statuses=[
+    {t:"SOUMIS",c:"1D4ED8"},{t:"VALIDÉ",c:C.teal},
+    {t:"PLANIFIÉ",c:C.purple},{t:"SOUTENU",c:C.green},{t:"ARCHIVÉ",c:C.gold},
+  ];
+  statuses.forEach((st,i)=>{
+    s.addShape(pptx.ShapeType.rect,{x:0.55+i*2.56,y:2.28,w:2.38,h:0.52,fill:{color:st.c},line:{color:st.c}});
+    s.addText(st.t,{x:0.55+i*2.56,y:2.28,w:2.38,h:0.52,align:"center",valign:"middle",
+      fontFace:F.display,fontSize:13,bold:true,color:i===4?C.bg:C.white});
+    if(i<4) s.addShape(pptx.ShapeType.rect,{x:2.93+i*2.56,y:2.49,w:0.18,h:0.11,fill:{color:C.gray},line:{color:C.gray}});
+  });
+
+  bullets(s,[
+    "Dépôt de mémoires PDF ou Word — taille jusqu'à 50 Mo par fichier",
+    "Composition du jury : enseignants internes ou membres externes (nom + email)",
+    "Planification de la soutenance : date, heure, salle, durée configurable",
+    "Convocations automatiques envoyées par email via Resend à l'étudiant et aux membres externes",
+    "Génération de la convocation PDF côté client avec jsPDF (logo, jury, date, salle)",
+    "Résultat enregistré après soutenance : note, mention, observations du jury",
+    "Archive / bibliothèque filtrée par domaine, année académique, mention et mots-clés",
+  ],0.6,3.05,12.2,3.9,13);
+}
+
+// ─── SLIDE 10 — Bibliothèque Numérique ───────────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,5); botBar(s); footer(s,10);
+  badge(s,"Bibliothèque Numérique",0.6,0.6);
+  heading(s,"Ressources, quiz et analytiques d'engagement",0.6,0.95,11.5,33);
+  rule(s,0.6,2.0,5.0);
+
+  const cards4=[
+    {t:"Ressources par Matière",d:"PDF, Word, PowerPoint, images, archives\nLiens YouTube et URLs externes\nOrganisés par UE / matière / semestre / classe",c:C.blue},
+    {t:"Quiz Interactifs",d:"QCM, multi-sélect, vrai/faux, texte libre\nCréés par l'enseignant par ressource\nCorrection et score instantanés pour l'étudiant",c:C.teal},
+    {t:"Suivi du Temps",d:"Temps de consultation mesuré automatiquement\nTableau 'Mon Suivi' — progression par ressource\nAccumulation par matière et par semestre",c:C.green},
+    {t:"Analytiques Enseignant",d:"Nombre de consultations par ressource\nTemps moyen passé, taux de participation\nScores moyens aux quiz par classe",c:C.gold},
+  ];
+  cards4.forEach((c,i)=>{
+    const x=0.55+(i%2)*6.45, y=2.28+Math.floor(i/2)*2.4;
+    card(s,x,y,6.1,2.22,c.c);
+    leftAccent(s,x,y,2.22,c.c);
+    s.addText(c.t,{x:x+0.25,y:y+0.18,w:5.6,h:0.45,fontFace:F.display,fontSize:15,bold:true,color:C.white});
+    rule(s,x+0.25,y+0.66,1.0,c.c);
+    s.addText(c.d,{x:x+0.25,y:y+0.82,w:5.6,h:1.28,fontFace:F.body,fontSize:12,color:C.offWhite,lineSpacingMultiple:1.4});
+  });
+}
+
+// ─── SLIDE 11 — Espace Parents & Communication ───────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,7); botBar(s); footer(s,11);
+  badge(s,"Espace Parents & Communication",0.6,0.6);
+  heading(s,"Parents connectés, notifications temps réel",0.6,0.95,11.5,33);
+  rule(s,0.6,2.0,4.5);
+
+  s.addText("Espace Parents",{x:0.6,y:2.25,w:5.8,h:0.42,fontFace:F.display,fontSize:15,bold:true,color:C.goldLight});
+  s.addShape(pptx.ShapeType.rect,{x:0.6,y:2.69,w:0.9,h:0.028,fill:{color:C.gold},line:{color:C.gold}});
+  bullets(s,[
+    "Comptes parents liés aux comptes étudiants",
+    "Accès aux résultats des semestres publiés",
+    "Suivi des absences en temps réel",
+    "Consultation des emplois du temps de l'enfant",
+    "Notifications automatiques : absences, résultats publiés",
+  ],0.75,2.85,5.65,3.6,13.5);
+
+  s.addText("Notifications & Rappels",{x:7.0,y:2.25,w:5.8,h:0.42,fontFace:F.display,fontSize:15,bold:true,color:C.goldLight});
+  s.addShape(pptx.ShapeType.rect,{x:7.0,y:2.69,w:0.9,h:0.028,fill:{color:C.gold},line:{color:C.gold}});
+  bullets(s,[
+    "Web Push VAPID — notifications natives sur tous les appareils",
+    "Rappels de paiement automatisés : J-7, J-3, J0, J+7",
+    "Confirmation de paiement = notification push immédiate",
+    "Journal détaillé des notifications avec statut d'envoi",
+    "Notifications à chaque étape des workflows académiques",
+  ],7.15,2.85,5.65,3.6,13.5);
+
+  s.addShape(pptx.ShapeType.rect,{x:6.6,y:2.25,w:0.028,h:4.3,fill:{color:C.dark},line:{color:C.dark}});
+
+  // Rappel timeline
+  const rappels=[{l:"J-7",c:C.blue},{l:"J-3",c:C.teal},{l:"J0",c:C.gold},{l:"J+7",c:C.red}];
+  rappels.forEach((r,i)=>{
+    s.addShape(pptx.ShapeType.rect,{x:7.0+i*1.5,y:6.65,w:1.32,h:0.38,fill:{color:r.c},line:{color:r.c}});
+    s.addText(r.l,{x:7.0+i*1.5,y:6.65,w:1.32,h:0.38,align:"center",valign:"middle",
+      fontFace:F.display,fontSize:14,bold:true,color:r.c===C.gold?C.bg:C.white});
+  });
+  s.addText("Échéances de rappel de paiement",{x:7.0,y:7.08,w:6.0,h:0.22,
+    fontFace:F.body,fontSize:9,color:C.gray});
+}
+
+// ─── SLIDE 12 — Suivi Académique & Tableaux de Bord ──────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,6); botBar(s); footer(s,12);
+  badge(s,"Suivi Académique & Tableaux de Bord",0.6,0.6);
+  heading(s,"Pilotage, alertes et gestion des réclamations",0.6,0.95,11.5,33);
+  rule(s,0.6,2.0,5.0);
+
+  // Top two cards
+  card(s,0.55,2.28,6.1,2.42,C.blue);
+  leftAccent(s,0.55,2.28,2.42,C.blue);
+  s.addText("Suivi Individualisé",{x:0.8,y:2.42,w:5.6,h:0.42,fontFace:F.display,fontSize:15,bold:true,color:C.white});
+  bullets(s,["Courbes de progression par matière","Taux d'absence avec seuil d'alerte","Analyse multi-critères : étudiants à risque","Vue admin et vue étudiant dédiées"],0.95,2.95,5.5,1.6,12.5);
+
+  card(s,6.85,2.28,6.0,2.42,C.purple);
+  leftAccent(s,6.85,2.28,2.42,C.purple);
+  s.addText("Tableau de Bord Multi-Années",{x:7.1,y:2.42,w:5.5,h:0.42,fontFace:F.display,fontSize:15,bold:true,color:C.white});
+  bullets(s,["KPIs comparatifs sur plusieurs années","Taux de réussite / échec par promotion","Tendances des absences et identification des matières à fort taux d'échec","Données consolidées pour la direction"],7.25,2.95,5.4,1.6,12.5);
+
+  // Réclamations block
+  s.addShape(pptx.ShapeType.rect,{x:0.55,y:4.9,w:12.3,h:0.48,fill:{color:C.dark},line:{color:C.gold,width:1}});
+  s.addText("Gestion des Réclamations de Notes",{x:0.55,y:4.9,w:12.3,h:0.48,align:"center",valign:"middle",
+    fontFace:F.display,fontSize:14,bold:true,color:C.goldLight});
+  bullets(s,[
+    "Périodes de réclamation configurables — wizard de soumission multi-étapes pour l'étudiant",
+    "Réponse de l'enseignant + arbitrage admin — journal d'audit immuable à chaque action",
+    "Notifications push à chaque étape : soumission, réponse, arbitrage, clôture",
+  ],0.7,5.52,12.1,1.62,13);
+}
+
+// ─── SLIDE 13 — Sécurité & Fonctionnalités Avancées ──────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,7); botBar(s); footer(s,13);
+  badge(s,"Sécurité & Fonctionnalités Avancées",0.6,0.6);
+  heading(s,"WebAuthn, carte étudiante, évaluation & PDF",0.6,0.95,11.5,33);
+  rule(s,0.6,2.0,5.0);
+
+  const cards4=[
+    {t:"Connexion Biométrique WebAuthn",d:"Standard FIDO2 — empreinte digitale ou Face ID\nAucun mot de passe stocké côté serveur\nEnregistrement et révocation depuis les paramètres",c:C.blue},
+    {t:"Carte Étudiante Numérique",d:"Carte générée avec QR code unique par étudiant\nPage publique /verify/:code pour authentifier\nAdmin : génération et invalidation des cartes",c:C.teal},
+    {t:"Évaluation des Enseignants",d:"Évaluation anonyme par les étudiants en fin de semestre\nWizard multi-étapes avec scoring pondéré par critère\nSeuil minimal d'évaluations pour garantir l'anonymat",c:C.purple},
+    {t:"Centre de Documents PDF",d:"Service centralisé jsPDF + jspdf-autotable\nBulletins, feuilles de présence, PV jury, convocations\nBranding institutionnel uniforme — logo + barre dorée",c:C.gold},
+  ];
+  cards4.forEach((c,i)=>{
+    const x=0.55+(i%2)*6.45, y=2.28+Math.floor(i/2)*2.4;
+    card(s,x,y,6.1,2.22,c.c);
+    leftAccent(s,x,y,2.22,c.c);
+    s.addText(c.t,{x:x+0.25,y:y+0.18,w:5.6,h:0.45,fontFace:F.display,fontSize:14.5,bold:true,color:C.white});
+    rule(s,x+0.25,y+0.66,1.0,c.c);
+    s.addText(c.d,{x:x+0.25,y:y+0.82,w:5.6,h:1.28,fontFace:F.body,fontSize:12,color:C.offWhite,lineSpacingMultiple:1.4});
+  });
+}
+
+// ─── SLIDE 14 — Déploiement en Production ────────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s); topBar(s,13.33); botBar(s); footer(s,14);
+  badge(s,"Déploiement en Production",0.6,0.6);
+  heading(s,"Vercel + Railway — www.m15-edutech.ci",0.6,0.95,11.5,33);
+  rule(s,0.6,2.0,5.0);
+
+  // Frontend block
+  s.addShape(pptx.ShapeType.rect,{x:0.55,y:2.28,w:5.9,h:0.52,fill:{color:C.blue},line:{color:C.blue}});
+  s.addText("FRONTEND — Vercel",{x:0.55,y:2.28,w:5.9,h:0.52,align:"center",valign:"middle",
+    fontFace:F.display,fontSize:14,bold:true,color:C.white});
+  bullets(s,[
+    "Build : pnpm --filter @workspace/cpec-u run build",
+    "Output : dist/public — CDN global Vercel",
+    "Domaine : www.m15-edutech.ci",
+    "Proxy Vercel : /api/* → api.m15-edutech.ci (pas de CORS côté navigateur)",
+    "SPA routing — catch-all vers index.html",
+  ],0.7,2.95,5.6,3.35,13);
+
+  // Backend block
+  s.addShape(pptx.ShapeType.rect,{x:6.85,y:2.28,w:5.9,h:0.52,fill:{color:C.green},line:{color:C.green}});
+  s.addText("API — Railway",{x:6.85,y:2.28,w:5.9,h:0.52,align:"center",valign:"middle",
+    fontFace:F.display,fontSize:14,bold:true,color:C.white});
+  bullets(s,[
+    "Build esbuild — bundle ESM minifié (bundle @simplewebauthn/server)",
+    "Start : pnpm --filter @workspace/api-server run start",
+    "Domaine : api.m15-edutech.ci",
+    "Health check : GET /api/healthz | /api/healthz/detail",
+    "Variables Railway : DATABASE_URL, SESSION_SECRET, VAPID keys, DEV_MASTER_KEY",
+  ],7.0,2.95,5.6,3.35,13);
+
+  s.addShape(pptx.ShapeType.rect,{x:6.6,y:2.28,w:0.028,h:4.3,fill:{color:C.dark},line:{color:C.dark}});
+
+  // Bottom strip
+  s.addShape(pptx.ShapeType.rect,{x:0.55,y:6.48,w:12.23,h:0.52,fill:{color:C.dark},line:{color:C.gold,width:0.75}});
+  s.addText("SameSite=None; Secure  ·  trust proxy:1  ·  Cookies cross-origin  ·  Crypto polyfill Node.js  ·  Migrations auto au démarrage  ·  .node-version=20",{
+    x:0.55,y:6.48,w:12.23,h:0.52,align:"center",valign:"middle",
+    fontFace:F.body,fontSize:10.5,color:C.gray});
+}
+
+// ─── SLIDE 15 — Closing ───────────────────────────────────────────────────────
+{
+  const s = pptx.addSlide();
+  bg(s);
+  // Right panel
+  s.addShape(pptx.ShapeType.rect,{x:7.5,y:0,w:5.83,h:7.5,fill:{color:C.surface},line:{color:C.surface}});
+  for(let i=0;i<5;i++) s.addShape(pptx.ShapeType.rect,{x:7.5+i*1.0,y:0,w:0.008,h:7.5,fill:{color:"142840"},line:{color:"142840"}});
+  for(let i=1;i<8;i++) s.addShape(pptx.ShapeType.rect,{x:7.5,y:i*0.94,w:5.83,h:0.008,fill:{color:"142840"},line:{color:"142840"}});
+
+  // Gold left accent
+  s.addShape(pptx.ShapeType.rect,{x:0.5,y:1.5,w:0.07,h:4.5,fill:{color:C.gold},line:{color:C.gold}});
+
+  // Central closing block
+  s.addText("M15 EduTech",{x:0.85,y:1.8,w:6.3,h:1.6,
+    fontFace:F.display,fontSize:68,bold:true,color:C.white,charSpacing:-2});
+  rule(s,0.85,3.45,5.5,C.gold);
+  s.addText("Une plateforme complète, sécurisée et évolutive\npour la gestion académique moderne.",{
+    x:0.85,y:3.65,w:6.3,h:1.1,
+    fontFace:F.body,fontSize:16,color:C.offWhite,lineSpacingMultiple:1.6});
+  rule(s,0.85,4.9,3.0,C.blue);
+  s.addText("www.m15-edutech.ci",{x:0.85,y:5.1,w:6.3,h:0.55,
+    fontFace:F.display,fontSize:22,bold:true,color:C.goldLight});
+
+  // Right panel summary
+  const feats=[
+    "Multi-tenant — N établissements isolés",
+    "WebAuthn biométrique (FIDO2)",
+    "Devoirs en ligne + anti-triche",
+    "Mémoires & soutenances",
+    "Bibliothèque + quiz + analytiques",
+    "Notifications Push VAPID",
+    "Bulletins PDF + QR vérification",
+    "Vercel + Railway en production",
+  ];
+  feats.forEach((f,i)=>{
+    s.addShape(pptx.ShapeType.rect,{x:7.65,y:0.5+i*0.82,w:0.06,h:0.06,fill:{color:C.gold},line:{color:C.gold}});
+    s.addText(f,{x:7.85,y:0.42+i*0.82,w:5.2,h:0.75,
+      fontFace:F.body,fontSize:12.5,color:C.offWhite,valign:"middle"});
+  });
+
+  botBar(s);
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+await pptx.writeFile({ fileName: "dist/M15-EduTech-Presentation.pptx" });
+console.log("Done → dist/M15-EduTech-Presentation.pptx");

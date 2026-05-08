@@ -6,3 +6,9 @@ id = "70hlFVKBMPy3497xctkzt"
 uri = "file://CPEC-U_Presentation_M15EduTech.pptx"
 type = "slides"
 title = "CPEC-U · M15 EduTech — Présentation PowerPoint"
+
+[[outputs]]
+id = "5OuAMyWVyPwScrYo-o1bY"
+uri = "file://dist/M15-EduTech-Presentation.pptx"
+type = "slides"
+title = "M15 EduTech — Présentation PowerPoint (15 slides)"
