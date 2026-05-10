@@ -14,7 +14,7 @@ import {
   GraduationCap, CheckCircle, AlertTriangle, BarChart, CalendarOff,
   ArrowRight, TrendingUp, School, ClipboardList, BarChart3, ScrollText,
   PieChart, Wallet, MessageSquareWarning, FileCheck2, Bell,
-  Gavel, CreditCard, Scale, MessageSquare, Info,
+  Gavel, CreditCard, Scale, MessageSquare, Info, BookMarked,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -95,7 +95,7 @@ export default function AdminDashboard() {
   const { data: alertsData } = useQuery({
     queryKey: ["/api/admin/alertes/resume"],
     queryFn: () => fetch("/api/admin/alertes/resume", { credentials: "include" }).then(r => r.json()),
-    enabled: isScolariteOrDirecteur,
+    enabled: isScolariteOrDirecteur || isPlanificateur,
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
@@ -109,6 +109,7 @@ export default function AdminDashboard() {
     juryEnAttente: number;
     unreadMessages: number;
     unpaidHonoraires: number;
+    memoiresSoumis: number;
     urgentTotal: number;
     attentionTotal: number;
     total: number;
@@ -175,6 +176,15 @@ export default function AdminDashboard() {
 
   const attentionItems = [
     {
+      key: "memoires",
+      label: "Mémoires en attente de validation",
+      description: "Dépôts d'étudiants soumis — à examiner et valider",
+      count: alerts?.memoiresSoumis ?? 0,
+      href: "/admin/memoires",
+      icon: BookMarked,
+      show: true,
+    },
+    {
       key: "absences",
       label: "Étudiants dépassant le seuil d'absences",
       description: "Au moins 3 absences non justifiées — intervention requise",
@@ -215,8 +225,9 @@ export default function AdminDashboard() {
     }] : []),
   ].filter(i => i.show && i.count > 0);
 
-  const hasAlerts = (alerts?.total ?? 0) > 0 || infoItems.length > 0;
-  const totalBadge = (alerts?.total ?? 0) + (isPlanificateur && conflictCount > 0 ? 1 : 0);
+  const memoiresSoumis = alerts?.memoiresSoumis ?? 0;
+  const hasAlerts = (alerts?.total ?? 0) > 0 || memoiresSoumis > 0 || infoItems.length > 0;
+  const totalBadge = (alerts?.total ?? 0) + memoiresSoumis + (isPlanificateur && conflictCount > 0 ? 1 : 0);
 
   return (
     <AppLayout allowedRoles={["admin"]}>
