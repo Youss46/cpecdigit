@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   GraduationCap, Award, FileText, Download, ExternalLink,
-  CreditCard, BookOpen, CheckCircle2, Shield, QrCode, Star,
+  CreditCard, BookOpen, CheckCircle2, Shield, Star, ArrowRight, Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import QRCode from "qrcode";
@@ -39,6 +39,13 @@ export default function EspaceDiplomePage() {
   const { data, isLoading } = useQuery<any>({
     queryKey: ["/api/student/diploma"],
     queryFn: () => apiFetch("/student/diploma"),
+  });
+
+  const { data: continuation } = useQuery<{ available: boolean; classes: any[] }>({
+    queryKey: ["/api/student/diploma/continuation"],
+    queryFn: () => apiFetch("/student/diploma/continuation"),
+    enabled: data?.status === "diplome",
+    staleTime: 120_000,
   });
 
   const verifyUrl = data?.attestation?.token
@@ -209,6 +216,39 @@ export default function EspaceDiplomePage() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Poursuivre en Master */}
+        {continuation?.available && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-5">
+              <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
+                <Sparkles className="w-32 h-32 -translate-y-6 translate-x-6" />
+              </div>
+              <div className="relative flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center flex-shrink-0">
+                    <ArrowRight className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">Poursuite d'études</p>
+                    <h3 className="text-base font-bold">Poursuivre en Master</h3>
+                    <p className="text-white/80 text-xs mt-0.5">
+                      Des formations Master sont disponibles dans votre établissement.
+                      Contactez la scolarité pour procéder à votre inscription.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  {(continuation.classes as any[]).slice(0, 3).map((c: any) => (
+                    <span key={c.id} className="text-xs font-semibold bg-white/20 border border-white/30 px-2.5 py-1 rounded-full text-white">
+                      {c.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Carte étudiante archivée */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>

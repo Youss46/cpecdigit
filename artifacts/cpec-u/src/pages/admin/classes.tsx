@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Users, UserPlus, UserMinus, ChevronRight, BookOpen, ChevronUp, ChevronDown, GraduationCap, Pencil, Check, X, Award } from "lucide-react";
+import { Plus, Trash2, Users, UserPlus, UserMinus, ChevronRight, BookOpen, ChevronUp, ChevronDown, GraduationCap, Pencil, Check, X, Award, ArrowUpCircle, ChevronsUp } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -36,6 +36,56 @@ function ClassStudentsSheet({
   const [filiereInput, setFiliereInput] = useState(cls.filiere ?? "");
   const [savingFiliere, setSavingFiliere] = useState(false);
   const updateClassMutation = useUpdateClassConfig();
+
+  // ── "Inscrire en Master" state ───────────────────────────────────────────────
+  const [masterModal, setMasterModal] = useState<{ studentId: number; studentName: string } | null>(null);
+  const [masterClassId, setMasterClassId] = useState<string>("");
+  const [masterYear, setMasterYear] = useState(() => {
+    const y = new Date().getFullYear(); return `${y}-${y + 1}`;
+  });
+  const [masterFees, setMasterFees] = useState<string>("");
+  const [inscribing, setInscribing] = useState(false);
+
+  const { data: masterClasses = [] } = useQuery<any[]>({
+    queryKey: [`/api/admin/diploma/student/${masterModal?.studentId}/master-classes`],
+    enabled: !!masterModal,
+    queryFn: async () => {
+      const r = await fetch(`/api/admin/diploma/student/${masterModal!.studentId}/master-classes`, { credentials: "include" });
+      if (!r.ok) throw new Error();
+      return r.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const handleInscribeMaster = async () => {
+    if (!masterModal || !masterClassId || !masterYear) return;
+    setInscribing(true);
+    try {
+      const r = await fetch(`/api/admin/diploma/student/${masterModal.studentId}/reinscrit-master`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          new_class_id: parseInt(masterClassId),
+          academic_year: masterYear,
+          frais_scolarite: masterFees ? parseFloat(masterFees) : undefined,
+        }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error ?? "Erreur"); }
+      const res = await r.json();
+      toast({ title: `✅ ${masterModal.studentName} inscrit(e) en ${res.newClassName}` });
+      setMasterModal(null);
+      setMasterClassId("");
+      setMasterFees("");
+      qc.invalidateQueries({ queryKey: [`/api/admin/classes/${cls.id}/students`] });
+      qc.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      qc.invalidateQueries({ queryKey: [`/api/admin/diploma/class/${cls.id}/stats`] });
+    } catch (e: any) {
+      toast({ title: e.message ?? "Erreur lors de la réinscription.", variant: "destructive" });
+    } finally {
+      setInscribing(false);
+    }
+  };
 
   const { data: students = [], isLoading } = useGetClassStudents(cls.id, {
     query: { enabled: open } as any,
@@ -275,26 +325,59 @@ function ClassStudentsSheet({
               </div>
             ) : (
               <div className="space-y-2">
-                {(students as any[]).map((student) => (
-                  <div
-                    key={student.id}
-                    className="flex items-center justify-between p-3 bg-secondary/40 rounded-xl border border-border/50 hover:bg-secondary/70 transition-colors group"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm text-foreground truncate">{student.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{student.email}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 shrink-0"
-                      onClick={() => setPendingRemoveStudent({ id: student.id, name: student.name })}
-                      disabled={unenrollMutation.isPending}
+                {(students as any[]).map((student) => {
+                  const isDiplome = student.studentStatus === "diplome";
+                  return (
+                    <div
+                      key={student.id}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-colors group ${isDiplome ? "bg-emerald-50/60 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800" : "bg-secondary/40 border-border/50 hover:bg-secondary/70"}`}
                     >
-                      <UserMinus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-sm text-foreground truncate">{student.name}</p>
+                          {isDiplome && (
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                              <Award className="w-2.5 h-2.5" />
+                              Diplômé
+                            </span>
+                          )}
+                          {student.studentStatus === "ajourne_fin_cycle" && (
+                            <span className="text-[10px] font-bold text-orange-700 bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                              Ajourné
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{student.email}</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {isDiplome && cls.isTerminal && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
+                            onClick={() => {
+                              setMasterModal({ studentId: student.id, studentName: student.name });
+                              setMasterClassId("");
+                              setMasterFees("");
+                            }}
+                          >
+                            <ChevronsUp className="w-3 h-3" />
+                            Master
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
+                          onClick={() => setPendingRemoveStudent({ id: student.id, name: student.name })}
+                          disabled={unenrollMutation.isPending}
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -306,6 +389,102 @@ function ClassStudentsSheet({
         title="Retirer l'étudiant"
         description={`Voulez-vous vraiment retirer ${pendingRemoveStudent?.name} de cette classe ?`}
       />
+
+      {/* ── Modal "Inscrire en Master" ───────────────────────────────────────── */}
+      <Dialog open={!!masterModal} onOpenChange={(o) => { if (!o) setMasterModal(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUpCircle className="w-5 h-5 text-emerald-600" />
+              Inscrire en Master
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800">
+              <Award className="w-4 h-4 flex-shrink-0" />
+              <span><strong>{masterModal?.studentName}</strong> — diplômé(e) de {cls.name}</span>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Classe Master</Label>
+              <Select value={masterClassId} onValueChange={setMasterClassId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une classe…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(masterClasses as any[]).map((c: any) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      <div>
+                        <p className="font-medium">{c.name}</p>
+                        {c.filiere && <p className="text-xs text-muted-foreground">{c.filiere}</p>}
+                      </div>
+                    </SelectItem>
+                  ))}
+                  {(masterClasses as any[]).length === 0 && (
+                    <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                      Aucune classe disponible.
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Année académique</Label>
+              <Input
+                value={masterYear}
+                onChange={(e) => setMasterYear(e.target.value)}
+                placeholder="2025-2026"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Frais de scolarité Master (optionnel)</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min="0"
+                  value={masterFees}
+                  onChange={(e) => setMasterFees(e.target.value)}
+                  placeholder={masterClassId ? ((masterClasses as any[]).find((c: any) => c.id === parseInt(masterClassId))?.default_fees ?? "") : "Montant en DA"}
+                  className="pr-8"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">DA</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Laisser vide pour conserver les frais par défaut de la classe.
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800 space-y-1">
+              <p className="font-semibold">Ce qui sera conservé :</p>
+              <p>✓ Historique Licence (bulletins, notes, absences, mémoire)</p>
+              <p className="font-semibold mt-1">Ce qui sera réinitialisé :</p>
+              <p>✓ Inscription → nouvelle classe Master sélectionnée</p>
+              <p>✓ Statut étudiant → Actif</p>
+              <p>✓ Échéances de paiement en attente → archivées</p>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setMasterModal(null)}>
+                Annuler
+              </Button>
+              <Button
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={!masterClassId || !masterYear || inscribing}
+                onClick={handleInscribeMaster}
+              >
+                {inscribing ? (
+                  <span className="flex items-center gap-2"><span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-3.5 h-3.5" />Inscription…</span>
+                ) : (
+                  <span className="flex items-center gap-2"><ArrowUpCircle className="w-4 h-4" />Confirmer l'inscription</span>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       </SheetContent>
     </Sheet>
   );

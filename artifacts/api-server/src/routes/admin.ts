@@ -1,7 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import QRCode from "qrcode";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { generateBulletinHTML } from "../lib/bulletin-html.js";
 import { notifyStudentsOfClasses } from "./notifications.js";
 import { sendPushToUser } from "./push.js";
@@ -553,12 +553,17 @@ router.delete("/classes/:id", requireRole("admin"), async (req, res) => {
 router.get("/classes/:id/students", requireRole("admin", "teacher"), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const students = await db
-      .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, role: usersTable.role, createdAt: usersTable.createdAt })
-      .from(classEnrollmentsTable)
-      .innerJoin(usersTable, eq(usersTable.id, classEnrollmentsTable.studentId))
-      .where(eq(classEnrollmentsTable.classId, id));
-    res.json(students.map((s) => ({ ...s, classId: id, className: null })));
+    const tenantId = req.session!.tenantId!;
+    const { rows } = await pool.query(
+      `SELECT u.id, u.email, u.name, u.role, u.created_at as "createdAt",
+              COALESCE(u.student_status, 'actif') as "studentStatus"
+       FROM class_enrollments ce
+       JOIN users u ON u.id = ce.student_id
+       WHERE ce.class_id = $1 AND u.tenant_id = $2
+       ORDER BY u.name ASC`,
+      [id, tenantId]
+    );
+    res.json(rows.map((s: any) => ({ ...s, classId: id, className: null })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });

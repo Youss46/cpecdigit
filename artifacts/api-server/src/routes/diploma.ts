@@ -375,6 +375,232 @@ router.get("/student/diploma/bulletin/:semesterId", requireRole("student"), asyn
   }
 });
 
+// ─── Admin: list available classes for master continuation (all non-terminal, non-current) ──
+router.get("/admin/diploma/student/:studentId/master-classes", requireRole("admin"), async (req, res) => {
+  try {
+    const studentId = parseInt(req.params.studentId);
+    const tenantId = req.session!.tenantId!;
+
+    const { rows: currentClass } = await pool.query(
+      `SELECT ce.class_id FROM class_enrollments ce
+       JOIN users u ON u.id = ce.student_id
+       WHERE ce.student_id = $1 AND u.tenant_id = $2 LIMIT 1`,
+      [studentId, tenantId]
+    );
+    const currentClassId = currentClass[0]?.class_id ?? null;
+
+    const { rows } = await pool.query(
+      `SELECT c.id, c.name, c.filiere, c.is_terminal,
+              COALESCE(
+                (SELECT COUNT(*) FROM class_enrollments WHERE class_id = c.id), 0
+              ) as student_count,
+              cf.total_amount as default_fees
+       FROM classes c
+       LEFT JOIN class_fees cf ON cf.class_id = c.id
+       WHERE c.tenant_id = $1
+         AND ($2::int IS NULL OR c.id != $2)
+       ORDER BY c.order_index ASC, c.name ASC`,
+      [tenantId, currentClassId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: re-enroll diplomed student into a new Master class ────────────────
+router.post("/admin/diploma/student/:studentId/reinscrit-master", requireRole("admin"), async (req, res) => {
+  try {
+    const studentId = parseInt(req.params.studentId);
+    const tenantId = req.session!.tenantId!;
+    const adminId = req.session!.userId!;
+    const { new_class_id, academic_year, frais_scolarite } = req.body as {
+      new_class_id: number;
+      academic_year: string;
+      frais_scolarite?: number;
+    };
+
+    if (!new_class_id || !academic_year) {
+      res.status(400).json({ error: "new_class_id et academic_year sont requis." });
+      return;
+    }
+
+    // Verify student exists, belongs to tenant and is diplomed
+    const { rows: studentRows } = await pool.query(
+      `SELECT u.id, u.name, u.email, COALESCE(u.student_status, 'actif') as student_status,
+              c.id as old_class_id, c.name as old_class_name
+       FROM users u
+       LEFT JOIN class_enrollments ce ON ce.student_id = u.id
+       LEFT JOIN classes c ON c.id = ce.class_id
+       WHERE u.id = $1 AND u.tenant_id = $2 AND u.role = 'student'`,
+      [studentId, tenantId]
+    );
+    if (!studentRows[0]) {
+      res.status(404).json({ error: "Étudiant introuvable." });
+      return;
+    }
+    const student = studentRows[0];
+    if (student.student_status !== "diplome") {
+      res.status(400).json({ error: "L'étudiant n'est pas diplômé. L'inscription en Master n'est possible qu'après obtention du diplôme." });
+      return;
+    }
+
+    // Verify new class exists and belongs to this tenant
+    const { rows: newClassRows } = await pool.query(
+      `SELECT id, name, filiere FROM classes WHERE id = $1 AND tenant_id = $2`,
+      [new_class_id, tenantId]
+    );
+    if (!newClassRows[0]) {
+      res.status(404).json({ error: "Classe introuvable." });
+      return;
+    }
+    const newClass = newClassRows[0];
+
+    // ── DB transaction ────────────────────────────────────────────────────────
+    const client = await (await import("@workspace/db")).pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // 1. Remove old enrollment (history stays in grades/attendance by class/semester IDs)
+      await client.query(
+        `DELETE FROM class_enrollments WHERE student_id = $1`,
+        [studentId]
+      );
+
+      // 2. Insert new enrollment in Master class
+      await client.query(
+        `INSERT INTO class_enrollments (student_id, class_id) VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [studentId, new_class_id]
+      );
+
+      // 3. Reset student status to actif
+      await client.query(
+        `UPDATE users SET student_status = 'actif' WHERE id = $1`,
+        [studentId]
+      );
+
+      // 4. Update student fees for new cycle (upsert)
+      if (frais_scolarite !== undefined && frais_scolarite !== null) {
+        await client.query(
+          `INSERT INTO student_fees (student_id, total_amount, academic_year, notes, updated_at)
+           VALUES ($1, $2, $3, $4, NOW())
+           ON CONFLICT (student_id) DO UPDATE
+             SET total_amount = $2, academic_year = $3, updated_at = NOW()`,
+          [studentId, frais_scolarite, academic_year, `Inscription Master — ${newClass.name} — ${academic_year}`]
+        );
+      }
+
+      // 5. Archive pending payment installments from previous cycle
+      // (mark them as paid with zero amount to clear the dashboard, keeping history)
+      await client.query(
+        `UPDATE payment_installments
+         SET paid_at = CURRENT_DATE
+         WHERE student_id = $1 AND paid_at IS NULL`,
+        [studentId]
+      );
+
+      // 6. Log in activity log if table exists
+      await client.query(
+        `INSERT INTO activity_log (tenant_id, user_id, action, details, created_at)
+         VALUES ($1, $2, 'reinscription_master', $3, NOW())
+         ON CONFLICT DO NOTHING`,
+        [tenantId, adminId, JSON.stringify({
+          studentId,
+          studentName: student.name,
+          oldClassId: student.old_class_id,
+          oldClassName: student.old_class_name,
+          newClassId: new_class_id,
+          newClassName: newClass.name,
+          academicYear: academic_year,
+          fraisScolarite: frais_scolarite ?? null,
+        })]
+      ).catch(() => {/* activity log may not exist - non-blocking */});
+
+      await client.query("COMMIT");
+    } catch (txErr) {
+      await client.query("ROLLBACK");
+      throw txErr;
+    } finally {
+      client.release();
+    }
+
+    // 7. In-app notification
+    await pool.query(
+      `INSERT INTO notifications (user_id, type, title, message, read)
+       VALUES ($1, 'reinscription_master', $2, $3, false)`,
+      [
+        studentId,
+        "🎓 Inscription en Master validée",
+        `Votre inscription en ${newClass.name} (${academic_year}) a été validée. Bienvenue dans votre nouveau cycle !`,
+      ]
+    );
+
+    // 8. Push notification
+    await sendPushToUser(
+      studentId,
+      "🎓 Inscription en Master validée",
+      `Votre inscription en ${newClass.name} a été validée. Bienvenue dans votre nouveau cycle !`
+    );
+
+    res.json({
+      success: true,
+      studentName: student.name,
+      newClassName: newClass.name,
+      academicYear: academic_year,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Student: check if master continuation is available ──────────────────────
+router.get("/student/diploma/continuation", requireRole("student"), async (req, res) => {
+  try {
+    const studentId = req.session!.userId!;
+    const tenantId = req.session!.tenantId!;
+
+    const { rows: statusRows } = await pool.query(
+      `SELECT COALESCE(student_status, 'actif') as student_status FROM users WHERE id = $1`,
+      [studentId]
+    );
+    if (statusRows[0]?.student_status !== "diplome") {
+      res.json({ available: false, classes: [] });
+      return;
+    }
+
+    const { rows: currentClass } = await pool.query(
+      `SELECT ce.class_id, c.filiere FROM class_enrollments ce
+       JOIN classes c ON c.id = ce.class_id
+       WHERE ce.student_id = $1 LIMIT 1`,
+      [studentId]
+    );
+    const filiere = currentClass[0]?.filiere ?? null;
+    const currentClassId = currentClass[0]?.class_id ?? null;
+
+    // Find non-terminal classes in the same filière (if filière set) or all
+    const { rows: classes } = await pool.query(
+      `SELECT id, name, filiere, is_terminal
+       FROM classes
+       WHERE tenant_id = $1
+         AND ($2::int IS NULL OR id != $2)
+         AND is_terminal = false
+         AND ($3::text IS NULL OR filiere ILIKE '%' || split_part($3, ' ', 1) || '%')
+       ORDER BY order_index ASC, name ASC
+       LIMIT 10`,
+      [tenantId, currentClassId, filiere]
+    );
+
+    res.json({ available: classes.length > 0, classes });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // ─── Public: verify diploma attestation via QR code ──────────────────────────
 router.get("/public/verify-diploma/:token", async (req, res) => {
   try {
