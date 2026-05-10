@@ -7,6 +7,7 @@ import { usersTable, tenantsTable } from "@workspace/db";
 import { ensureDevoirsSchema } from "./lib/migrate-devoirs.js";
 import { ensureMemoiresSchema } from "./lib/migrate-memoires.js";
 import { ensureMemoireSessionsSchema } from "./lib/migrate-memoire-sessions.js";
+import { ensureDiplomaSchema } from "./lib/migrate-diploma.js";
 import { ensureWebAuthnSchema } from "./lib/migrate-webauthn.js";
 import { eq } from "drizzle-orm";
 import { startFeeReminderScheduler } from "./lib/fee-reminder-scheduler.js";
@@ -92,6 +93,7 @@ async function start() {
   await ensureDevoirsSchema();
   await ensureMemoiresSchema();
   await ensureMemoireSessionsSchema();
+  await ensureDiplomaSchema();
   await ensureWebAuthnSchema();
   httpServer.listen(port, () => {
     console.log(`Server listening on port ${port}`);

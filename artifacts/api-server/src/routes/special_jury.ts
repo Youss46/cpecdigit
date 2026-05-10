@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
+import crypto from "crypto";
+import { db, pool } from "@workspace/db";
 import {
   specialJurySessionsTable,
   specialJuryDecisionsTable,
@@ -14,6 +15,7 @@ import {
 } from "@workspace/db";
 import { eq, and, inArray, isNull, or } from "drizzle-orm";
 import { sendPushToUser } from "./push.js";
+import { sendDiplomaEmail } from "../lib/resend.js";
 
 const router = Router();
 
@@ -381,6 +383,122 @@ router.post("/jury-special/sessions/:id/close", requireScolariteOrDirecteur, asy
         .update(specialJuryDecisionsTable)
         .set({ notified: true })
         .where(eq(specialJuryDecisionsTable.sessionId, sessionId));
+    }
+
+    // ── Auto-trigger diploma for terminal-class students who are now fully "Admis" ──
+    const tenantId = req.session!.tenantId!;
+    const validatedStudentIds = [...new Set(
+      decisions.filter(d => d.decision === "validated").map(d => d.studentId)
+    )];
+
+    if (validatedStudentIds.length > 0) {
+      // Fire-and-forget: don't block the response
+      (async () => {
+        try {
+          const yearSems = await pool.query<{ id: number; name: string }>(
+            `SELECT id, name FROM semesters WHERE academic_year = $1 AND tenant_id = $2`,
+            [session.academicYear, tenantId]
+          );
+          if (yearSems.rows.length === 0) return;
+
+          for (const studentId of validatedStudentIds) {
+            // Check if student is in a terminal class
+            const classRow = await pool.query<{ class_id: number; class_name: string; is_terminal: boolean }>(
+              `SELECT c.id as class_id, c.name as class_name, c.is_terminal
+               FROM class_enrollments ce JOIN classes c ON c.id = ce.class_id
+               WHERE ce.student_id = $1 AND c.tenant_id = $2 LIMIT 1`,
+              [studentId, tenantId]
+            );
+            const cls = classRow.rows[0];
+            if (!cls?.is_terminal) continue;
+
+            // Check already diplomed
+            const statusRow = await pool.query<{ student_status: string }>(
+              `SELECT student_status FROM users WHERE id = $1`, [studentId]
+            );
+            if (statusRow.rows[0]?.student_status === "diplome") continue;
+
+            // Verify all semesters are now "Admis" (average >= 10)
+            let allPassed = true;
+            for (const sem of yearSems.rows) {
+              const avgRow = await pool.query<{ avg: string | null }>(
+                `SELECT ROUND(AVG(COALESCE(rg.grade, g.value))::numeric, 2) as avg
+                 FROM subjects s
+                 LEFT JOIN grades g ON g.subject_id = s.id AND g.student_id = $1 AND g.semester_id = $2
+                 LEFT JOIN retake_grades rg ON rg.subject_id = s.id AND rg.student_id = $1 AND rg.semester_id = $2
+                 WHERE s.semester_id = $2`,
+                [studentId, sem.id]
+              );
+              // Also check jury decisions as override
+              const juryRow = await pool.query<{ decision: string; new_average: number | null }>(
+                `SELECT decision, new_average FROM special_jury_decisions
+                 WHERE student_id = $1 AND semester_id = $2
+                 ORDER BY decided_at DESC LIMIT 1`,
+                [studentId, sem.id]
+              );
+              const juryDecision = juryRow.rows[0];
+              if (juryDecision) {
+                if (juryDecision.decision === "failed") { allPassed = false; break; }
+                // validated or conditional → counts as passed
+                continue;
+              }
+              const avg = avgRow.rows[0]?.avg ? parseFloat(avgRow.rows[0].avg) : null;
+              if (avg === null || avg < 10) { allPassed = false; break; }
+            }
+            if (!allPassed) continue;
+
+            // Trigger diploma
+            const token = crypto.randomBytes(48).toString("hex");
+            const studentRow = await pool.query<{ name: string; email: string }>(
+              `SELECT name, email FROM users WHERE id = $1`, [studentId]
+            );
+            const student = studentRow.rows[0];
+            if (!student) continue;
+
+            // Cycle average
+            const cycleAvgRow = await pool.query<{ avg: string | null }>(
+              `SELECT ROUND(AVG(g.value)::numeric, 2) as avg FROM grades g
+               JOIN semesters s ON g.semester_id = s.id
+               WHERE g.student_id = $1 AND s.class_id = $2 AND g.value IS NOT NULL`,
+              [studentId, cls.class_id]
+            );
+            const avg = cycleAvgRow.rows[0]?.avg ? parseFloat(cycleAvgRow.rows[0].avg) : null;
+            let mention = "Passable";
+            if (avg !== null) {
+              if (avg >= 16) mention = "Très Bien";
+              else if (avg >= 14) mention = "Bien";
+              else if (avg >= 12) mention = "Assez Bien";
+            }
+
+            await pool.query(
+              `UPDATE diploma_attestations SET invalidated_at = NOW()
+               WHERE student_id = $1 AND tenant_id = $2 AND class_id = $3 AND invalidated_at IS NULL`,
+              [studentId, tenantId, cls.class_id]
+            );
+            await pool.query(
+              `INSERT INTO diploma_attestations (tenant_id, student_id, class_id, academic_year, token, mention, average, class_name, student_name)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+               ON CONFLICT DO NOTHING`,
+              [tenantId, studentId, cls.class_id, session.academicYear, token, mention, avg, cls.class_name, student.name]
+            );
+            await pool.query(`UPDATE users SET student_status = 'diplome' WHERE id = $1`, [studentId]);
+
+            await pool.query(
+              `INSERT INTO notifications (user_id, type, title, message, read) VALUES ($1, 'diplome', $2, $3, false)`,
+              [studentId, "🎓 Félicitations — Diplôme obtenu !", `Vous avez validé votre ${cls.class_name}. Vos documents sont dans votre Espace Diplômé.`]
+            );
+            await sendPushToUser(studentId, "🎓 Félicitations — Diplôme obtenu !",
+              `Vous avez validé votre ${cls.class_name}. Accédez à votre Espace Diplômé.`);
+            sendDiplomaEmail({
+              studentName: student.name, studentEmail: student.email,
+              className: cls.class_name, academicYear: session.academicYear,
+              mention, average: avg ?? undefined,
+            }).catch((e) => console.error("[AutoDiplomaEmail]", e));
+          }
+        } catch (e) {
+          console.error("[AutoDiploma] Error:", e);
+        }
+      })();
     }
 
     res.json({ ...updated, notifiedCount: notifiedStudents.size });

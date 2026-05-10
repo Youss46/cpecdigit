@@ -15,8 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Users, UserPlus, UserMinus, ChevronRight, BookOpen, ChevronUp, ChevronDown, GraduationCap, Pencil, Check, X } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, Users, UserPlus, UserMinus, ChevronRight, BookOpen, ChevronUp, ChevronDown, GraduationCap, Pencil, Check, X, Award } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
 
 type ClassItem = { id: number; name: string; description: string | null; filiere: string | null; studentCount: number; nextClassId: number | null; isTerminal: boolean };
@@ -311,6 +311,39 @@ function ClassStudentsSheet({
   );
 }
 
+function DiplomaStatsBar({ classId }: { classId: number }) {
+  const { data } = useQuery<{ total: number; diplome: number; ajourne: number; actif: number }>({
+    queryKey: [`/api/admin/diploma/class/${classId}/stats`],
+    queryFn: async () => {
+      const r = await fetch(`/api/admin/diploma/class/${classId}/stats`, { credentials: "include" });
+      if (!r.ok) throw new Error("stats error");
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+  if (!data || data.total === 0) return null;
+  return (
+    <div className="mt-3 flex items-center gap-2 flex-wrap px-9">
+      {data.diplome > 0 && (
+        <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+          <Award className="w-3 h-3" />
+          {data.diplome} Diplômé{data.diplome > 1 ? "s" : ""}
+        </span>
+      )}
+      {data.actif > 0 && (
+        <span className="flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+          {data.actif} En cours
+        </span>
+      )}
+      {data.ajourne > 0 && (
+        <span className="flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+          {data.ajourne} Ajourné{data.ajourne > 1 ? "s" : ""}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function AdminClasses() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null);
@@ -504,6 +537,10 @@ export default function AdminClasses() {
                     {cls.description || "Aucune description"}
                   </p>
                 </div>
+
+                {cls.isTerminal && (
+                  <DiplomaStatsBar classId={cls.id} />
+                )}
 
                 <div className="mt-6 space-y-2">
                   <div className="flex items-center justify-between">

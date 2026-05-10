@@ -418,3 +418,87 @@ export async function sendMemoireSessionEmail(opts: {
   });
   if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
 }
+
+export async function sendDiplomaEmail(opts: {
+  studentName: string;
+  studentEmail: string;
+  className: string;
+  academicYear: string;
+  mention: string;
+  average?: number;
+}): Promise<void> {
+  const { client, fromEmail } = await getResendClient();
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+        <tr>
+          <td style="background:linear-gradient(135deg,#1a3a5c 0%,#0f2540 100%);border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
+            <span style="font-size:26px;font-weight:800;color:#fff;">M15 <span style="color:#f59e0b;">EduTech</span></span>
+            <p style="margin:6px 0 0;font-size:11px;color:rgba(255,255,255,0.6);letter-spacing:2px;text-transform:uppercase;">Gestion Académique</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#fff;padding:40px 40px 32px;text-align:center;">
+            <div style="font-size:64px;margin-bottom:16px;">&#127891;</div>
+            <div style="display:inline-block;background:#fef9ec;border-radius:8px;padding:6px 18px;margin-bottom:20px;border:1px solid #fde68a;">
+              <span style="font-size:12px;font-weight:700;color:#92400e;letter-spacing:1px;text-transform:uppercase;">Diplôme obtenu</span>
+            </div>
+            <h2 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f2540;">Félicitations, ${opts.studentName}&nbsp;!</h2>
+            <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.8;">
+              Vous avez officiellement validé votre <strong style="color:#0f2540;">${opts.className}</strong>
+              pour l'année académique <strong>${opts.academicYear}</strong>.
+            </p>
+            <table width="100%" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;margin-bottom:24px;">
+              <tr><td style="padding:20px 24px;">
+                <table width="100%">
+                  <tr>
+                    <td style="text-align:left;">
+                      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:1px;">Mention</p>
+                      <p style="margin:0;font-size:18px;font-weight:800;color:#15803d;">${opts.mention}</p>
+                    </td>
+                    ${opts.average != null ? `<td style="text-align:right;"><p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:1px;">Moyenne générale</p><p style="margin:0;font-size:18px;font-weight:800;color:#15803d;">${opts.average.toFixed(2)} / 20</p></td>` : ""}
+                  </tr>
+                </table>
+              </td></tr>
+            </table>
+            <p style="margin:0 0 24px;font-size:14px;color:#374151;line-height:1.8;">
+              Vos documents officiels (attestation de diplôme avec QR code de vérification, relevé de notes complet)
+              sont disponibles dans votre <strong>Espace Diplômé</strong> sur la plateforme.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="padding:8px 0 24px;">
+                  <a href="https://www.m15-edutech.ci/student/espace-diplome"
+                     style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;">
+                    Accéder à mon Espace Diplômé →
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0;font-size:12px;color:#9ca3af;">Toute l'équipe M15 EduTech vous souhaite une excellente continuation.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f9fafb;border-top:1px solid #e5e7eb;border-radius:0 0 12px 12px;padding:16px 40px;text-align:center;">
+            <p style="margin:0;font-size:11px;color:#9ca3af;">© ${new Date().getFullYear()} M15 EduTech</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const { error } = await client.emails.send({
+    from: `M15 EduTech <${fromEmail}>`,
+    to: opts.studentEmail,
+    subject: `Félicitations — Vous avez obtenu votre ${opts.className} !`,
+    html,
+  });
+  if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
+}

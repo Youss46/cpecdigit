@@ -203,6 +203,7 @@ router.get("/me", requireAuth, async (req, res) => {
       className,
       activationKeyShown: user.activationKeyShown,
       isFirstLogin: !!(user.firstLoginAt) && !user.activationKeyShown && !!user.requiresActivationKey,
+      studentStatus: (user as any).studentStatus ?? null,
     });
   } catch (err) {
     console.error("Get me error:", err);

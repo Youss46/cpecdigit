@@ -87,6 +87,8 @@ import StudentDevoirSession from "@/pages/student/devoir-session";
 import StudentDevoirResultats from "@/pages/student/devoir-resultats";
 import AdminMemoires from "@/pages/admin/memoires";
 import StudentMemoires from "@/pages/student/memoires";
+import EspaceDiplome from "@/pages/student/espace-diplome";
+import VerifyDiploma from "@/pages/verify-diploma";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -205,6 +207,11 @@ function Router() {
       <Route path="/student/memoires" component={StudentMemoires} />
       <Route path="/settings" component={SettingsPage} />
 
+      <Route path="/student/espace-diplome" component={EspaceDiplome} />
+
+      {/* Public: Diploma attestation verification */}
+      <Route path="/verify/diploma/:token" component={VerifyDiploma} />
+
       {/* Public: Bulletin verification (must come before /verify/:hash) */}
       <Route path="/verify/bulletin/:token" component={VerifyBulletin} />
 
@@ -222,7 +229,7 @@ function Router() {
 
 function App() {
   const isDevPortal = window.location.pathname.endsWith("/dev") || window.location.pathname.includes("/dev/");
-  const isPublicPage = window.location.pathname.includes("/verify/");
+  const isPublicPage = window.location.pathname.includes("/verify/") || window.location.pathname.includes("/verify-diploma");
   const [showSplash, setShowSplash] = useState(() => {
     if (isDevPortal || isPublicPage) return false;
     const seen = sessionStorage.getItem("cpec_splash_seen");

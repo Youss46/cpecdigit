@@ -57,6 +57,7 @@ import {
   WifiOff,
   Wrench,
   ClipboardCheck,
+  Award,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -371,6 +372,9 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
           { name: "Paramètres", href: "/settings", icon: Settings2 },
         ]
       : [
+          ...(((user as any)?.studentStatus === "diplome") ? [
+            { name: "🎓 Espace Diplômé", href: "/student/espace-diplome", icon: Award, badge: null },
+          ] : []),
           { name: "Mon Profil", href: "/student", icon: LayoutDashboard, badge: null },
           { name: "Mon Emploi du Temps", href: "/student/schedule", icon: CalendarDays, badge: null },
           { name: "Mes Résultats", href: "/student/grades", icon: FileText, badge: null },
@@ -382,8 +386,8 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
           { name: "Bibliothèque", href: "/student/bibliotheque", icon: BookOpen, badge: null },
           { name: "Notifications", href: "/student/notifications", icon: Bell, badge: (unreadData?.count ?? 0) > 0 ? unreadData!.count : null },
           { name: "Ma Carte Étudiante", href: "/student/card", icon: CreditCard, badge: null },
-          ...(hasActiveEvaluation ? [{ name: "Évaluer mes Enseignants", href: "/student/evaluations", icon: Star, badge: null }] : []),
-          { name: "Mes Réclamations", href: "/student/reclamations", icon: Scale, badge: null },
+          ...(hasActiveEvaluation && (user as any)?.studentStatus !== "diplome" ? [{ name: "Évaluer mes Enseignants", href: "/student/evaluations", icon: Star, badge: null }] : []),
+          ...((user as any)?.studentStatus !== "diplome" ? [{ name: "Mes Réclamations", href: "/student/reclamations", icon: Scale, badge: null }] : []),
           { name: "Messages", href: "/student/messages", icon: MessageSquare, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined },
           { name: "Paramètres", href: "/settings", icon: Settings2 },
         ];
