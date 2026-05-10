@@ -928,6 +928,8 @@ export default function AdminMemoiresPage() {
   const { data: memoires = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/memoires"],
     queryFn: () => apiFetch("/admin/memoires"),
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
   });
 
   const archived = (memoires as any[]).filter(m => ["SOUTENU", "ARCHIVE"].includes(m.statut));
