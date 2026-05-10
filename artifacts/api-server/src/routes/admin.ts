@@ -2439,6 +2439,7 @@ router.get("/alertes/resume", requireRole("admin"), async (req, res) => {
       studentsThresholdResult,
       activeJurySessions,
       unreadMsgs,
+      memoiresSoumisResult,
     ] = await Promise.all([
       db.select().from(gradeSubmissionsTable),
       db.select().from(subjectApprovalsTable),
@@ -2458,6 +2459,7 @@ router.get("/alertes/resume", requireRole("admin"), async (req, res) => {
       db.select({ id: messagesTable.id })
         .from(messagesTable)
         .where(and(eq(messagesTable.recipientId, userId), isNull(messagesTable.readAt))),
+      db.execute(sql`SELECT COUNT(*)::int AS count FROM memoires WHERE statut = 'SOUMIS'`),
     ]);
 
     const approvedKeys = new Set(approvals.map((a) => `${a.subjectId}-${a.classId}-${a.semesterId}`));
@@ -2468,6 +2470,7 @@ router.get("/alertes/resume", requireRole("admin"), async (req, res) => {
     const studentsAboveThreshold = ((studentsThresholdResult as any).rows?.[0]?.count ?? 0) as number;
     const juryEnAttente = activeJurySessions.length;
     const unreadMessages = unreadMsgs.length;
+    const memoiresSoumis = ((memoiresSoumisResult as any).rows?.[0]?.count ?? 0) as number;
 
     let unpaidHonoraires = 0;
     if (subRole === "directeur") {
@@ -2495,6 +2498,7 @@ router.get("/alertes/resume", requireRole("admin"), async (req, res) => {
       juryEnAttente,
       unreadMessages,
       unpaidHonoraires,
+      memoiresSoumis,
       urgentTotal,
       attentionTotal,
       total: urgentTotal + attentionTotal,

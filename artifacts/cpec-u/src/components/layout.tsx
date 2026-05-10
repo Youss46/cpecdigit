@@ -120,7 +120,8 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
   }, [isDark]);
 
   const { data: unreadData } = useGetUnreadNotificationCount({
-    enabled: !!(user && user.role === "student"),
+    enabled: !!(user && (user.role === "student" || user.role === "admin" || user.role === "teacher")),
+    refetchInterval: 30_000,
   } as any);
 
   const isResultsAdmin = !!(user && user.role === "admin" && ((user as any).adminSubRole === "scolarite" || (user as any).adminSubRole === "directeur"));
@@ -131,16 +132,19 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
   const { data: unreadMsgData } = useGetUnreadMessageCount({ enabled: !!user } as any);
   const unreadMsgCount = (unreadMsgData as any)?.count ?? 0;
 
+  const isAdmin = !!(user && user.role === "admin");
   const { data: alertesResumeData } = useQuery({
     queryKey: ["/api/admin/alertes/resume"],
     queryFn: () => fetch("/api/admin/alertes/resume", { credentials: "include" }).then(r => r.json()),
-    enabled: isResultsAdmin,
+    enabled: isAdmin,
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
   const absenceAlertCount: number = (alertesResumeData as any)?.studentsAboveThreshold ?? 0;
   const juryBadgeCount: number = (alertesResumeData as any)?.juryEnAttente ?? 0;
   const overduePaymentsBadge: number = (alertesResumeData as any)?.overduePayments ?? 0;
+  const memoiresSoumisCount: number = (alertesResumeData as any)?.memoiresSoumis ?? 0;
+  const adminUnreadNotifCount: number = (unreadData as any)?.count ?? 0;
 
   const isStudent = !!(user && user.role === "student");
   const { data: studentEvalData } = useStudentEvaluationsCurrent({ enabled: isStudent } as any);
@@ -262,7 +266,7 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
     { name: "Journal d'Activité", href: "/admin/activity-log", icon: ScrollText },
     { name: "Rattrapage", href: "/admin/rattrapage", icon: RotateCcw },
     { name: "Jury Spécial", href: "/admin/jury-special", icon: Gavel, badge: juryBadgeCount > 0 ? juryBadgeCount : undefined },
-    { name: "Mémoires & Soutenances", href: "/admin/memoires", icon: GraduationCap },
+    { name: "Mémoires & Soutenances", href: "/admin/memoires", icon: GraduationCap, badge: memoiresSoumisCount > 0 ? memoiresSoumisCount : undefined },
     { name: "Cartes Étudiantes", href: "/admin/cards", icon: CreditCard },
     { name: "Évaluations Enseignants", href: "/admin/evaluations", icon: Star },
     { name: "Réclamations", href: "/admin/reclamations", icon: Scale, badge: adminReclamCount > 0 ? adminReclamCount : undefined },
@@ -271,6 +275,7 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
     { name: "Centre de Documents", href: "/admin/documents", icon: FileText },
     { name: "Gestion des Parents", href: "/admin/parents", icon: User2 },
     { name: "Messages", href: "/admin/messages", icon: MessageSquare, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined },
+    { name: "Notifications", href: "/admin/notifications", icon: Bell, badge: adminUnreadNotifCount > 0 ? adminUnreadNotifCount : undefined },
     { name: "Paramètres", href: "/settings", icon: Settings2 },
   ];
 
@@ -285,13 +290,14 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
     { name: "Semestres", href: "/admin/semesters", icon: Calendar },
     { name: "Feuilles de Présence", href: "/admin/attendance", icon: ClipboardList },
     { name: "Bilan des Absences", href: "/admin/attendance/summary", icon: BarChart3, badge: absenceAlertCount > 0 ? absenceAlertCount : undefined },
-    { name: "Mémoires & Soutenances", href: "/admin/memoires", icon: GraduationCap },
+    { name: "Mémoires & Soutenances", href: "/admin/memoires", icon: GraduationCap, badge: memoiresSoumisCount > 0 ? memoiresSoumisCount : undefined },
     { name: "Utilisateurs", href: "/admin/users", icon: Users },
     { name: "Cahiers de texte", href: "/admin/cahier-de-texte", icon: BookText },
     { name: "Bibliothèque", href: "/admin/bibliotheque", icon: BookOpen },
     { name: "Suivi des Heures", href: "/admin/suivi-heures", icon: TrendingUp },
     { name: "Honoraires", href: "/admin/honoraires", icon: Wallet },
     { name: "Messages", href: "/admin/messages", icon: MessageSquare, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined },
+    { name: "Notifications", href: "/admin/notifications", icon: Bell, badge: adminUnreadNotifCount > 0 ? adminUnreadNotifCount : undefined },
     { name: "Paramètres", href: "/settings", icon: Settings2 },
   ];
 
@@ -315,7 +321,7 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
     { name: "Honoraires", href: "/admin/honoraires", icon: Wallet },
     { name: "Rattrapage", href: "/admin/rattrapage", icon: RotateCcw },
     { name: "Jury Spécial", href: "/admin/jury-special", icon: Gavel, badge: juryBadgeCount > 0 ? juryBadgeCount : undefined },
-    { name: "Mémoires & Soutenances", href: "/admin/memoires", icon: GraduationCap },
+    { name: "Mémoires & Soutenances", href: "/admin/memoires", icon: GraduationCap, badge: memoiresSoumisCount > 0 ? memoiresSoumisCount : undefined },
     { name: "Cartes Étudiantes", href: "/admin/cards", icon: CreditCard },
     { name: "Évaluations Enseignants", href: "/admin/evaluations", icon: Star },
     { name: "Réclamations", href: "/admin/reclamations", icon: Scale, badge: adminReclamCount > 0 ? adminReclamCount : undefined },
@@ -324,6 +330,7 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
     { name: "Centre de Documents", href: "/admin/documents", icon: FileText },
     { name: "Gestion des Parents", href: "/admin/parents", icon: User2 },
     { name: "Messages", href: "/admin/messages", icon: MessageSquare, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined },
+    { name: "Notifications", href: "/admin/notifications", icon: Bell, badge: adminUnreadNotifCount > 0 ? adminUnreadNotifCount : undefined },
     { name: "Paramètres", href: "/settings", icon: Settings2 },
   ];
 

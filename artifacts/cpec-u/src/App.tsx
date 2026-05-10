@@ -86,6 +86,7 @@ import StudentDevoirs from "@/pages/student/devoirs";
 import StudentDevoirSession from "@/pages/student/devoir-session";
 import StudentDevoirResultats from "@/pages/student/devoir-resultats";
 import AdminMemoires from "@/pages/admin/memoires";
+import AdminNotifications from "@/pages/admin/notifications";
 import StudentMemoires from "@/pages/student/memoires";
 import EspaceDiplome from "@/pages/student/espace-diplome";
 import VerifyDiploma from "@/pages/verify-diploma";
@@ -146,6 +147,7 @@ function Router() {
       <Route path="/admin/suivi-heures" component={AdminSuiviHeures} />
       <Route path="/admin/rattrapage" component={AdminRattrapage} />
       <Route path="/admin/jury-special" component={JurySpecial} />
+      <Route path="/admin/notifications" component={AdminNotifications} />
 
       {/* Teacher Routes */}
       <Route path="/teacher" component={TeacherDashboard} />

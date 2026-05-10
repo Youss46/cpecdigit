@@ -3,10 +3,12 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { pool } from "@workspace/db";
+import { pool, db } from "@workspace/db";
+import { notificationsTable } from "@workspace/db";
 import { requireRole } from "../lib/auth.js";
 import { sendConvocationEmail, sendMemoireSessionEmail } from "../lib/resend.js";
 import { sendPushToUser, sendPushToUsers } from "./push.js";
+import { emitToUsers } from "../lib/socket.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, "../../uploads");
@@ -122,21 +124,38 @@ router.post(
         );
       }
 
-      // Notify all admins of the tenant
+      // Notify all admins of the tenant (in-app + push)
       const { rows: adminRows } = await pool.query(
         `SELECT id FROM users
          WHERE tenant_id = $1 AND role = 'admin'
-           AND admin_sub_role IN ('planificateur', 'directeur')`,
+           AND admin_sub_role IN ('scolarite', 'directeur', 'planificateur')`,
         [tenantId]
       );
       const adminIds = adminRows.map((r: { id: number }) => r.id);
       const studentName = req.session!.name ?? "Un étudiant";
+      const notifTitle = "Nouveau mémoire soumis";
+      const notifMsg   = `${studentName} a soumis un mémoire : "${titre}"`;
+
+      // In-app notifications (persisted in DB, shown in notification bell)
+      if (adminIds.length > 0) {
+        db.insert(notificationsTable)
+          .values(adminIds.map(id => ({
+            userId: id,
+            type: "memoire_soumis",
+            title: notifTitle,
+            message: notifMsg,
+          })))
+          .catch(() => {});
+        emitToUsers(adminIds, "notification:new");
+      }
+
+      // Push notifications (fire and forget)
       sendPushToUsers(adminIds, {
-        title: "Nouveau mémoire soumis",
-        body: `${studentName} a soumis un mémoire : "${titre}"`,
-        type: "memoire_soumis",
-        url: "/admin/memoires",
-        tag: `memoire-soumis-${memoireId}`,
+        title: notifTitle,
+        body:  notifMsg,
+        type:  "memoire_soumis",
+        url:   "/admin/memoires",
+        tag:   `memoire-soumis-${memoireId}`,
       }).catch(() => {});
 
       res.status(201).json({ id: memoireId, message: "Mémoire soumis avec succès." });
