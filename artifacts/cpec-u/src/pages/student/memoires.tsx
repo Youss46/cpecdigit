@@ -564,14 +564,14 @@ export default function StudentMemoiresPage() {
 
   const hasPending = (memoires as any[]).some(m => !["SOUTENU", "ARCHIVE", "REJETE"].includes(m.statut));
 
-  // Determine if session is currently blocking new submissions
-  const sessionBlocking = session && (() => {
-    if (session.statut === "CLOTUREE") return true;
+  // A session must exist AND be currently active (open, within date range, not closed)
+  const sessionActive = session && (() => {
+    if (session.statut === "CLOTUREE") return false;
     const now = new Date();
-    return now > new Date(session.date_cloture);
+    return now >= new Date(session.date_ouverture) && now <= new Date(session.date_cloture);
   })();
 
-  const canSubmit = !hasPending && !sessionBlocking;
+  const canSubmit = !hasPending && !!sessionActive;
 
   return (
     <AppLayout allowedRoles={["student"]}>
@@ -594,6 +594,19 @@ export default function StudentMemoiresPage() {
 
         {/* Session banner */}
         {session && <SessionBanner session={session} />}
+
+        {/* No session configured at all */}
+        {!session && (
+          <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl bg-gray-50 border border-gray-200">
+            <TimerOff className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-gray-700">Aucune période de soumission ouverte</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                L'administration n'a pas encore ouvert de période de dépôt de mémoire pour votre classe. Veuillez contacter la scolarité pour plus d'informations.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Alert if has pending */}
         {hasPending && !showForm && (

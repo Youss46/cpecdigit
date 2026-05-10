@@ -56,34 +56,38 @@ router.post(
           [tenantId, studentId]
         );
 
-        if (session) {
-          const now = new Date();
-          const ouverture = new Date(session.date_ouverture);
-          const cloture   = new Date(session.date_cloture);
-          const fmt = (d: Date) => d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+        // Block unconditionally when no session has been configured
+        if (!session) {
+          res.status(403).json({ error: "Aucune période de soumission n'est configurée pour votre classe. Veuillez contacter la scolarité." });
+          return;
+        }
 
-          if (session.statut === "CLOTUREE") {
-            res.status(403).json({ error: `La période de soumission a été clôturée manuellement par l'administration. Veuillez contacter la scolarité.` });
-            return;
-          }
-          if (now < ouverture) {
-            res.status(403).json({ error: `La période de soumission n'est pas encore ouverte. Elle ouvrira le ${fmt(ouverture)}.` });
-            return;
-          }
-          if (now > cloture) {
-            res.status(403).json({ error: `La période de soumission est clôturée depuis le ${fmt(cloture)}. Veuillez contacter l'administration.` });
-            return;
-          }
+        const now = new Date();
+        const ouverture = new Date(session.date_ouverture);
+        const cloture   = new Date(session.date_cloture);
+        const fmt = (d: Date) => d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 
-          // Vérification quota soumissions
-          const { rows: [{ count }] } = await pool.query(
-            `SELECT COUNT(*) FROM memoires WHERE student_id = $1 AND tenant_id = $2 AND statut != 'REJETE'`,
-            [studentId, tenantId]
-          );
-          if (Number(count) >= session.max_soumissions) {
-            res.status(403).json({ error: `Vous avez déjà atteint le nombre maximum de soumissions autorisées (${session.max_soumissions}) pour cette période.` });
-            return;
-          }
+        if (session.statut === "CLOTUREE") {
+          res.status(403).json({ error: `La période de soumission a été clôturée manuellement par l'administration. Veuillez contacter la scolarité.` });
+          return;
+        }
+        if (now < ouverture) {
+          res.status(403).json({ error: `La période de soumission n'est pas encore ouverte. Elle ouvrira le ${fmt(ouverture)}.` });
+          return;
+        }
+        if (now > cloture) {
+          res.status(403).json({ error: `La période de soumission est clôturée depuis le ${fmt(cloture)}. Veuillez contacter l'administration.` });
+          return;
+        }
+
+        // Vérification quota soumissions
+        const { rows: [{ count }] } = await pool.query(
+          `SELECT COUNT(*) FROM memoires WHERE student_id = $1 AND tenant_id = $2 AND statut != 'REJETE'`,
+          [studentId, tenantId]
+        );
+        if (Number(count) >= session.max_soumissions) {
+          res.status(403).json({ error: `Vous avez déjà atteint le nombre maximum de soumissions autorisées (${session.max_soumissions}) pour cette période.` });
+          return;
         }
       }
       // ──────────────────────────────────────────────────────────────────────
