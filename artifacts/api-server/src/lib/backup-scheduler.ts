@@ -42,31 +42,33 @@ export async function runBackup(label = "auto"): Promise<{ success: boolean; fil
 
   const date = new Date();
   const timestamp = date.toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const fileName = `backup-${label}-${timestamp}.sql`;
+  const fileName = `backup-${label}-${timestamp}.sql.gz`;
   const localPath = `/tmp/${fileName}`;
 
   console.log(`[Backup] Début — ${fileName}`);
 
   try {
     await execAsync(
-      `pg_dump "${databaseUrl}" --no-password --format=plain --no-owner --no-acl -f "${localPath}"`
+      `pg_dump "${databaseUrl}" --no-password --format=plain --no-owner --no-acl | gzip > "${localPath}"`
     );
-    console.log("[Backup] pg_dump terminé");
+    console.log("[Backup] pg_dump + gzip terminé");
 
     const content = fs.readFileSync(localPath);
+    const sizeMb = (content.byteLength / 1024 / 1024).toFixed(2);
 
     await s3.send(new PutObjectCommand({
       Bucket: bucket,
       Key: `backups/${fileName}`,
       Body: content,
-      ContentType: "application/sql",
+      ContentType: "application/gzip",
+      ContentEncoding: "gzip",
       Metadata: {
         "created-at": date.toISOString(),
         "label": label,
         "database": "m15-edutech",
       },
     }));
-    console.log(`[Backup] Upload R2 réussi : backups/${fileName}`);
+    console.log(`[Backup] Upload R2 réussi : backups/${fileName} (${sizeMb} MB compressé)`);
 
     fs.unlinkSync(localPath);
 
