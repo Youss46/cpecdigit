@@ -621,6 +621,20 @@ router.post("/reset-password", requireDev, async (req, res) => {
 
 // ─── Backup R2 ───────────────────────────────────────────────────────────────
 
+// GET /dev/backup/env — vérifie quelles variables R2 sont présentes (sans exposer les valeurs)
+router.get("/backup/env", requireDev, (_req, res) => {
+  const vars = ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME", "R2_ACCOUNT_ID"];
+  const result: Record<string, { present: boolean; preview?: string }> = {};
+  for (const v of vars) {
+    const val = process.env[v];
+    result[v] = val
+      ? { present: true, preview: val.slice(0, 8) + "…" }
+      : { present: false };
+  }
+  const allRequired = ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME"].every(v => !!process.env[v]);
+  res.json({ ready: allRequired, variables: result });
+});
+
 // POST /dev/backup/run — déclenche un backup manuel immédiat
 router.post("/backup/run", requireDev, async (_req, res) => {
   res.json({ message: "Backup en cours — consultez les logs du serveur pour le résultat." });

@@ -1,0 +1,23 @@
+2026-05-10T22:18:10.634248031Z [inf]  Starting Container
+2026-05-10T22:18:11.246082335Z [inf]  > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+2026-05-10T22:18:11.246090935Z [inf]  > NODE_ENV=production node dist/index.mjs
+2026-05-10T22:18:11.246096185Z [inf]  
+2026-05-10T22:18:11.246101335Z [inf]  [CORS] isProd=true allowedOrigins=["https://www.m15-edutech.ci","https://m15-edutech.ci","https://cpecdigit-cpec-u.vercel.app"]
+2026-05-10T22:18:11.246105615Z [err]  Warning: connect.session() MemoryStore is not
+2026-05-10T22:18:11.246110095Z [err]  designed for a production environment, as it will leak
+2026-05-10T22:18:11.246114535Z [err]  memory, and will not scale past a single process.
+2026-05-10T22:18:11.246230433Z [inf]  
+2026-05-10T22:18:11.301383380Z [inf]    ↩  "0000_initial" already applied — skipping.
+2026-05-10T22:18:11.301388909Z [inf]  ✓ All migrations are up to date.
+2026-05-10T22:18:11.435238834Z [inf]  ✓ Schéma Devoirs & Évaluations prêt.
+2026-05-10T22:18:11.457246963Z [inf]  ✓ Schéma Mémoires & Soutenances prêt.
+2026-05-10T22:18:11.483438442Z [inf]  ✓ Schéma Périodes de Soumission de Mémoires prêt.
+2026-05-10T22:18:11.502380308Z [inf]  ✓ Schéma Diplômes & Attestations prêt.
+2026-05-10T22:18:11.518071532Z [inf]  ✓ Schéma WebAuthn (connexion biométrique) prêt.
+2026-05-10T22:18:11.518077762Z [inf]  Server listening on port 8080
+2026-05-10T22:18:11.518082472Z [inf]  [FeeReminder] Scheduler démarré — prochain run à 08h00 (dans 582 min)
+2026-05-10T22:18:11.518086372Z [inf]  [reco-scheduler] Started (interval: 6h)
+2026-05-10T22:18:11.518090142Z [inf]  [reco-scheduler] Running recommendation job…
+2026-05-10T22:18:11.518093642Z [inf]  [LicenseExpiry] Scheduler démarré — vérification toutes les heures.
+2026-05-10T22:18:11.518097912Z [inf]  [MemoireSession] Scheduler démarré — prochain run à 08h00 (dans 582 min)
+2026-05-10T22:18:11.518101971Z [err]  [Backup] Variables R2 manquantes — scheduler désactivé (configurez R2_* dans les variables d'environnement)
