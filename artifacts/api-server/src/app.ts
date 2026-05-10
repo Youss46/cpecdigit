@@ -1,11 +1,13 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import router from "./routes/index.js";
 import { tenantMiddleware } from "./lib/tenant.js";
+import { pool } from "@workspace/db";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, "../uploads");
@@ -72,8 +74,17 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // Trust Railway's / Vercel's reverse-proxy so req.secure is reliable
 if (isProd) app.set("trust proxy", 1);
 
+const PgSession = connectPgSimple(session);
+
 app.use(
   session({
+    store: isProd
+      ? new PgSession({
+          pool,
+          tableName: "session",
+          createTableIfMissing: true,
+        })
+      : undefined,
     secret: process.env.SESSION_SECRET || "m15edutech-secret-2025",
     resave: false,
     saveUninitialized: false,
