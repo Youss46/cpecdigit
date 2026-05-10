@@ -14,6 +14,7 @@ import { startFeeReminderScheduler } from "./lib/fee-reminder-scheduler.js";
 import { startRecommendationScheduler } from "./lib/recommendation-scheduler.js";
 import { startLicenseExpiryScheduler } from "./lib/license-expiry-scheduler.js";
 import { startMemoireSessionScheduler } from "./lib/memoire-session-scheduler.js";
+import { startBackupScheduler } from "./lib/backup-scheduler.js";
 
 const rawPort = process.env["PORT"];
 
@@ -102,6 +103,7 @@ async function start() {
     startRecommendationScheduler();
     startLicenseExpiryScheduler();
     startMemoireSessionScheduler();
+    startBackupScheduler();
   });
 }
 

@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { activationKeysTable, usersTable, tenantsTable } from "@workspace/db";
 import { eq, desc, and, isNull, ne } from "drizzle-orm";
 import { invalidatedUsers } from "../lib/auth.js";
+import { runBackup, listBackups } from "../lib/backup-scheduler.js";
 
 const router = Router();
 
@@ -615,6 +616,30 @@ router.post("/reset-password", requireDev, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Backup R2 ───────────────────────────────────────────────────────────────
+
+// POST /dev/backup/run — déclenche un backup manuel immédiat
+router.post("/backup/run", requireDev, async (_req, res) => {
+  res.json({ message: "Backup en cours — consultez les logs du serveur pour le résultat." });
+  const result = await runBackup("manual");
+  if (result.success) {
+    console.log(`[Backup] Manuel réussi : ${result.file}`);
+  } else {
+    console.error(`[Backup] Manuel échoué : ${result.error}`);
+  }
+});
+
+// GET /dev/backup/list — liste les backups disponibles dans R2
+router.get("/backup/list", requireDev, async (_req, res) => {
+  try {
+    const backups = await listBackups();
+    res.json({ backups });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erreur lors de la récupération des backups" });
   }
 });
 
