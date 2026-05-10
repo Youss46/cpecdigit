@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   GraduationCap, Upload, FileText, Clock, CheckCircle2, Calendar,
   MapPin, Users, Award, BookMarked, Plus, ChevronDown, ChevronUp,
-  Download, Loader2, AlertCircle, XCircle, Eye,
+  Download, Loader2, AlertCircle, XCircle, Eye, Timer, CalendarClock, TimerOff,
 } from "lucide-react";
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -121,6 +121,107 @@ function StatusTimeline({ statut }: { statut: string }) {
       })}
     </div>
   );
+}
+
+// ── Session countdown helpers ─────────────────────────────────────────────────
+function getTimeLeft(target: string) {
+  const diff = new Date(target).getTime() - Date.now();
+  if (diff <= 0) return null;
+  return {
+    d: Math.floor(diff / 86_400_000),
+    h: Math.floor((diff % 86_400_000) / 3_600_000),
+    m: Math.floor((diff % 3_600_000) / 60_000),
+    s: Math.floor((diff % 60_000) / 1_000),
+  };
+}
+
+function useCountdown(target: string | null) {
+  const [left, setLeft] = useState(() => (target ? getTimeLeft(target) : null));
+  useEffect(() => {
+    if (!target) return;
+    const id = setInterval(() => setLeft(getTimeLeft(target)), 1000);
+    return () => clearInterval(id);
+  }, [target]);
+  return left;
+}
+
+function CountdownChip({ left }: { left: NonNullable<ReturnType<typeof getTimeLeft>> }) {
+  return (
+    <div className="flex items-center gap-1">
+      {([{ v: left.d, l: "j" }, { v: left.h, l: "h" }, { v: left.m, l: "m" }, { v: left.s, l: "s" }] as const).map(({ v, l }) => (
+        <div key={l} className="flex flex-col items-center bg-emerald-700/20 rounded-lg px-1.5 py-0.5 min-w-[28px]">
+          <span className="text-sm font-bold tabular-nums leading-none text-emerald-900">{String(v).padStart(2, "0")}</span>
+          <span className="text-[9px] uppercase font-semibold text-emerald-700">{l}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SessionBanner({ session }: { session: any }) {
+  const now = new Date();
+  const ouverture = new Date(session.date_ouverture);
+  const cloture   = new Date(session.date_cloture);
+  const isActive   = session.statut === "OUVERTE" && now >= ouverture && now <= cloture;
+  const isUpcoming = session.statut === "OUVERTE" && now < ouverture;
+  const isExpired  = now > cloture;
+  const isClosed   = session.statut === "CLOTUREE";
+
+  const countdown      = useCountdown(isActive ? session.date_cloture : null);
+  const openCountdown  = useCountdown(isUpcoming ? session.date_ouverture : null);
+
+  const fmt = (d: Date) => d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  if (isClosed || isExpired) {
+    const label = isClosed
+      ? "La période de soumission a été clôturée par l'administration."
+      : `La période de soumission a expiré le ${fmt(cloture)}.`;
+    return (
+      <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl bg-red-50 border border-red-200">
+        <TimerOff className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-red-700">Période de soumission clôturée</p>
+          <p className="text-xs text-red-600 mt-0.5">{label} Veuillez contacter la scolarité pour toute question.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isUpcoming) {
+    return (
+      <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl bg-blue-50 border border-blue-200">
+        <CalendarClock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-blue-700">
+            {session.titre || "Période de soumission"} — Ouverture prochaine
+          </p>
+          <p className="text-xs text-blue-600 mt-0.5">
+            La période ouvrira le {fmt(ouverture)}.
+            {openCountdown && ` Dans ${openCountdown.d}j ${openCountdown.h}h ${openCountdown.m}m ${openCountdown.s}s.`}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isActive) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
+        <Timer className="w-5 h-5 text-emerald-700 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-emerald-800">
+            {session.titre || "Période de soumission ouverte"}
+          </p>
+          <p className="text-xs text-emerald-700 mt-0.5">
+            Clôture le {fmt(cloture)}
+          </p>
+        </div>
+        {countdown && <CountdownChip left={countdown} />}
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function SubmitForm({ onSuccess }: { onSuccess: () => void }) {
@@ -455,7 +556,22 @@ export default function StudentMemoiresPage() {
     queryFn: () => apiFetch("/student/memoires"),
   });
 
+  const { data: session = null } = useQuery<any>({
+    queryKey: ["/api/student/memoire-session"],
+    queryFn: () => apiFetch("/student/memoire-session"),
+    refetchInterval: 60_000,
+  });
+
   const hasPending = (memoires as any[]).some(m => !["SOUTENU", "ARCHIVE", "REJETE"].includes(m.statut));
+
+  // Determine if session is currently blocking new submissions
+  const sessionBlocking = session && (() => {
+    if (session.statut === "CLOTUREE") return true;
+    const now = new Date();
+    return now > new Date(session.date_cloture);
+  })();
+
+  const canSubmit = !hasPending && !sessionBlocking;
 
   return (
     <AppLayout allowedRoles={["student"]}>
@@ -469,12 +585,15 @@ export default function StudentMemoiresPage() {
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">Suivez le processus de dépôt et de soutenance de vos travaux.</p>
           </div>
-          {!hasPending && (
+          {canSubmit && (
             <Button onClick={() => setShowForm(v => !v)} className="gap-2">
               {showForm ? "Annuler" : <><Plus className="w-4 h-4" />Déposer un mémoire</>}
             </Button>
           )}
         </div>
+
+        {/* Session banner */}
+        {session && <SessionBanner session={session} />}
 
         {/* Alert if has pending */}
         {hasPending && !showForm && (

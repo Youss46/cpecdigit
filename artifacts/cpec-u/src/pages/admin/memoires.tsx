@@ -16,6 +16,7 @@ import {
   GraduationCap, Search, Filter, Eye, CheckCircle2, Calendar,
   Clock, MapPin, Users, Award, BookMarked, Plus, Trash2, FileText,
   Download, Loader2, BookOpen, User, X, Archive, Star, AlertCircle, XCircle, ExternalLink,
+  CalendarClock, TimerOff, Play,
 } from "lucide-react";
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -903,10 +904,406 @@ async function exportSoutenancesPDF() {
   doc.save(`planning-soutenances-${year}.pdf`);
 }
 
+// ── Session Tab ───────────────────────────────────────────────────────────────
+function SessionTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [studentsSessionId, setStudentsSessionId] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    titre: "",
+    date_ouverture: "",
+    date_cloture: "",
+    class_ids: [] as number[],
+    max_soumissions: 1,
+  });
+
+  const { data: sessions = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/admin/memoire-sessions"],
+    queryFn: () => apiFetch("/admin/memoire-sessions"),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
+  });
+
+  const { data: classes = [] } = useQuery<any[]>({
+    queryKey: ["/api/classes"],
+    queryFn: () => apiFetch("/classes"),
+  });
+
+  const { data: sessionStudents = [], isLoading: loadingStudents } = useQuery<any[]>({
+    queryKey: ["/api/admin/memoire-sessions", studentsSessionId, "etudiants"],
+    queryFn: () => apiFetch(`/admin/memoire-sessions/${studentsSessionId}/etudiants`),
+    enabled: studentsSessionId !== null,
+  });
+
+  function openCreate() {
+    setEditingId(null);
+    setForm({ titre: "", date_ouverture: "", date_cloture: "", class_ids: [], max_soumissions: 1 });
+    setShowForm(true);
+  }
+
+  function openEdit(session: any) {
+    setEditingId(session.id);
+    setForm({
+      titre: session.titre ?? "",
+      date_ouverture: new Date(session.date_ouverture).toISOString().slice(0, 16),
+      date_cloture:   new Date(session.date_cloture).toISOString().slice(0, 16),
+      class_ids: session.class_ids ?? [],
+      max_soumissions: session.max_soumissions ?? 1,
+    });
+    setShowForm(true);
+  }
+
+  async function handleSave() {
+    if (!form.date_ouverture || !form.date_cloture) {
+      toast({ title: "Dates obligatoires", variant: "destructive" }); return;
+    }
+    if (form.class_ids.length === 0) {
+      toast({ title: "Sélectionnez au moins une classe", variant: "destructive" }); return;
+    }
+    try {
+      if (editingId) {
+        await apiFetch(`/admin/memoire-sessions/${editingId}`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        toast({ title: "Session modifiée avec succès." });
+      } else {
+        await apiFetch("/admin/memoire-sessions", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        toast({ title: "Période créée. Les étudiants ont été notifiés si elle est déjà ouverte." });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/memoire-sessions"] });
+      setShowForm(false);
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  }
+
+  async function handleReopen(session: any) {
+    const raw = prompt("Nouvelle date de clôture (format JJ/MM/AAAA HH:MM) :");
+    if (!raw) return;
+    const [datePart, timePart] = raw.trim().split(" ");
+    const [d, mo, y] = (datePart ?? "").split("/");
+    const isoDate = `${y}-${mo?.padStart(2, "0")}-${d?.padStart(2, "0")}T${timePart ?? "23:59"}`;
+    if (isNaN(new Date(isoDate).getTime())) {
+      toast({ title: "Format de date invalide", variant: "destructive" }); return;
+    }
+    try {
+      await apiFetch(`/admin/memoire-sessions/${session.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statut: "OUVERTE", date_cloture: isoDate }),
+      });
+      toast({ title: "Session réouverte — les étudiants ont été notifiés." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/memoire-sessions"] });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  }
+
+  async function handleClose(session: any) {
+    if (!confirm(`Clôturer manuellement « ${session.titre || "cette session"} » ? Les étudiants ne pourront plus soumettre immédiatement.`)) return;
+    try {
+      await apiFetch(`/admin/memoire-sessions/${session.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statut: "CLOTUREE" }),
+      });
+      toast({ title: "Session clôturée manuellement." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/memoire-sessions"] });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  }
+
+  async function handleDownloadAll(session: any) {
+    setDownloading(session.id);
+    try {
+      const students: any[] = await apiFetch(`/admin/memoire-sessions/${session.id}/etudiants`);
+      const submitted = students.filter((s: any) => s.memoire_id);
+      if (submitted.length === 0) {
+        toast({ title: "Aucun fichier disponible pour le téléchargement." }); return;
+      }
+      toast({ title: `Téléchargement de ${submitted.length} fichier(s)…`, description: "Les fichiers vont s'ouvrir l'un après l'autre." });
+      for (const s of submitted) {
+        await downloadFile(`/api/memoires/${s.memoire_id}/fichier`, s.fichier_nom || `memoire-${s.id}.pdf`);
+        await new Promise(r => setTimeout(r, 700));
+      }
+    } catch (err: any) {
+      toast({ title: "Erreur lors du téléchargement", description: err.message, variant: "destructive" });
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  function toggleClass(classId: number) {
+    setForm(f => ({
+      ...f,
+      class_ids: f.class_ids.includes(classId)
+        ? f.class_ids.filter(id => id !== classId)
+        : [...f.class_ids, classId],
+    }));
+  }
+
+  function getSessionState(session: any): "open" | "not_yet" | "expired" | "closed" {
+    if (session.statut === "CLOTUREE") return "closed";
+    const now = new Date();
+    if (now < new Date(session.date_ouverture)) return "not_yet";
+    if (now > new Date(session.date_cloture)) return "expired";
+    return "open";
+  }
+
+  const STATE_CFG = {
+    open:    { label: "En cours",  color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+    not_yet: { label: "À venir",   color: "text-blue-700",    bg: "bg-blue-50 border-blue-200" },
+    expired: { label: "Expirée",   color: "text-gray-600",    bg: "bg-gray-50 border-gray-200" },
+    closed:  { label: "Clôturée",  color: "text-red-700",     bg: "bg-red-50 border-red-200" },
+  };
+
+  const fmt = (d: string) => new Date(d).toLocaleDateString("fr-FR", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+
+  const selectedSessionForDialog = sessions.find((s: any) => s.id === studentsSessionId) ?? null;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground">
+          Définissez les périodes pendant lesquelles les étudiants peuvent déposer leurs mémoires et rapports.
+        </p>
+        <Button onClick={openCreate} size="sm" className="gap-1.5">
+          <Plus className="w-4 h-4" />Nouvelle période
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+      ) : sessions.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <CalendarClock className="w-10 h-10 mx-auto mb-2 opacity-20" />
+          <p className="font-medium">Aucune période définie</p>
+          <p className="text-sm mt-1">Créez une période pour permettre aux étudiants de soumettre leur mémoire.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {(sessions as any[]).map((session: any) => {
+            const state = getSessionState(session);
+            const cfg = STATE_CFG[state];
+            const total = Number(session.total_etudiants) || 0;
+            const soumis = Number(session.total_soumis) || 0;
+            const pct = total > 0 ? Math.round((soumis / total) * 100) : 0;
+            return (
+              <div key={session.id} className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
+                {/* Title + status */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="font-semibold text-foreground">
+                        {session.titre || `Période #${session.id}`}
+                      </h3>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${cfg.bg} ${cfg.color}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      <span>📅 Ouverture : {fmt(session.date_ouverture)}</span>
+                      <span>🔒 Clôture : {fmt(session.date_cloture)}</span>
+                      <span>📄 Max {session.max_soumissions} soumission{session.max_soumissions > 1 ? "s" : ""}/étudiant</span>
+                    </div>
+                  </div>
+                  {/* Quick actions */}
+                  <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(session)}>
+                      <Calendar className="w-3.5 h-3.5 mr-1" />Modifier
+                    </Button>
+                    {(state === "closed" || state === "expired") ? (
+                      <Button size="sm" variant="ghost" className="text-blue-700 hover:text-blue-800" onClick={() => handleReopen(session)}>
+                        <Play className="w-3.5 h-3.5 mr-1" />Réouvrir
+                      </Button>
+                    ) : (state === "open" || state === "not_yet") ? (
+                      <Button size="sm" variant="ghost" className="text-red-700 hover:text-red-800" onClick={() => handleClose(session)}>
+                        <TimerOff className="w-3.5 h-3.5 mr-1" />Clôturer
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Progress */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">
+                      {soumis} / {total} étudiant{total > 1 ? "s" : ""} {soumis > 1 ? "ont" : "a"} soumis
+                    </span>
+                    <span className="text-muted-foreground font-medium">{pct}%</span>
+                  </div>
+                  <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${pct === 100 ? "bg-emerald-500" : "bg-primary"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Action row */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
+                    onClick={() => setStudentsSessionId(session.id)}>
+                    <Users className="w-3.5 h-3.5" />Voir les étudiants
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
+                    disabled={downloading === session.id}
+                    onClick={() => handleDownloadAll(session)}>
+                    {downloading === session.id
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Téléchargement…</>
+                      : <><Download className="w-3.5 h-3.5" />Télécharger tout</>}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Create / Edit dialog ─────────────────────────────────────────── */}
+      <Dialog open={showForm} onOpenChange={o => { if (!o) setShowForm(false); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarClock className="w-5 h-5 text-primary" />
+              {editingId ? "Modifier la période" : "Créer une période de soumission"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label>Intitulé de la session</Label>
+              <Input
+                placeholder="ex : Dépôt de mémoires 2024-2025"
+                value={form.titre}
+                onChange={e => setForm(f => ({ ...f, titre: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Date d'ouverture *</Label>
+                <Input type="datetime-local" value={form.date_ouverture}
+                  onChange={e => setForm(f => ({ ...f, date_ouverture: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Date de clôture *</Label>
+                <Input type="datetime-local" value={form.date_cloture}
+                  onChange={e => setForm(f => ({ ...f, date_cloture: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Nombre max de soumissions par étudiant</Label>
+              <Input type="number" min={1} max={10} value={form.max_soumissions}
+                onChange={e => setForm(f => ({ ...f, max_soumissions: parseInt(e.target.value) || 1 }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Classes ciblées *</Label>
+              {(classes as any[]).length === 0 ? (
+                <p className="text-sm text-muted-foreground">Aucune classe disponible.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-border rounded-xl p-2.5">
+                  {(classes as any[]).map((c: any) => (
+                    <label
+                      key={c.id}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors select-none ${
+                        form.class_ids.includes(c.id)
+                          ? "bg-primary/10 border border-primary/30 font-medium text-primary"
+                          : "hover:bg-muted border border-transparent"
+                      }`}
+                    >
+                      <input type="checkbox" className="sr-only"
+                        checked={form.class_ids.includes(c.id)}
+                        onChange={() => toggleClass(c.id)} />
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                        form.class_ids.includes(c.id) ? "bg-primary border-primary" : "border-muted-foreground/40"
+                      }`}>
+                        {form.class_ids.includes(c.id) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                      </div>
+                      <span className="truncate">{c.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {form.class_ids.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {form.class_ids.length} classe{form.class_ids.length > 1 ? "s" : ""} sélectionnée{form.class_ids.length > 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowForm(false)}>Annuler</Button>
+              <Button onClick={handleSave} className="gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                {editingId ? "Enregistrer les modifications" : "Créer la période"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Students list dialog ─────────────────────────────────────────── */}
+      <Dialog open={studentsSessionId !== null} onOpenChange={o => { if (!o) setStudentsSessionId(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              {selectedSessionForDialog?.titre || `Session #${studentsSessionId}`}
+              <span className="ml-auto text-sm font-normal text-muted-foreground">
+                {(sessionStudents as any[]).filter((s: any) => s.memoire_id).length} / {(sessionStudents as any[]).length} soumis
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          {loadingStudents ? (
+            <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+          ) : (sessionStudents as any[]).length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Aucun étudiant dans les classes ciblées.</p>
+          ) : (
+            <div className="space-y-1 mt-2">
+              {(sessionStudents as any[]).map((s: any) => (
+                <div key={s.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/40 transition-colors">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.memoire_id ? "bg-emerald-500" : "bg-muted-foreground/30"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{s.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{s.class_name} · {s.email}</p>
+                  </div>
+                  {s.memoire_id ? (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="text-right">
+                        <p className="text-xs font-semibold text-emerald-700">Soumis</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {s.memoire_soumis_le ? new Date(s.memoire_soumis_le).toLocaleDateString("fr-FR") : ""}
+                        </p>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0"
+                        onClick={() => downloadFile(`/api/memoires/${s.memoire_id}/fichier`, s.fichier_nom || "memoire.pdf")}>
+                        <Download className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground flex-shrink-0 italic">En attente</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminMemoiresPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"submissions" | "archive">("submissions");
+  const [activeTab, setActiveTab] = useState<"submissions" | "archive" | "session">("submissions");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [filterStatut, setFilterStatut] = useState("all");
   const [filterFiliere, setFilterFiliere] = useState("all");
@@ -978,8 +1375,9 @@ export default function AdminMemoiresPage() {
             {/* Tabs */}
             <div className="flex rounded-xl border border-border overflow-hidden shadow-sm">
               {([
-                { key: "submissions", label: "Soumissions", icon: FileText },
-                { key: "archive",     label: "Bibliothèque",   icon: BookOpen },
+                { key: "submissions", label: "Soumissions",  icon: FileText },
+                { key: "archive",     label: "Bibliothèque", icon: BookOpen },
+                { key: "session",     label: "Périodes",     icon: CalendarClock },
               ] as const).map(t => (
                 <button key={t.key} onClick={() => setActiveTab(t.key)}
                   className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-all ${activeTab === t.key ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
@@ -1009,8 +1407,12 @@ export default function AdminMemoiresPage() {
           </div>
         )}
 
-        {/* Archive tab */}
-        {activeTab === "archive" ? (
+        {/* Session / Périodes tab */}
+        {activeTab === "session" ? (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+            <SessionTab />
+          </div>
+        ) : activeTab === "archive" ? (
           <ArchiveTab memoires={archived} />
         ) : (
           <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">

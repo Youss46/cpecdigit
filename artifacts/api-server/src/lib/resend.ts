@@ -291,3 +291,130 @@ export async function sendConvocationEmail(opts: {
   });
   if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
 }
+
+export async function sendMemoireSessionEmail(opts: {
+  to: string;
+  studentName: string;
+  sessionTitle: string;
+  dateCloture: string | Date;
+  dateOuverture?: string | Date;
+  schoolName: string;
+  type: "ouverture" | "reouverture" | "rappel" | "J0";
+  joursRestants?: number;
+}): Promise<void> {
+  const { client, fromEmail } = await getResendClient();
+
+  const dateClotureFormatted = new Date(opts.dateCloture).toLocaleDateString("fr-FR", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+  const dateOuvertureFormatted = opts.dateOuverture
+    ? new Date(opts.dateOuverture).toLocaleDateString("fr-FR", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric",
+      })
+    : null;
+
+  const subjectMap: Record<string, string> = {
+    ouverture:   `Ouverture de la période de dépôt de mémoire — ${opts.sessionTitle}`,
+    reouverture: `🔄 Réouverture — Nouvelle date limite de dépôt de mémoire`,
+    rappel:      `⏰ Rappel J-${opts.joursRestants} — Dépôt de mémoire : ${dateClotureFormatted}`,
+    J0:          `📅 Dernier jour — Clôture de la période de dépôt de mémoire`,
+  };
+
+  const headlineMap: Record<string, string> = {
+    ouverture:   "La période de soumission est maintenant ouverte",
+    reouverture: "La période de soumission a été réouverte",
+    rappel:      `Rappel : il vous reste ${opts.joursRestants} jour${(opts.joursRestants ?? 0) > 1 ? "s" : ""}`,
+    J0:          "Clôture aujourd'hui — dernière chance",
+  };
+
+  const bodyMap: Record<string, string> = {
+    ouverture:   `La période de dépôt de vos travaux de fin de cycle vient d'ouvrir. Rendez-vous sur la plateforme pour déposer votre mémoire avant la date limite.`,
+    reouverture: `L'administration a réouvert la période de soumission avec une nouvelle date limite. Profitez-en pour déposer votre mémoire dès que possible.`,
+    rappel:      `La date limite de soumission de votre mémoire approche. Il vous reste <strong>${opts.joursRestants} jour${(opts.joursRestants ?? 0) > 1 ? "s" : ""}</strong> pour déposer votre dossier. Ne tardez pas !`,
+    J0:          `C'est le dernier jour pour déposer votre mémoire. La période de soumission se clôture <strong>aujourd'hui</strong>. Connectez-vous maintenant pour finaliser votre dépôt.`,
+  };
+
+  const accentColors: Record<string, string> = {
+    ouverture:   "#22c55e",
+    reouverture: "#3b82f6",
+    rappel:      "#f59e0b",
+    J0:          "#ef4444",
+  };
+
+  const accent = accentColors[opts.type] ?? "#1a3a5c";
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+        <tr>
+          <td style="background:linear-gradient(135deg,#1a3a5c 0%,#0f2540 100%);border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
+            <span style="font-size:26px;font-weight:800;color:#fff;">M15 <span style="color:#22c55e;">EduTech</span></span>
+            <p style="margin:6px 0 0;font-size:11px;color:rgba(255,255,255,0.6);letter-spacing:2px;text-transform:uppercase;">Gestion Académique · ${opts.schoolName}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#fff;padding:40px 40px 32px;">
+            <div style="display:inline-block;background:${accent}1a;border-radius:8px;padding:6px 14px;margin-bottom:18px;border:1px solid ${accent}33;">
+              <span style="font-size:12px;font-weight:700;color:${accent};letter-spacing:1px;text-transform:uppercase;">${headlineMap[opts.type]}</span>
+            </div>
+            <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#0f2540;">Dépôt de Mémoire — ${opts.sessionTitle}</h2>
+            <p style="margin:0 0 20px;font-size:14px;color:#374151;">Bonjour <strong>${opts.studentName}</strong>,</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.8;">${bodyMap[opts.type]}</p>
+
+            <!-- Date limite -->
+            <table width="100%" style="background:#fef9ec;border:1px solid #fde68a;border-radius:10px;margin-bottom:20px;">
+              <tr><td style="padding:16px 20px;">
+                <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:1px;">📅 Date limite de soumission</p>
+                <p style="margin:0;font-size:15px;font-weight:700;color:#78350f;">${dateClotureFormatted}</p>
+              </td></tr>
+            </table>
+
+            ${dateOuvertureFormatted ? `
+            <table width="100%" style="background:#ecfdf5;border:1px solid #d1fae5;border-radius:10px;margin-bottom:20px;">
+              <tr><td style="padding:14px 20px;">
+                <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:1px;">🗓 Date d'ouverture</p>
+                <p style="margin:0;font-size:14px;font-weight:600;color:#064e3b;">${dateOuvertureFormatted}</p>
+              </td></tr>
+            </table>
+            ` : ""}
+
+            <!-- CTA -->
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="padding:8px 0 24px;">
+                  <a href="https://www.m15-edutech.ci/student/memoires"
+                     style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#1a3a5c,#0f2540);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;">
+                    Déposer mon mémoire →
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0;font-size:12px;color:#9ca3af;">
+              Cet email a été envoyé automatiquement. Si vous avez déjà soumis votre dossier, ignorez ce message.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f9fafb;border-top:1px solid #e5e7eb;border-radius:0 0 12px 12px;padding:16px 40px;text-align:center;">
+            <p style="margin:0;font-size:11px;color:#9ca3af;">© ${new Date().getFullYear()} M15 EduTech — ${opts.schoolName}</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const { error } = await client.emails.send({
+    from: `M15 EduTech <${fromEmail}>`,
+    to: opts.to,
+    subject: subjectMap[opts.type] ?? `Période de soumission — ${opts.sessionTitle}`,
+    html,
+  });
+  if (error) throw new Error(`Resend error: ${JSON.stringify(error)}`);
+}

@@ -6,11 +6,13 @@ import { db, runMigrations } from "@workspace/db";
 import { usersTable, tenantsTable } from "@workspace/db";
 import { ensureDevoirsSchema } from "./lib/migrate-devoirs.js";
 import { ensureMemoiresSchema } from "./lib/migrate-memoires.js";
+import { ensureMemoireSessionsSchema } from "./lib/migrate-memoire-sessions.js";
 import { ensureWebAuthnSchema } from "./lib/migrate-webauthn.js";
 import { eq } from "drizzle-orm";
 import { startFeeReminderScheduler } from "./lib/fee-reminder-scheduler.js";
 import { startRecommendationScheduler } from "./lib/recommendation-scheduler.js";
 import { startLicenseExpiryScheduler } from "./lib/license-expiry-scheduler.js";
+import { startMemoireSessionScheduler } from "./lib/memoire-session-scheduler.js";
 
 const rawPort = process.env["PORT"];
 
@@ -89,6 +91,7 @@ async function start() {
   }
   await ensureDevoirsSchema();
   await ensureMemoiresSchema();
+  await ensureMemoireSessionsSchema();
   await ensureWebAuthnSchema();
   httpServer.listen(port, () => {
     console.log(`Server listening on port ${port}`);
@@ -96,6 +99,7 @@ async function start() {
     startFeeReminderScheduler();
     startRecommendationScheduler();
     startLicenseExpiryScheduler();
+    startMemoireSessionScheduler();
   });
 }
 

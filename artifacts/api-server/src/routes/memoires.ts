@@ -5,7 +5,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { pool } from "@workspace/db";
 import { requireRole } from "../lib/auth.js";
-import { sendConvocationEmail } from "../lib/resend.js";
+import { sendConvocationEmail, sendMemoireSessionEmail } from "../lib/resend.js";
 import { sendPushToUser, sendPushToUsers } from "./push.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -39,6 +39,54 @@ router.post(
         res.status(400).json({ error: "titre et annee_academique sont requis" });
         return;
       }
+
+      // ── Vérification période de soumission ────────────────────────────────
+      {
+        const { rows: [session] } = await pool.query(
+          `SELECT ms.*
+           FROM memoire_sessions ms
+           WHERE ms.tenant_id = $1
+             AND EXISTS (
+               SELECT 1 FROM class_enrollments ce
+               WHERE ce.student_id = $2
+                 AND ce.class_id = ANY(ms.class_ids)
+             )
+           ORDER BY ms.created_at DESC
+           LIMIT 1`,
+          [tenantId, studentId]
+        );
+
+        if (session) {
+          const now = new Date();
+          const ouverture = new Date(session.date_ouverture);
+          const cloture   = new Date(session.date_cloture);
+          const fmt = (d: Date) => d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+
+          if (session.statut === "CLOTUREE") {
+            res.status(403).json({ error: `La période de soumission a été clôturée manuellement par l'administration. Veuillez contacter la scolarité.` });
+            return;
+          }
+          if (now < ouverture) {
+            res.status(403).json({ error: `La période de soumission n'est pas encore ouverte. Elle ouvrira le ${fmt(ouverture)}.` });
+            return;
+          }
+          if (now > cloture) {
+            res.status(403).json({ error: `La période de soumission est clôturée depuis le ${fmt(cloture)}. Veuillez contacter l'administration.` });
+            return;
+          }
+
+          // Vérification quota soumissions
+          const { rows: [{ count }] } = await pool.query(
+            `SELECT COUNT(*) FROM memoires WHERE student_id = $1 AND tenant_id = $2 AND statut != 'REJETE'`,
+            [studentId, tenantId]
+          );
+          if (Number(count) >= session.max_soumissions) {
+            res.status(403).json({ error: `Vous avez déjà atteint le nombre maximum de soumissions autorisées (${session.max_soumissions}) pour cette période.` });
+            return;
+          }
+        }
+      }
+      // ──────────────────────────────────────────────────────────────────────
 
       // Step 1: insert row (no file path yet)
       const { rows } = await pool.query(
@@ -577,5 +625,284 @@ router.get("/admin/memoires-teachers", requireRole("admin"), async (req, res) =>
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+// ─── Student: get current submission session for student's class ──────────────
+router.get("/student/memoire-session", requireRole("student"), async (req, res) => {
+  try {
+    const studentId = req.session!.userId!;
+    const tenantId  = req.session!.tenantId!;
+
+    const { rows: [session] } = await pool.query(
+      `SELECT ms.id, ms.titre, ms.date_ouverture, ms.date_cloture,
+              ms.statut, ms.max_soumissions, ms.class_ids
+       FROM memoire_sessions ms
+       WHERE ms.tenant_id = $1
+         AND EXISTS (
+           SELECT 1 FROM class_enrollments ce
+           WHERE ce.student_id = $2
+             AND ce.class_id = ANY(ms.class_ids)
+         )
+       ORDER BY ms.created_at DESC
+       LIMIT 1`,
+      [tenantId, studentId]
+    );
+
+    if (!session) { res.json(null); return; }
+
+    // Count student's current submissions
+    const { rows: [{ count }] } = await pool.query(
+      `SELECT COUNT(*) FROM memoires WHERE student_id = $1 AND tenant_id = $2 AND statut != 'REJETE'`,
+      [studentId, tenantId]
+    );
+    res.json({ ...session, soumissions_count: Number(count) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: list memoire sessions with progress ───────────────────────────────
+router.get("/admin/memoire-sessions", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+
+    const { rows } = await pool.query(
+      `SELECT ms.*,
+              (
+                SELECT COUNT(DISTINCT ce.student_id)
+                FROM class_enrollments ce
+                JOIN users u ON u.id = ce.student_id
+                WHERE ce.class_id = ANY(ms.class_ids)
+                  AND u.tenant_id = ms.tenant_id
+                  AND u.role = 'student'
+              ) AS total_etudiants,
+              (
+                SELECT COUNT(DISTINCT m.student_id)
+                FROM memoires m
+                JOIN class_enrollments ce ON ce.student_id = m.student_id
+                WHERE ce.class_id = ANY(ms.class_ids)
+                  AND m.tenant_id = ms.tenant_id
+                  AND m.statut != 'REJETE'
+              ) AS total_soumis
+       FROM memoire_sessions ms
+       WHERE ms.tenant_id = $1
+       ORDER BY ms.created_at DESC`,
+      [tenantId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: get session student list with submission status ────────────────────
+router.get("/admin/memoire-sessions/:id/etudiants", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const sessionId = parseInt(req.params.id);
+
+    const { rows: [session] } = await pool.query(
+      `SELECT class_ids FROM memoire_sessions WHERE id = $1 AND tenant_id = $2`,
+      [sessionId, tenantId]
+    );
+    if (!session) { res.status(404).json({ error: "Session introuvable" }); return; }
+
+    const { rows } = await pool.query(
+      `SELECT DISTINCT ON (u.id)
+              u.id, u.name, u.email,
+              c.name AS class_name,
+              m.id AS memoire_id, m.titre AS memoire_titre,
+              m.statut AS memoire_statut, m.created_at AS memoire_soumis_le,
+              m.fichier_nom
+       FROM users u
+       JOIN class_enrollments ce ON ce.student_id = u.id
+       JOIN classes c ON c.id = ce.class_id
+       LEFT JOIN LATERAL (
+         SELECT mm.id, mm.titre, mm.statut, mm.created_at, mm.fichier_nom
+         FROM memoires mm
+         WHERE mm.student_id = u.id AND mm.tenant_id = $1 AND mm.statut != 'REJETE'
+         ORDER BY mm.created_at DESC
+         LIMIT 1
+       ) m ON true
+       WHERE u.tenant_id = $1
+         AND u.role = 'student'
+         AND ce.class_id = ANY($2::int[])
+       ORDER BY u.id, u.name`,
+      [tenantId, session.class_ids]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: create a memoire session ─────────────────────────────────────────
+router.post("/admin/memoire-sessions", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId  = req.session!.tenantId!;
+    const createdBy = req.session!.userId!;
+    const { titre, date_ouverture, date_cloture, class_ids, max_soumissions } = req.body as {
+      titre?: string;
+      date_ouverture: string;
+      date_cloture: string;
+      class_ids: number[];
+      max_soumissions?: number;
+    };
+
+    if (!date_ouverture || !date_cloture) {
+      res.status(400).json({ error: "date_ouverture et date_cloture sont requis" });
+      return;
+    }
+    if (new Date(date_cloture) <= new Date(date_ouverture)) {
+      res.status(400).json({ error: "La date de clôture doit être postérieure à la date d'ouverture" });
+      return;
+    }
+    if (!class_ids || class_ids.length === 0) {
+      res.status(400).json({ error: "Sélectionnez au moins une classe" });
+      return;
+    }
+
+    const { rows: [session] } = await pool.query(
+      `INSERT INTO memoire_sessions
+         (tenant_id, titre, date_ouverture, date_cloture, class_ids, max_soumissions, created_by)
+       VALUES ($1,$2,$3,$4,$5::int[],$6,$7)
+       RETURNING *`,
+      [tenantId, titre ?? null, date_ouverture, date_cloture,
+       `{${class_ids.join(",")}}`, max_soumissions ?? 1, createdBy]
+    );
+
+    // If opens now or in the past, notify students immediately
+    if (new Date(date_ouverture) <= new Date()) {
+      await _notifySessionStudents(session, "ouverture", tenantId);
+    }
+
+    res.status(201).json(session);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Admin: update a memoire session (dates, reopen, manual close) ────────────
+router.put("/admin/memoire-sessions/:id", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId  = req.session!.tenantId!;
+    const sessionId = parseInt(req.params.id);
+    const { titre, date_ouverture, date_cloture, class_ids, max_soumissions, statut } = req.body as {
+      titre?: string;
+      date_ouverture?: string;
+      date_cloture?: string;
+      class_ids?: number[];
+      max_soumissions?: number;
+      statut?: string;
+    };
+
+    const { rows: [existing] } = await pool.query(
+      `SELECT * FROM memoire_sessions WHERE id = $1 AND tenant_id = $2`,
+      [sessionId, tenantId]
+    );
+    if (!existing) { res.status(404).json({ error: "Session introuvable" }); return; }
+
+    const newDateOuverture  = date_ouverture  ?? existing.date_ouverture;
+    const newDateCloture    = date_cloture    ?? existing.date_cloture;
+    const newClassIds       = class_ids       ?? existing.class_ids;
+    const newMaxSoumissions = max_soumissions ?? existing.max_soumissions;
+    const newTitre          = titre !== undefined ? titre : existing.titre;
+    const newStatut         = statut          ?? existing.statut;
+
+    if (new Date(newDateCloture) <= new Date(newDateOuverture)) {
+      res.status(400).json({ error: "La date de clôture doit être postérieure à la date d'ouverture" });
+      return;
+    }
+
+    const classIdsArray = Array.isArray(newClassIds) ? newClassIds : existing.class_ids;
+
+    const { rows: [updated] } = await pool.query(
+      `UPDATE memoire_sessions
+       SET titre          = $1,
+           date_ouverture = $2,
+           date_cloture   = $3,
+           class_ids      = $4::int[],
+           max_soumissions= $5,
+           statut         = $6,
+           updated_at     = NOW()
+       WHERE id = $7 AND tenant_id = $8
+       RETURNING *`,
+      [newTitre, newDateOuverture, newDateCloture,
+       `{${classIdsArray.join(",")}}`,
+       newMaxSoumissions, newStatut, sessionId, tenantId]
+    );
+
+    // If reopening (was CLOTUREE and now OUVERTE, or date_cloture moved to future)
+    const wasReopened = existing.statut === "CLOTUREE" && newStatut === "OUVERTE";
+    const isOpen = newStatut === "OUVERTE" && new Date(newDateCloture) > new Date();
+    if (wasReopened && isOpen) {
+      await _notifySessionStudents(updated, "reouverture", tenantId);
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ─── Helper: notify eligible students about a session event ──────────────────
+async function _notifySessionStudents(
+  session: any,
+  type: "ouverture" | "reouverture",
+  tenantId: number
+): Promise<void> {
+  try {
+    const { rows: students } = await pool.query(
+      `SELECT DISTINCT u.id, u.name, u.email
+       FROM users u
+       JOIN class_enrollments ce ON ce.student_id = u.id
+       WHERE u.tenant_id = $1
+         AND u.role = 'student'
+         AND ce.class_id = ANY($2::int[])`,
+      [tenantId, session.class_ids]
+    );
+
+    const { rows: [tenant] } = await pool.query(
+      `SELECT name FROM tenants WHERE id = $1`, [tenantId]
+    );
+    const schoolName = tenant?.name ?? "M15 EduTech";
+    const sessionTitle = session.titre || "Période de soumission de mémoires";
+    const dateClotureStr = new Date(session.date_cloture).toLocaleDateString("fr-FR", {
+      day: "2-digit", month: "long", year: "numeric",
+    });
+
+    const pushTitle = type === "reouverture"
+      ? "🔄 Période de soumission réouverte"
+      : "📢 Période de soumission ouverte";
+    const pushBody = type === "reouverture"
+      ? `La période de dépôt de mémoire a été réouverte. Nouvelle date limite : ${dateClotureStr}.`
+      : `La période de dépôt de mémoire est ouverte jusqu'au ${dateClotureStr}. Déposez votre dossier dès maintenant !`;
+
+    for (const student of students) {
+      sendPushToUser(student.id, {
+        title: pushTitle,
+        body: pushBody,
+        url: "/student/memoires",
+        tag: `memoire-session-${session.id}-${type}`,
+      }).catch(() => {});
+
+      sendMemoireSessionEmail({
+        to: student.email,
+        studentName: student.name,
+        sessionTitle,
+        dateCloture: session.date_cloture,
+        dateOuverture: session.date_ouverture,
+        schoolName,
+        type,
+      }).catch((e) => console.error("[sendMemoireSessionEmail]", e));
+    }
+  } catch (e) {
+    console.error("[_notifySessionStudents]", e);
+  }
+}
 
 export default router;
