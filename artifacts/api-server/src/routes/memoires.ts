@@ -661,6 +661,24 @@ router.get("/student/memoire-session", requireRole("student"), async (req, res) 
   }
 });
 
+// ─── Admin: list terminal classes for session targeting ───────────────────────
+router.get("/admin/memoire-session-classes", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.session!.tenantId!;
+    const { rows } = await pool.query<{ id: number; name: string; filiere: string | null }>(
+      `SELECT id, name, filiere
+       FROM classes
+       WHERE tenant_id = $1
+       ORDER BY order_index ASC, id ASC`,
+      [tenantId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // ─── Admin: list memoire sessions with progress ───────────────────────────────
 router.get("/admin/memoire-sessions", requireRole("admin"), async (req, res) => {
   try {

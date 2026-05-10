@@ -928,8 +928,8 @@ function SessionTab() {
   });
 
   const { data: classes = [] } = useQuery<any[]>({
-    queryKey: ["/api/classes"],
-    queryFn: () => apiFetch("/classes"),
+    queryKey: ["/api/admin/memoire-session-classes"],
+    queryFn: () => apiFetch("/admin/memoire-session-classes"),
   });
 
   const { data: sessionStudents = [], isLoading: loadingStudents } = useQuery<any[]>({
