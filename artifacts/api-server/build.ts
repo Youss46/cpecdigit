@@ -13,7 +13,6 @@ const allowlist = [
   "@google/generative-ai",
   "@simplewebauthn/server",
   "axios",
-  "connect-pg-simple",
   "cors",
   "date-fns",
   "drizzle-orm",

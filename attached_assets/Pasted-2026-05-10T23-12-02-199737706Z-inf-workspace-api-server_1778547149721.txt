@@ -1,0 +1,57 @@
+2026-05-10T23:12:02.199737706Z [inf]  > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+2026-05-10T23:12:02.199749377Z [inf]  > NODE_ENV=production node dist/index.mjs
+2026-05-10T23:12:02.199757010Z [inf]  
+2026-05-10T23:12:02.199847966Z [inf]  
+2026-05-10T23:12:02.493061155Z [inf]  Starting Container
+2026-05-10T23:12:02.665733552Z [inf]  [CORS] isProd=true allowedOrigins=["https://www.m15-edutech.ci","https://m15-edutech.ci","https://cpecdigit-cpec-u.vercel.app"]
+2026-05-10T23:12:02.697389562Z [inf]    ↩  "0000_initial" already applied — skipping.
+2026-05-10T23:12:02.697394039Z [inf]  ✓ All migrations are up to date.
+2026-05-10T23:12:02.725528002Z [inf]  ✓ Schéma Devoirs & Évaluations prêt.
+2026-05-10T23:12:02.728694530Z [inf]  ✓ Schéma Mémoires & Soutenances prêt.
+2026-05-10T23:12:02.737037341Z [inf]  ✓ Schéma Périodes de Soumission de Mémoires prêt.
+2026-05-10T23:12:02.739247146Z [inf]  ✓ Schéma Diplômes & Attestations prêt.
+2026-05-10T23:12:02.741230934Z [inf]  ✓ Schéma WebAuthn (connexion biométrique) prêt.
+2026-05-10T23:12:02.741236781Z [inf]  Server listening on port 8080
+2026-05-10T23:12:02.746033061Z [inf]  [FeeReminder] Scheduler démarré — prochain run à 08h00 (dans 528 min)
+2026-05-10T23:12:02.746042001Z [inf]  [reco-scheduler] Started (interval: 6h)
+2026-05-10T23:12:02.746046741Z [inf]  [reco-scheduler] Running recommendation job…
+2026-05-10T23:12:02.746050730Z [inf]  [LicenseExpiry] Scheduler démarré — vérification toutes les heures.
+2026-05-10T23:12:02.746054761Z [inf]  [MemoireSession] Scheduler démarré — prochain run à 08h00 (dans 528 min)
+2026-05-10T23:12:02.746059414Z [inf]  [Backup] Backup quotidien planifié — prochain run à 02h00 UTC (dans 168 min)
+2026-05-10T23:12:02.746064094Z [inf]  [Backup] Backup hebdomadaire (dim) planifié — prochain run à 03h00 UTC (dans 228 min)
+2026-05-10T23:12:02.746068818Z [inf]  [Backup] Scheduler initialisé — quotidien 02h00 UTC, hebdomadaire dim 03h00 UTC
+2026-05-11T02:00:00.172976641Z [err]  versions published after the first week of January 2027
+2026-05-11T02:00:00.172984703Z [err]  will require node >=22. You are running node v20.18.1.
+2026-05-11T02:00:00.172990563Z [err]  
+2026-05-11T02:00:00.173006343Z [err]  (Use `node --trace-warnings ...` to show where the warning was created)
+2026-05-11T02:00:00.173022103Z [inf]  [Backup] pg_dump + gzip terminé
+2026-05-11T02:00:00.173030824Z [err]  [Backup] Erreur : Access Denied
+2026-05-11T02:00:00.173038990Z [inf]  [Backup] Backup quotidien planifié — prochain run à 02h00 UTC (dans 1440 min)
+2026-05-11T02:00:00.173042667Z [inf]  [Backup] Début — backup-daily-2026-05-11T02-00-00.sql.gz
+2026-05-11T02:00:00.173048755Z [err]  (node:15) Warning: NodeVersionSupportWarning: The AWS SDK for JavaScript (v3)
+2026-05-11T02:00:00.173060247Z [err]  To continue receiving updates to AWS services, bug fixes,
+2026-05-11T02:00:00.173065833Z [err]  and security updates please upgrade to node >=22.
+2026-05-11T02:00:00.173071005Z [err]  
+2026-05-11T02:00:00.173076410Z [err]  More information can be found at: https://a.co/c895JFp
+2026-05-11T03:00:09.425810006Z [inf]  [Backup] Backup hebdomadaire (dim) planifié — prochain run à 03h00 UTC (dans 1440 min)
+2026-05-11T05:12:11.444019666Z [inf]  [reco-scheduler] Running recommendation job…
+2026-05-11T08:00:07.748755095Z [inf]  [FeeReminder] Job démarré pour 2026-05-11
+2026-05-11T08:00:07.748765105Z [inf]  [MemoireSession] Reminder job démarré pour 2026-05-11
+2026-05-11T08:00:07.748771571Z [inf]  [FeeReminder] Job terminé — 0 échéance(s) vérifiée(s)
+2026-05-11T11:12:12.721118082Z [inf]  [reco-scheduler] Running recommendation job…
+2026-05-11T17:12:12.495651041Z [inf]  [reco-scheduler] Running recommendation job…
+2026-05-11T23:12:12.526746634Z [inf]  [reco-scheduler] Running recommendation job…
+2026-05-12T00:39:06.794698055Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:39:08.786083844Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:39:14.043086063Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:39:21.404054052Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:39:51.405324721Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:39:52.540961608Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:42:02.559671983Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:42:02.559680503Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:42:22.556909960Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:44:42.644885222Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:44:47.044945442Z [err]  [global-error-handler] __dirname is not defined
+2026-05-12T00:50:27.507848473Z [err]  Failed to prune sessions: ReferenceError: __dirname is not defined
+2026-05-12T00:50:27.507859566Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-05-12T00:50:27.507878550Z [err]      at async n._asyncQuery (file:///app/artifacts/api-server/dist/index.mjs:66:32584)
