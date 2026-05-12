@@ -98,7 +98,9 @@ async function start() {
   await ensureWebAuthnSchema();
   httpServer.listen(port, () => {
     console.log(`Server listening on port ${port}`);
-    seedInitialAdmin();
+    if (process.env.NODE_ENV !== "production") {
+      seedInitialAdmin();
+    }
     startFeeReminderScheduler();
     startRecommendationScheduler();
     startLicenseExpiryScheduler();
