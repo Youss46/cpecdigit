@@ -9,7 +9,6 @@ import {
   MessageSquare, Send, UserCircle2, Paperclip, X,
   FileText, Sheet, Presentation, FileArchive, Download,
   Plus, Search, Users, CheckCircle2, ArrowLeft,
-  Check, CheckCheck, Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getSocket } from "@/lib/socket";
@@ -49,10 +48,14 @@ function formatSize(bytes: number) {
 type MsgStatus = "sending" | "sent" | "received" | "read";
 
 function MessageStatus({ status }: { status: MsgStatus }) {
-  if (status === "sending") return <Clock className="w-3 h-3 text-white/40" />;
-  if (status === "sent")     return <Check className="w-3 h-3 text-white/70" />;
-  if (status === "received") return <CheckCheck className="w-3 h-3 text-white/70" />;
-  if (status === "read")     return <CheckCheck className="w-3 h-3 text-cyan-300" />;
+  if (status === "sending")
+    return <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "10px", lineHeight: 1 }}>⏳</span>;
+  if (status === "sent")
+    return <span style={{ color: "rgba(255,255,255,0.80)", fontSize: "11px", lineHeight: 1, fontWeight: 700 }}>✓</span>;
+  if (status === "received")
+    return <span style={{ color: "rgba(255,255,255,0.80)", fontSize: "10px", lineHeight: 1, fontWeight: 700, letterSpacing: "-1px" }}>✓✓</span>;
+  if (status === "read")
+    return <span style={{ color: "#67e8f9", fontSize: "10px", lineHeight: 1, fontWeight: 700, letterSpacing: "-1px" }}>✓✓</span>;
   return null;
 }
 
