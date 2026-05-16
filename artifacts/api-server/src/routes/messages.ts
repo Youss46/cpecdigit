@@ -93,6 +93,22 @@ router.get("/messages", requireAuth, async (req, res) => {
       }
     }
 
+    // Mark messages received by current user as "received" and notify senders in real-time
+    const justReceived = await db
+      .update(messagesTable)
+      .set({ receivedAt: new Date() })
+      .where(and(eq(messagesTable.recipientId, userId), isNull(messagesTable.receivedAt)))
+      .returning({ id: messagesTable.id, senderId: messagesTable.senderId });
+
+    const bySender = new Map<number, number[]>();
+    for (const m of justReceived) {
+      if (!bySender.has(m.senderId)) bySender.set(m.senderId, []);
+      bySender.get(m.senderId)!.push(m.id);
+    }
+    for (const [sid, ids] of bySender) {
+      emitToUser(sid, "message:status", { messageIds: ids, status: "received" });
+    }
+
     res.json(Array.from(convMap.values()));
   } catch (err) {
     console.error(err);
@@ -298,6 +314,7 @@ router.get("/messages/:userId", requireAuth, async (req, res) => {
         fileType: messagesTable.fileType,
         fileSize: messagesTable.fileSize,
         readAt: messagesTable.readAt,
+        receivedAt: messagesTable.receivedAt,
         createdAt: messagesTable.createdAt,
       })
       .from(messagesTable)
@@ -310,16 +327,25 @@ router.get("/messages/:userId", requireAuth, async (req, res) => {
       )
       .orderBy(messagesTable.createdAt);
 
-    await db
+    const now = new Date();
+    const justRead = await db
       .update(messagesTable)
-      .set({ readAt: new Date() })
+      .set({ readAt: now, receivedAt: sql`COALESCE(received_at, ${now.toISOString()})` })
       .where(
         and(
           eq(messagesTable.senderId, otherId),
           eq(messagesTable.recipientId, currentUserId),
           isNull(messagesTable.readAt)
         )
-      );
+      )
+      .returning({ id: messagesTable.id });
+
+    if (justRead.length > 0) {
+      emitToUser(otherId, "message:status", {
+        messageIds: justRead.map(m => m.id),
+        status: "read",
+      });
+    }
 
     const [other] = await db
       .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role, adminSubRole: usersTable.adminSubRole })

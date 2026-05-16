@@ -9,6 +9,7 @@ import { ensureMemoiresSchema } from "./lib/migrate-memoires.js";
 import { ensureMemoireSessionsSchema } from "./lib/migrate-memoire-sessions.js";
 import { ensureDiplomaSchema } from "./lib/migrate-diploma.js";
 import { ensureWebAuthnSchema } from "./lib/migrate-webauthn.js";
+import { ensureMessagesStatusSchema } from "./lib/migrate-messages-status.js";
 import { eq } from "drizzle-orm";
 import { startFeeReminderScheduler } from "./lib/fee-reminder-scheduler.js";
 import { startRecommendationScheduler } from "./lib/recommendation-scheduler.js";
@@ -96,6 +97,7 @@ async function start() {
   await ensureMemoireSessionsSchema();
   await ensureDiplomaSchema();
   await ensureWebAuthnSchema();
+  await ensureMessagesStatusSchema();
   httpServer.listen(port, () => {
     console.log(`Server listening on port ${port}`);
     if (process.env.NODE_ENV !== "production") {

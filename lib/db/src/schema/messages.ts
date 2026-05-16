@@ -11,5 +11,6 @@ export const messagesTable = pgTable("messages", {
   fileType: varchar("file_type", { length: 100 }),
   fileSize: integer("file_size"),
   readAt: timestamp("read_at"),
+  receivedAt: timestamp("received_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

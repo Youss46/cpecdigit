@@ -9,8 +9,10 @@ import {
   MessageSquare, Send, UserCircle2, Paperclip, X,
   FileText, Sheet, Presentation, FileArchive, Download,
   Plus, Search, Users, CheckCircle2, ArrowLeft,
+  Check, CheckCheck, Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getSocket } from "@/lib/socket";
 
 async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`/api${path}`, { credentials: "include", ...options });
@@ -42,6 +44,24 @@ function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} o`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+type MsgStatus = "sending" | "sent" | "received" | "read";
+
+function MessageStatus({ status }: { status: MsgStatus }) {
+  if (status === "sending") return <Clock className="w-3 h-3 text-primary-foreground/40" />;
+  if (status === "sent")     return <Check className="w-3 h-3 text-primary-foreground/50" />;
+  if (status === "received") return <CheckCheck className="w-3 h-3 text-primary-foreground/50" />;
+  if (status === "read")     return <CheckCheck className="w-3 h-3 text-blue-300" />;
+  return null;
+}
+
+function getMsgStatus(m: any, overrides: Map<number, MsgStatus>): MsgStatus {
+  const ov = overrides.get(m.id);
+  if (ov) return ov;
+  if (m.readAt) return "read";
+  if (m.receivedAt) return "received";
+  return "sent";
 }
 
 function FileIcon({ type, className = "w-5 h-5" }: { type: string; className?: string }) {
@@ -127,11 +147,27 @@ export default function SharedMessages({ allowedRoles }: { allowedRoles: string[
   const [broadcastDone, setBroadcastDone] = useState<{ count: number } | null>(null);
   const broadcastFileRef = useRef<HTMLInputElement>(null);
 
+  const [msgStatuses, setMsgStatuses] = useState<Map<number, MsgStatus>>(new Map());
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Listen to real-time status updates (received / read) from the server
+  useEffect(() => {
+    const socket = getSocket();
+    const onStatus = ({ messageIds, status }: { messageIds: number[]; status: MsgStatus }) => {
+      setMsgStatuses(prev => {
+        const next = new Map(prev);
+        for (const id of messageIds) next.set(id, status);
+        return next;
+      });
+    };
+    socket.on("message:status", onStatus);
+    return () => { socket.off("message:status", onStatus); };
+  }, []);
 
   useEffect(() => {
     if (selectedUserId) {
@@ -630,9 +666,12 @@ export default function SharedMessages({ allowedRoles }: { allowedRoles: string[
                           {m.content && m.content.startsWith("📎") && !m.fileUrl && (
                             <p className="leading-relaxed whitespace-normal break-words block w-full">{m.content}</p>
                           )}
-                          <p className={`text-[10px] mt-1 ${isMe ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                            {formatTime(m.createdAt)}
-                          </p>
+                          <div className={`flex items-center gap-0.5 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
+                            <span className={`text-[10px] ${isMe ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                              {formatTime(m.createdAt)}
+                            </span>
+                            {isMe && <MessageStatus status={getMsgStatus(m, msgStatuses)} />}
+                          </div>
                         </div>
                       </div>
                     );
