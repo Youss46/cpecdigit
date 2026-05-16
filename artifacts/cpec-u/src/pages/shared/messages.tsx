@@ -49,10 +49,10 @@ function formatSize(bytes: number) {
 type MsgStatus = "sending" | "sent" | "received" | "read";
 
 function MessageStatus({ status }: { status: MsgStatus }) {
-  if (status === "sending") return <Clock className="w-3 h-3 text-primary-foreground/40" />;
-  if (status === "sent")     return <Check className="w-3 h-3 text-primary-foreground/50" />;
-  if (status === "received") return <CheckCheck className="w-3 h-3 text-primary-foreground/50" />;
-  if (status === "read")     return <CheckCheck className="w-3 h-3 text-blue-300" />;
+  if (status === "sending") return <Clock className="w-3 h-3 text-white/40" />;
+  if (status === "sent")     return <Check className="w-3 h-3 text-white/70" />;
+  if (status === "received") return <CheckCheck className="w-3 h-3 text-white/70" />;
+  if (status === "read")     return <CheckCheck className="w-3 h-3 text-cyan-300" />;
   return null;
 }
 

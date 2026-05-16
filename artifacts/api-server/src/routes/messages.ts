@@ -330,7 +330,7 @@ router.get("/messages/:userId", requireAuth, async (req, res) => {
     const now = new Date();
     const justRead = await db
       .update(messagesTable)
-      .set({ readAt: now, receivedAt: sql`COALESCE(received_at, ${now.toISOString()})` })
+      .set({ readAt: now, receivedAt: now })
       .where(
         and(
           eq(messagesTable.senderId, otherId),
