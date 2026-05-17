@@ -1,0 +1,41 @@
+2026-05-16T22:38:40.585757418Z [inf]  > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+2026-05-16T22:38:40.585768103Z [inf]  > NODE_ENV=production node dist/index.mjs
+2026-05-16T22:38:40.585775961Z [inf]  
+2026-05-16T22:38:40.585782162Z [inf]  [CORS] isProd=true allowedOrigins=["https://www.m15-edutech.ci","https://m15-edutech.ci","https://cpecdigit-cpec-u.vercel.app"]
+2026-05-16T22:38:40.585852873Z [inf]  
+2026-05-16T22:38:40.593431199Z [inf]  Starting Container
+2026-05-16T22:38:40.603564515Z [inf]    ↩  "0000_initial" already applied — skipping.
+2026-05-16T22:38:40.603572056Z [inf]  ✓ All migrations are up to date.
+2026-05-16T22:38:40.645269725Z [inf]  ✓ Schéma Devoirs & Évaluations prêt.
+2026-05-16T22:38:40.645277099Z [inf]  ✓ Schéma Mémoires & Soutenances prêt.
+2026-05-16T22:38:40.646588946Z [inf]  ✓ Schéma Périodes de Soumission de Mémoires prêt.
+2026-05-16T22:38:40.658404858Z [inf]  ✓ Schéma Diplômes & Attestations prêt.
+2026-05-16T22:38:40.658412350Z [inf]  ✓ Schéma WebAuthn (connexion biométrique) prêt.
+2026-05-16T22:38:40.658417645Z [inf]  ✓ Schéma Statuts Messages (received_at) prêt.
+2026-05-16T22:38:40.659557212Z [inf]  Server listening on port 8080
+2026-05-16T22:38:40.659562688Z [inf]  [FeeReminder] Scheduler démarré — prochain run à 08h00 (dans 561 min)
+2026-05-16T22:38:40.659566685Z [inf]  [reco-scheduler] Started (interval: 6h)
+2026-05-16T22:38:40.659570978Z [inf]  [reco-scheduler] Running recommendation job…
+2026-05-16T22:38:40.664950180Z [inf]  [LicenseExpiry] Scheduler démarré — vérification toutes les heures.
+2026-05-16T22:38:40.664956437Z [inf]  [MemoireSession] Scheduler démarré — prochain run à 08h00 (dans 561 min)
+2026-05-16T22:38:40.664962167Z [inf]  [Backup] Backup quotidien planifié — prochain run à 02h00 UTC (dans 201 min)
+2026-05-16T22:38:40.664966713Z [inf]  [Backup] Backup hebdomadaire (dim) planifié — prochain run à 03h00 UTC (dans 261 min)
+2026-05-16T22:38:40.664971120Z [inf]  [Backup] Scheduler initialisé — quotidien 02h00 UTC, hebdomadaire dim 03h00 UTC
+2026-05-17T02:00:04.642656347Z [err]  More information can be found at: https://a.co/c895JFp
+2026-05-17T02:00:04.642661158Z [inf]  [Backup] pg_dump + gzip terminé
+2026-05-17T02:00:04.642666587Z [err]  (Use `node --trace-warnings ...` to show where the warning was created)
+2026-05-17T02:00:04.642671423Z [err]  [Backup] Erreur : The specified bucket name is not valid.
+2026-05-17T02:00:04.642679218Z [inf]  [Backup] Backup quotidien planifié — prochain run à 02h00 UTC (dans 1440 min)
+2026-05-17T02:00:04.642692408Z [inf]  [Backup] Début — backup-daily-2026-05-17T02-00-00.sql.gz
+2026-05-17T02:00:04.642699313Z [err]  (node:15) Warning: NodeVersionSupportWarning: The AWS SDK for JavaScript (v3)
+2026-05-17T02:00:04.642705612Z [err]  versions published after the first week of January 2027
+2026-05-17T02:00:04.642713676Z [err]  will require node >=22. You are running node v20.18.1.
+2026-05-17T02:00:04.642720933Z [err]  
+2026-05-17T02:00:04.642733310Z [err]  To continue receiving updates to AWS services, bug fixes,
+2026-05-17T02:00:04.642739509Z [err]  and security updates please upgrade to node >=22.
+2026-05-17T02:00:04.642744741Z [err]  
+2026-05-17T03:00:04.315252143Z [inf]  [Backup] Début — backup-weekly-2026-05-17T03-00-00.sql.gz
+2026-05-17T03:00:04.315259251Z [inf]  [Backup] pg_dump + gzip terminé
+2026-05-17T03:00:04.315266042Z [err]  [Backup] Erreur : The specified bucket name is not valid.
+2026-05-17T03:00:04.315273068Z [inf]  [Backup] Backup hebdomadaire (dim) planifié — prochain run à 03h00 UTC (dans 1440 min)
+2026-05-17T04:38:41.960728492Z [inf]  [reco-scheduler] Running recommendation job…
