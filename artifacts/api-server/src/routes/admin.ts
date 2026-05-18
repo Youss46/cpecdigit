@@ -128,10 +128,14 @@ router.get("/users", requireRole("admin"), async (req, res) => {
     const enrollments = await db
       .select({ studentId: classEnrollmentsTable.studentId, classId: classEnrollmentsTable.classId, className: classesTable.name })
       .from(classEnrollmentsTable)
-      .innerJoin(classesTable, eq(classesTable.id, classEnrollmentsTable.classId));
+      .innerJoin(classesTable, eq(classesTable.id, classEnrollmentsTable.classId))
+      .where(eq(classesTable.tenantId, tenantId));
     const enrollmentMap = new Map(enrollments.map((e) => [e.studentId, { classId: e.classId, className: e.className }]));
 
-    const profiles = await db.select({ studentId: studentProfilesTable.studentId, matricule: studentProfilesTable.matricule, sexe: studentProfilesTable.sexe }).from(studentProfilesTable);
+    const userIds = users.map(u => u.id);
+    const profiles = userIds.length > 0
+      ? await db.select({ studentId: studentProfilesTable.studentId, matricule: studentProfilesTable.matricule, sexe: studentProfilesTable.sexe }).from(studentProfilesTable).where(inArray(studentProfilesTable.studentId, userIds))
+      : [];
     const profileMap = new Map(profiles.map((p) => [p.studentId, { matricule: p.matricule, sexe: p.sexe }]));
 
     const result = users.map((u) => {
@@ -1825,6 +1829,7 @@ async function computeStudentResult(studentId: number, semesterId: number) {
 
 router.get("/results/:semesterId", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const semesterId = parseInt(req.params.semesterId);
     const { classId } = req.query;
 
@@ -1834,9 +1839,9 @@ router.get("/results/:semesterId", requireRole("admin"), async (req, res) => {
         .select({ id: usersTable.id })
         .from(classEnrollmentsTable)
         .innerJoin(usersTable, eq(usersTable.id, classEnrollmentsTable.studentId))
-        .where(and(eq(classEnrollmentsTable.classId, parseInt(classId as string)), eq(usersTable.role, "student")));
+        .where(and(eq(classEnrollmentsTable.classId, parseInt(classId as string)), eq(usersTable.role, "student"), eq(usersTable.tenantId, tenantId)));
     } else {
-      students = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "student"));
+      students = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.role, "student"), eq(usersTable.tenantId, tenantId)));
     }
 
     const results = await Promise.all(students.map((s) => computeStudentResult(s.id, semesterId)));
@@ -3604,18 +3609,19 @@ function allRows(result: any): any[] { return (result as any).rows ?? []; }
 // GET /admin/reports/overview — KPIs globaux de l'établissement
 router.get("/reports/overview", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { semesterId, classId, academicYear } = req.query;
 
     // Effectifs
     const counts = firstRow(await db.execute(sql`
       SELECT
-        (SELECT COUNT(*) FROM users WHERE role = 'student')::int AS total_students,
-        (SELECT COUNT(*) FROM users WHERE role = 'teacher')::int AS total_teachers,
-        (SELECT COUNT(*) FROM users WHERE role = 'admin')::int  AS total_admins,
-        (SELECT COUNT(*) FROM housing_assignments WHERE status = 'active')::int AS housing_students,
-        (SELECT COUNT(*) FROM student_profiles WHERE sexe = 'M')::int AS garcons,
-        (SELECT COUNT(*) FROM student_profiles WHERE sexe = 'F')::int AS filles,
-        (SELECT COUNT(*) FROM student_profiles WHERE sexe IS NOT NULL)::int AS total_with_sexe
+        (SELECT COUNT(*) FROM users WHERE role = 'student' AND tenant_id = ${tenantId})::int AS total_students,
+        (SELECT COUNT(*) FROM users WHERE role = 'teacher' AND tenant_id = ${tenantId})::int AS total_teachers,
+        (SELECT COUNT(*) FROM users WHERE role = 'admin'   AND tenant_id = ${tenantId})::int AS total_admins,
+        (SELECT COUNT(*) FROM housing_assignments ha JOIN users u ON u.id = ha.student_id WHERE ha.status = 'active' AND u.tenant_id = ${tenantId})::int AS housing_students,
+        (SELECT COUNT(*) FROM student_profiles sp JOIN users u ON u.id = sp.student_id WHERE sp.sexe = 'M' AND u.tenant_id = ${tenantId})::int AS garcons,
+        (SELECT COUNT(*) FROM student_profiles sp JOIN users u ON u.id = sp.student_id WHERE sp.sexe = 'F' AND u.tenant_id = ${tenantId})::int AS filles,
+        (SELECT COUNT(*) FROM student_profiles sp JOIN users u ON u.id = sp.student_id WHERE sp.sexe IS NOT NULL AND u.tenant_id = ${tenantId})::int AS total_with_sexe
     `));
 
     // Taux de réussite global
@@ -3983,6 +3989,7 @@ router.get("/reports/absences", requireRole("admin"), async (req, res) => {
 // GET /admin/reports/financial — Analyse financière
 router.get("/reports/financial", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { academicYear } = req.query;
     const yearCond = academicYear ? sql`AND sf.academic_year = ${academicYear as string}` : sql``;
 
@@ -4033,6 +4040,7 @@ router.get("/reports/financial", requireRole("admin"), async (req, res) => {
         GROUP BY student_id
       ) p_agg ON p_agg.student_id = u.id
       WHERE u.role = 'student'
+        AND u.tenant_id = ${tenantId}
         AND (COALESCE(sf.total_amount, 0) - COALESCE(p_agg.total_paid, 0)) > 0
       ORDER BY balance DESC
       LIMIT 50
@@ -4099,9 +4107,9 @@ router.post("/parents", requireRole("admin"), async (req, res) => {
     }
     const { name, email, phone, password, studentIds } = req.body as { name: string; email: string; phone?: string; password: string; studentIds?: number[]; };
     if (!name?.trim() || !email?.trim() || !password?.trim()) { res.status(400).json({ error: "Nom, email et mot de passe requis." }); return; }
-    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.trim().toLowerCase())).limit(1);
+    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.email, email.trim().toLowerCase()), eq(usersTable.tenantId, req.tenantId!))).limit(1);
     if (existing) { res.status(409).json({ error: "Un compte avec cet email existe déjà." }); return; }
-    const [newParent] = await db.insert(usersTable).values({ name: name.trim(), email: email.trim().toLowerCase(), passwordHash: hashPassword(password), role: "parent", phone: phone?.trim() ?? null, mustChangePassword: true }).returning();
+    const [newParent] = await db.insert(usersTable).values({ tenantId: req.tenantId!, name: name.trim(), email: email.trim().toLowerCase(), passwordHash: hashPassword(password), role: "parent", phone: phone?.trim() ?? null, mustChangePassword: true }).returning();
     if (studentIds?.length) {
       for (const sid of studentIds) { await db.insert(parentStudentLinksTable).values({ parentId: newParent.id, studentId: sid }).onConflictDoNothing(); }
     }

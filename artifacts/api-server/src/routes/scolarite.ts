@@ -43,7 +43,7 @@ router.get("/students", requireRole("admin"), requireScolariteOrDirecteur, async
       .from(usersTable)
       .leftJoin(classEnrollmentsTable, eq(classEnrollmentsTable.studentId, usersTable.id))
       .leftJoin(classesTable, eq(classesTable.id, classEnrollmentsTable.classId))
-      .where(eq(usersTable.role, "student"));
+      .where(and(eq(usersTable.role, "student"), eq(usersTable.tenantId, req.tenantId!)));
 
     if (students.length === 0) { res.json([]); return; }
 
@@ -91,7 +91,7 @@ router.get("/stats", requireRole("admin"), requireScolariteOrDirecteur, async (r
       totalPaid: sql<number>`COALESCE(SUM(${paymentsTable.amount}), 0)`,
     }).from(paymentsTable);
 
-    const studentIds = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "student"));
+    const studentIds = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.role, "student"), eq(usersTable.tenantId, req.tenantId!)));
     const allIds = studentIds.map(s => s.id);
     const feeStudentIds = (await db.select({ studentId: studentFeesTable.studentId }).from(studentFeesTable)).map(f => f.studentId);
     const paidRows = allIds.length > 0
