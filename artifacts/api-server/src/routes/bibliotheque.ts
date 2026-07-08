@@ -483,9 +483,10 @@ router.post("/bibliotheque/link", requireRole("teacher"), async (req, res) => {
 router.put("/bibliotheque/:id", requireAuth, async (req, res) => {
   try {
     const userId = req.session!.userId!;
+    const tenantId = req.tenantId!;
     const id = Number(req.params.id);
     const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-    const [resource] = await db.select().from(libraryResourcesTable).where(eq(libraryResourcesTable.id, id)).limit(1);
+    const [resource] = await db.select().from(libraryResourcesTable).where(and(eq(libraryResourcesTable.id, id), eq(libraryResourcesTable.tenantId, tenantId))).limit(1);
 
     if (!resource) { res.status(404).json({ error: "Support introuvable" }); return; }
     if (me?.role !== "admin" && resource.teacherId !== userId) {
@@ -506,7 +507,7 @@ router.put("/bibliotheque/:id", requireAuth, async (req, res) => {
         ...(parsedClassIds !== undefined && { classIds: JSON.stringify(parsedClassIds) }),
         updatedAt: new Date(),
       })
-      .where(eq(libraryResourcesTable.id, id))
+      .where(and(eq(libraryResourcesTable.id, id), eq(libraryResourcesTable.tenantId, tenantId)))
       .returning();
 
     res.json({ resource: updated });
@@ -520,9 +521,10 @@ router.put("/bibliotheque/:id", requireAuth, async (req, res) => {
 router.delete("/bibliotheque/:id", requireAuth, async (req, res) => {
   try {
     const userId = req.session!.userId!;
+    const tenantId = req.tenantId!;
     const id = Number(req.params.id);
     const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-    const [resource] = await db.select().from(libraryResourcesTable).where(eq(libraryResourcesTable.id, id)).limit(1);
+    const [resource] = await db.select().from(libraryResourcesTable).where(and(eq(libraryResourcesTable.id, id), eq(libraryResourcesTable.tenantId, tenantId))).limit(1);
 
     if (!resource) { res.status(404).json({ error: "Support introuvable" }); return; }
     if (me?.role !== "admin" && resource.teacherId !== userId) {
@@ -554,12 +556,15 @@ router.delete("/bibliotheque/:id", requireAuth, async (req, res) => {
 // ─── PATCH /api/bibliotheque/:id/suspend ─────────────────────────────────────
 router.patch("/bibliotheque/:id/suspend", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = Number(req.params.id);
     const { suspended } = req.body;
-    await db
+    const [updated] = await db
       .update(libraryResourcesTable)
       .set({ suspended: Boolean(suspended), updatedAt: new Date() })
-      .where(eq(libraryResourcesTable.id, id));
+      .where(and(eq(libraryResourcesTable.id, id), eq(libraryResourcesTable.tenantId, tenantId)))
+      .returning();
+    if (!updated) { res.status(404).json({ error: "Support introuvable" }); return; }
     res.json({ ok: true });
   } catch (err) {
     console.error("[bibliotheque suspend]", err);
@@ -830,8 +835,16 @@ router.post("/bibliotheque/quiz", requireRole("teacher", "admin"), async (req, r
 // Update a quiz (teacher only — rebuilds questions)
 router.put("/bibliotheque/quiz/:id", requireRole("teacher", "admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const quizId = Number(req.params.id);
     const { titre, durreeMinutes, noteMinimale, nbTentatives, actif, questions } = req.body;
+
+    const [quizCheck] = await db.select({ id: libraryQuizTable.id })
+      .from(libraryQuizTable)
+      .innerJoin(libraryResourcesTable, eq(libraryResourcesTable.id, libraryQuizTable.resourceId))
+      .where(and(eq(libraryQuizTable.id, quizId), eq(libraryResourcesTable.tenantId, tenantId)))
+      .limit(1);
+    if (!quizCheck) { res.status(404).json({ error: "Quiz introuvable" }); return; }
 
     await db.update(libraryQuizTable).set({
       titre,
@@ -883,7 +896,14 @@ router.put("/bibliotheque/quiz/:id", requireRole("teacher", "admin"), async (req
 // ─── DELETE /api/bibliotheque/quiz/:id ───────────────────────────────────────
 router.delete("/bibliotheque/quiz/:id", requireRole("teacher", "admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const quizId = Number(req.params.id);
+    const [quizCheck] = await db.select({ id: libraryQuizTable.id })
+      .from(libraryQuizTable)
+      .innerJoin(libraryResourcesTable, eq(libraryResourcesTable.id, libraryQuizTable.resourceId))
+      .where(and(eq(libraryQuizTable.id, quizId), eq(libraryResourcesTable.tenantId, tenantId)))
+      .limit(1);
+    if (!quizCheck) { res.status(404).json({ error: "Quiz introuvable" }); return; }
     await db.delete(libraryQuizTable).where(eq(libraryQuizTable.id, quizId));
     res.json({ ok: true });
   } catch (err) {
@@ -1208,11 +1228,12 @@ router.patch("/bibliotheque/recommendations/mark-all-read", requireRole("student
 // Teacher sends push notification to students who haven't consulted a resource
 router.post("/bibliotheque/send-reminder", requireRole("teacher", "admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { resourceId } = req.body;
     if (!resourceId) { res.status(400).json({ error: "resourceId requis" }); return; }
 
     const [resource] = (await db.execute(sql`
-      SELECT id, title, class_ids FROM library_resources WHERE id = ${resourceId}
+      SELECT id, title, class_ids FROM library_resources WHERE id = ${resourceId} AND tenant_id = ${tenantId}
     `) as any).rows ?? [];
     if (!resource) { res.status(404).json({ error: "Support non trouvé" }); return; }
 
@@ -1225,6 +1246,7 @@ router.post("/bibliotheque/send-reminder", requireRole("teacher", "admin"), asyn
         FROM class_enrollments ce
         JOIN users u ON u.id = ce.student_id
         WHERE ce.class_id = ANY(ARRAY[${sql.raw(classIds.join(','))}]::int[])
+          AND u.tenant_id = ${tenantId}
           AND u.id NOT IN (
             SELECT student_id FROM library_downloads WHERE resource_id = ${resourceId}
           )
@@ -1234,6 +1256,7 @@ router.post("/bibliotheque/send-reminder", requireRole("teacher", "admin"), asyn
         SELECT DISTINCT u.id
         FROM users u
         WHERE u.role = 'student'
+          AND u.tenant_id = ${tenantId}
           AND u.id NOT IN (
             SELECT student_id FROM library_downloads WHERE resource_id = ${resourceId}
           )
@@ -1275,15 +1298,17 @@ router.post("/bibliotheque/send-reminder", requireRole("teacher", "admin"), asyn
 // Admin: global library statistics (section 7)
 router.get("/bibliotheque/admin-stats", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
+
     // 1. Global counters
     const globalCounts = (await db.execute(sql`
       SELECT
-        (SELECT COUNT(*) FROM library_resources WHERE suspended = false)::int as total_supports,
-        (SELECT COUNT(DISTINCT student_id) FROM library_downloads)::int as active_students,
-        (SELECT COALESCE(SUM(duree_secondes), 0) FROM library_time_tracking)::bigint as total_secondes,
-        (SELECT COUNT(*) FROM library_quiz_resultats)::int as total_quiz_passages,
-        (SELECT ROUND(AVG(CASE WHEN max_score > 0 THEN score / max_score * 20.0 END)::numeric, 2)
-         FROM library_quiz_resultats) as avg_quiz_note_20
+        (SELECT COUNT(*) FROM library_resources WHERE suspended = false AND tenant_id = ${tenantId})::int as total_supports,
+        (SELECT COUNT(DISTINCT ld.student_id) FROM library_downloads ld JOIN users u ON u.id = ld.student_id WHERE u.tenant_id = ${tenantId})::int as active_students,
+        (SELECT COALESCE(SUM(tt.duree_secondes), 0) FROM library_time_tracking tt JOIN users u ON u.id = tt.student_id WHERE u.tenant_id = ${tenantId})::bigint as total_secondes,
+        (SELECT COUNT(*) FROM library_quiz_resultats qr JOIN users u ON u.id = qr.etudiant_id WHERE u.tenant_id = ${tenantId})::int as total_quiz_passages,
+        (SELECT ROUND(AVG(CASE WHEN qr.max_score > 0 THEN qr.score / qr.max_score * 20.0 END)::numeric, 2)
+         FROM library_quiz_resultats qr JOIN users u ON u.id = qr.etudiant_id WHERE u.tenant_id = ${tenantId}) as avg_quiz_note_20
     `) as any).rows?.[0] ?? {};
 
     // 2. Top 10 supports by consultation
@@ -1297,7 +1322,7 @@ router.get("/bibliotheque/admin-stats", requireRole("admin"), async (req, res) =
       LEFT JOIN subjects sub ON sub.id = lr.subject_id
       LEFT JOIN library_downloads ld ON ld.resource_id = lr.id
       LEFT JOIN library_time_tracking tt ON tt.resource_id = lr.id
-      WHERE lr.suspended = false
+      WHERE lr.suspended = false AND lr.tenant_id = ${tenantId}
       GROUP BY lr.id, lr.title, lr.type, sub.name, lr.download_count
       ORDER BY consultation_count DESC, total_secondes DESC
       LIMIT 10
@@ -1312,7 +1337,7 @@ router.get("/bibliotheque/admin-stats", requireRole("admin"), async (req, res) =
         SELECT tt.student_id, lr.subject_id, SUM(tt.duree_secondes) as student_total
         FROM library_time_tracking tt
         JOIN library_resources lr ON lr.id = tt.resource_id
-        WHERE lr.subject_id IS NOT NULL
+        WHERE lr.subject_id IS NOT NULL AND lr.tenant_id = ${tenantId}
         GROUP BY tt.student_id, lr.subject_id
       ) sub_data
       JOIN subjects sub ON sub.id = sub_data.subject_id
@@ -1331,6 +1356,7 @@ router.get("/bibliotheque/admin-stats", requireRole("admin"), async (req, res) =
       JOIN library_quiz lq ON lq.id = qr.quiz_id
       JOIN library_resources lr ON lr.id = lq.resource_id
       LEFT JOIN subjects sub ON sub.id = lr.subject_id
+      WHERE lr.tenant_id = ${tenantId}
       GROUP BY sub.name
       ORDER BY avg_note_20 DESC NULLS LAST
       LIMIT 10
@@ -1360,7 +1386,9 @@ router.get("/bibliotheque/admin-stats", requireRole("admin"), async (req, res) =
                COALESCE(SUM(tt.duree_secondes), 0) as total_secs,
                AVG(g.value) as avg_grade
         FROM grades g
+        JOIN users u ON u.id = g.student_id
         LEFT JOIN library_time_tracking tt ON tt.student_id = g.student_id
+        WHERE u.tenant_id = ${tenantId}
         GROUP BY g.student_id
       ) sub
       GROUP BY tranche_temps, tranche_order
@@ -1375,6 +1403,7 @@ router.get("/bibliotheque/admin-stats", requireRole("admin"), async (req, res) =
               WHERE ce.student_id = u.id LIMIT 1) as class_name
       FROM users u
       WHERE u.role = 'student'
+        AND u.tenant_id = ${tenantId}
         AND u.id NOT IN (SELECT DISTINCT student_id FROM library_downloads)
         AND u.id NOT IN (SELECT DISTINCT student_id FROM library_time_tracking)
       ORDER BY u.name

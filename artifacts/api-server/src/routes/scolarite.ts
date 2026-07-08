@@ -12,7 +12,7 @@ import {
   classesTable,
   activityLogTable,
 } from "@workspace/db";
-import { eq, and, sql, inArray, asc } from "drizzle-orm";
+import { eq, and, or, isNull, sql, inArray, asc } from "drizzle-orm";
 import { requireRole } from "../lib/auth.js";
 import { notifyParentsOfStudent } from "./parent.js";
 import { sendPushToUser } from "./push.js";
@@ -156,12 +156,14 @@ router.get("/payments/:studentId", requireRole("admin"), requireScolariteOrDirec
 // ─── POST /api/scolarite/payments ─────────────────────────────────────────────
 router.post("/payments", requireRole("admin"), requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { studentId, amount, description, paymentDate, paymentMethod, reference, status } = req.body;
     const recordedById = req.session!.userId!;
     if (!studentId || !amount || amount <= 0 || !paymentDate) { res.status(400).json({ error: "studentId, amount et paymentDate sont requis" }); return; }
     const year = paymentDate.slice(0, 4);
     const autoRef = reference || `REC-${year}-${String(Math.floor(Math.random() * 900000) + 100000)}`;
-    const [student] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, studentId));
+    const [student] = await db.select({ name: usersTable.name }).from(usersTable).where(and(eq(usersTable.id, studentId), eq(usersTable.tenantId, tenantId)));
+    if (!student) { res.status(404).json({ error: "Étudiant introuvable" }); return; }
     const [row] = await db.insert(paymentsTable).values({ studentId, amount, description: description ?? null, paymentDate, recordedById, paymentMethod: paymentMethod ?? null, reference: autoRef, status: status ?? "validé" }).returning();
     await db.insert(activityLogTable).values({ userId: recordedById, action: "enregistrement_paiement", details: `Paiement de ${Number(amount).toLocaleString("fr-FR")} FCFA enregistré pour ${student?.name ?? `ID ${studentId}`}${description ? ` — ${description}` : ""} (date : ${paymentDate}).` });
     notifyParentsOfStudent(studentId, "payment_received", "Nouveau paiement enregistré", `Un versement de ${Number(amount).toLocaleString("fr-FR")} FCFA a été enregistré${description ? ` (${description})` : ""} le ${paymentDate}.`).catch(() => {});
@@ -175,15 +177,16 @@ router.post("/payments", requireRole("admin"), requireScolariteOrDirecteur, asyn
 // ─── DELETE /api/scolarite/payments/:id ──────────────────────────────────────
 router.delete("/payments/:id", requireRole("admin"), requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
-    const [payment] = await db.select({ amount: paymentsTable.amount, studentId: paymentsTable.studentId, description: paymentsTable.description }).from(paymentsTable).where(eq(paymentsTable.id, id));
-    if (payment) {
-      const [student] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, payment.studentId));
-      await db.delete(paymentsTable).where(eq(paymentsTable.id, id));
-      await db.insert(activityLogTable).values({ userId: req.session!.userId!, action: "suppression_paiement", details: `Paiement de ${Number(payment.amount).toLocaleString("fr-FR")} FCFA supprimé pour ${student?.name ?? `ID ${payment.studentId}`}${payment.description ? ` (${payment.description})` : ""}.` });
-    } else {
-      await db.delete(paymentsTable).where(eq(paymentsTable.id, id));
-    }
+    const [payment] = await db.select({ amount: paymentsTable.amount, studentId: paymentsTable.studentId, description: paymentsTable.description })
+      .from(paymentsTable)
+      .innerJoin(usersTable, eq(usersTable.id, paymentsTable.studentId))
+      .where(and(eq(paymentsTable.id, id), eq(usersTable.tenantId, tenantId)));
+    if (!payment) { res.status(404).json({ error: "Not Found" }); return; }
+    const [student] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, payment.studentId));
+    await db.delete(paymentsTable).where(eq(paymentsTable.id, id));
+    await db.insert(activityLogTable).values({ userId: req.session!.userId!, action: "suppression_paiement", details: `Paiement de ${Number(payment.amount).toLocaleString("fr-FR")} FCFA supprimé pour ${student?.name ?? `ID ${payment.studentId}`}${payment.description ? ` (${payment.description})` : ""}.` });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -229,7 +232,10 @@ router.put("/class-fees/:classId", requireRole("admin"), requireScolariteOrDirec
 // ─── GET /api/scolarite/installments/:studentId ──────────────────────────────
 router.get("/installments/:studentId", requireRole("admin"), requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const studentId = parseInt(req.params.studentId);
+    const [student] = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.id, studentId), eq(usersTable.tenantId, tenantId)));
+    if (!student) { res.status(404).json({ error: "Not Found" }); return; }
     const rows = await db.select().from(paymentInstallmentsTable).where(eq(paymentInstallmentsTable.studentId, studentId)).orderBy(paymentInstallmentsTable.dueDate);
     res.json(rows);
   } catch (err) {
@@ -241,8 +247,11 @@ router.get("/installments/:studentId", requireRole("admin"), requireScolariteOrD
 // ─── POST /api/scolarite/installments ────────────────────────────────────────
 router.post("/installments", requireRole("admin"), requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { studentId, label, dueDate, amount } = req.body;
     if (!studentId || !dueDate || !amount || amount <= 0) { res.status(400).json({ error: "studentId, dueDate et amount requis" }); return; }
+    const [student] = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.id, studentId), eq(usersTable.tenantId, tenantId)));
+    if (!student) { res.status(404).json({ error: "Étudiant introuvable" }); return; }
     const [row] = await db.insert(paymentInstallmentsTable).values({ studentId, label: label ?? null, dueDate, amount }).returning();
     res.status(201).json(row);
   } catch (err) {
@@ -254,9 +263,15 @@ router.post("/installments", requireRole("admin"), requireScolariteOrDirecteur, 
 // ─── PUT /api/scolarite/installments/:id ─────────────────────────────────────
 router.put("/installments/:id", requireRole("admin"), requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
     const { label, dueDate, amount, paidAt } = req.body;
-    const [existing] = await db.select().from(paymentInstallmentsTable).where(eq(paymentInstallmentsTable.id, id)).limit(1);
+    const [existing] = await db.select({ installment: paymentInstallmentsTable, studentTenantId: usersTable.tenantId })
+      .from(paymentInstallmentsTable)
+      .innerJoin(usersTable, eq(usersTable.id, paymentInstallmentsTable.studentId))
+      .where(and(eq(paymentInstallmentsTable.id, id), eq(usersTable.tenantId, tenantId)))
+      .limit(1)
+      .then(rows => rows.map(r => r.installment));
     if (!existing) { res.status(404).json({ error: "Échéance introuvable" }); return; }
     const wasUnpaid = !existing.paidAt;
     const isNowPaid = !!paidAt;
@@ -285,7 +300,13 @@ router.put("/installments/:id", requireRole("admin"), requireScolariteOrDirecteu
 // ─── DELETE /api/scolarite/installments/:id ───────────────────────────────────
 router.delete("/installments/:id", requireRole("admin"), requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
+    const [existing] = await db.select({ id: paymentInstallmentsTable.id })
+      .from(paymentInstallmentsTable)
+      .innerJoin(usersTable, eq(usersTable.id, paymentInstallmentsTable.studentId))
+      .where(and(eq(paymentInstallmentsTable.id, id), eq(usersTable.tenantId, tenantId)));
+    if (!existing) { res.status(404).json({ error: "Échéance introuvable" }); return; }
     await db.delete(paymentInstallmentsTable).where(eq(paymentInstallmentsTable.id, id));
     res.json({ ok: true });
   } catch (err) {
@@ -301,10 +322,15 @@ router.delete("/installments/:id", requireRole("admin"), requireScolariteOrDirec
 // ─── GET /api/scolarite/schedules ─────────────────────────────────
 router.get("/schedules", requireRole("admin"), requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { classId } = req.query;
+    const tenantClassIds = (await db.select({ id: classesTable.id }).from(classesTable).where(eq(classesTable.tenantId, tenantId))).map(c => c.id);
+    const scopeCondition = tenantClassIds.length > 0
+      ? or(inArray(paymentSchedulesTable.classId, tenantClassIds), isNull(paymentSchedulesTable.classId))
+      : isNull(paymentSchedulesTable.classId);
     const schedules = classId
-      ? await db.select().from(paymentSchedulesTable).where(eq(paymentSchedulesTable.classId, parseInt(classId as string))).orderBy(asc(paymentSchedulesTable.createdAt))
-      : await db.select().from(paymentSchedulesTable).orderBy(asc(paymentSchedulesTable.createdAt));
+      ? await db.select().from(paymentSchedulesTable).where(and(eq(paymentSchedulesTable.classId, parseInt(classId as string)), scopeCondition)).orderBy(asc(paymentSchedulesTable.createdAt))
+      : await db.select().from(paymentSchedulesTable).where(scopeCondition).orderBy(asc(paymentSchedulesTable.createdAt));
 
     if (schedules.length === 0) { res.json([]); return; }
 
@@ -337,6 +363,7 @@ router.get("/schedules", requireRole("admin"), requireScolariteOrDirecteur, asyn
 // ─── POST /api/scolarite/schedules ────────────────────────────────
 router.post("/schedules", requireRole("admin"), requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { classId, name, totalAmount, academicYear, installments } = req.body;
 
     if (!name || totalAmount == null || totalAmount <= 0) {
@@ -344,6 +371,10 @@ router.post("/schedules", requireRole("admin"), requireScolariteOrDirecteur, asy
     }
     if (!installments || !Array.isArray(installments) || installments.length === 0) {
       res.status(400).json({ error: "Au moins une tranche est requise" }); return;
+    }
+    if (classId) {
+      const [cls] = await db.select({ id: classesTable.id }).from(classesTable).where(and(eq(classesTable.id, parseInt(classId)), eq(classesTable.tenantId, tenantId))).limit(1);
+      if (!cls) { res.status(404).json({ error: "Classe introuvable" }); return; }
     }
 
     const sum = installments.reduce((acc: number, t: any) => acc + (Number(t.amount) || 0), 0);
@@ -384,7 +415,14 @@ router.post("/schedules", requireRole("admin"), requireScolariteOrDirecteur, asy
 // ─── DELETE /api/scolarite/schedules/:id ──────────────────────────
 router.delete("/schedules/:id", requireRole("admin"), requireScolariteOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
+    const [schedule] = await db.select({ id: paymentSchedulesTable.id, classId: paymentSchedulesTable.classId }).from(paymentSchedulesTable).where(eq(paymentSchedulesTable.id, id)).limit(1);
+    if (!schedule) { res.status(404).json({ error: "Échéancier introuvable" }); return; }
+    if (schedule.classId !== null) {
+      const [cls] = await db.select({ id: classesTable.id }).from(classesTable).where(and(eq(classesTable.id, schedule.classId), eq(classesTable.tenantId, tenantId))).limit(1);
+      if (!cls) { res.status(404).json({ error: "Échéancier introuvable" }); return; }
+    }
     await db.delete(paymentSchedulesTable).where(eq(paymentSchedulesTable.id, id));
     res.json({ ok: true });
   } catch (err) {

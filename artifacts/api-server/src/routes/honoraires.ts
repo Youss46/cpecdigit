@@ -83,7 +83,10 @@ router.get("/teachers", requireRole("admin"), requirePlanificateurOrDirecteur, a
 // Per-assignment breakdown for the auto-calculation preview
 router.get("/assignments/:teacherId", requireRole("admin"), requirePlanificateurOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const teacherId = parseInt(req.params.teacherId);
+    const [teacher] = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.id, teacherId), eq(usersTable.tenantId, tenantId))).limit(1);
+    if (!teacher) { res.status(404).json({ error: "Enseignant introuvable" }); return; }
     const rows = await db.execute(sql`
       SELECT
         ta.id,
@@ -106,16 +109,25 @@ router.get("/assignments/:teacherId", requireRole("admin"), requirePlanificateur
 // ─── GET /api/honoraires/stats ────────────────────────────────────────────────
 router.get("/stats", requireRole("admin"), requirePlanificateurOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
+    const tenantTeachers = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.role, "teacher"), eq(usersTable.tenantId, tenantId)));
+    const tenantTeacherIds = tenantTeachers.map(t => t.id);
+
+    if (tenantTeacherIds.length === 0) {
+      res.json({ totalExpected: 0, totalPaid: 0, totalRemaining: 0, recoveryRate: 0, teacherCount: 0, fullyPaid: 0, partial: 0, noPay: 0 });
+      return;
+    }
+
     const [totals] = await db.select({
       totalExpected: sql<number>`COALESCE(SUM(${teacherHonorariaTable.totalAmount}), 0)`,
       teacherCount: sql<number>`COUNT(${teacherHonorariaTable.id})`,
-    }).from(teacherHonorariaTable);
+    }).from(teacherHonorariaTable).where(inArray(teacherHonorariaTable.teacherId, tenantTeacherIds));
 
     const [collected] = await db.select({
       totalPaid: sql<number>`COALESCE(SUM(${teacherPaymentsTable.amount}), 0)`,
-    }).from(teacherPaymentsTable);
+    }).from(teacherPaymentsTable).where(inArray(teacherPaymentsTable.teacherId, tenantTeacherIds));
 
-    const honoraria = await db.select({ teacherId: teacherHonorariaTable.teacherId, total: teacherHonorariaTable.totalAmount }).from(teacherHonorariaTable);
+    const honoraria = await db.select({ teacherId: teacherHonorariaTable.teacherId, total: teacherHonorariaTable.totalAmount }).from(teacherHonorariaTable).where(inArray(teacherHonorariaTable.teacherId, tenantTeacherIds));
     const teacherIds = honoraria.map(h => h.teacherId);
     const honorariaMap = new Map(honoraria.map(h => [h.teacherId, h.total]));
 
@@ -147,7 +159,10 @@ router.get("/stats", requireRole("admin"), requirePlanificateurOrDirecteur, asyn
 // ─── PUT /api/honoraires/fees/:teacherId ──────────────────────────────────────
 router.put("/fees/:teacherId", requireRole("admin"), requirePlanificateurOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const teacherId = parseInt(req.params.teacherId);
+    const [teacherCheck] = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.id, teacherId), eq(usersTable.tenantId, tenantId))).limit(1);
+    if (!teacherCheck) { res.status(404).json({ error: "Enseignant introuvable" }); return; }
     const { hourlyRate, totalAmount, periodLabel, notes } = req.body;
 
     let finalAmount: number;
@@ -204,7 +219,10 @@ router.put("/fees/:teacherId", requireRole("admin"), requirePlanificateurOrDirec
 // ─── GET /api/honoraires/payments/:teacherId ──────────────────────────────────
 router.get("/payments/:teacherId", requireRole("admin"), requirePlanificateurOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const teacherId = parseInt(req.params.teacherId);
+    const [teacherCheck] = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.id, teacherId), eq(usersTable.tenantId, tenantId))).limit(1);
+    if (!teacherCheck) { res.status(404).json({ error: "Enseignant introuvable" }); return; }
     const rows = await db.select({
       id: teacherPaymentsTable.id,
       teacherId: teacherPaymentsTable.teacherId,
@@ -225,13 +243,15 @@ router.get("/payments/:teacherId", requireRole("admin"), requirePlanificateurOrD
 // ─── POST /api/honoraires/payments ───────────────────────────────────────────
 router.post("/payments", requireRole("admin"), requirePlanificateurOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const { teacherId, amount, description, paymentDate, paymentMethod } = req.body;
     const recordedById = req.session!.userId!;
     if (!teacherId || !amount || amount <= 0 || !paymentDate) {
       res.status(400).json({ error: "teacherId, amount et paymentDate sont requis" });
       return;
     }
-    const [teacher] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, teacherId));
+    const [teacher] = await db.select({ name: usersTable.name }).from(usersTable).where(and(eq(usersTable.id, teacherId), eq(usersTable.tenantId, tenantId)));
+    if (!teacher) { res.status(404).json({ error: "Enseignant introuvable" }); return; }
     const [row] = await db.insert(teacherPaymentsTable)
       .values({ teacherId, amount, description: description ?? null, paymentDate, paymentMethod: paymentMethod ?? "especes", recordedById })
       .returning();
@@ -249,21 +269,22 @@ router.post("/payments", requireRole("admin"), requirePlanificateurOrDirecteur, 
 // ─── DELETE /api/honoraires/payments/:id ─────────────────────────────────────
 router.delete("/payments/:id", requireRole("admin"), requirePlanificateurOrDirecteur, async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const id = parseInt(req.params.id);
     const [payment] = await db.select({ amount: teacherPaymentsTable.amount, teacherId: teacherPaymentsTable.teacherId, description: teacherPaymentsTable.description })
-      .from(teacherPaymentsTable).where(eq(teacherPaymentsTable.id, id));
+      .from(teacherPaymentsTable)
+      .innerJoin(usersTable, eq(usersTable.id, teacherPaymentsTable.teacherId))
+      .where(and(eq(teacherPaymentsTable.id, id), eq(usersTable.tenantId, tenantId)));
 
-    if (payment) {
-      const [teacher] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, payment.teacherId));
-      await db.delete(teacherPaymentsTable).where(eq(teacherPaymentsTable.id, id));
-      await db.insert(activityLogTable).values({
-        userId: req.session!.userId!,
-        action: "suppression_paiement_honoraires",
-        details: `Paiement de ${Number(payment.amount).toLocaleString("fr-FR")} FCFA supprimé pour ${teacher?.name ?? `ID ${payment.teacherId}`}${payment.description ? ` (${payment.description})` : ""}.`,
-      });
-    } else {
-      await db.delete(teacherPaymentsTable).where(eq(teacherPaymentsTable.id, id));
-    }
+    if (!payment) { res.status(404).json({ error: "Paiement introuvable" }); return; }
+
+    const [teacher] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, payment.teacherId));
+    await db.delete(teacherPaymentsTable).where(eq(teacherPaymentsTable.id, id));
+    await db.insert(activityLogTable).values({
+      userId: req.session!.userId!,
+      action: "suppression_paiement_honoraires",
+      details: `Paiement de ${Number(payment.amount).toLocaleString("fr-FR")} FCFA supprimé pour ${teacher?.name ?? `ID ${payment.teacherId}`}${payment.description ? ` (${payment.description})` : ""}.`,
+    });
     res.json({ ok: true });
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal Server Error" }); }
 });

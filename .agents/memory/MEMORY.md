@@ -1,0 +1,1 @@
+- [Multi-tenancy audit pattern](multi-tenancy-scoping.md) — how to find and fix tenant-isolation gaps in this API (missing tenantId scoping on joins/raw SQL).

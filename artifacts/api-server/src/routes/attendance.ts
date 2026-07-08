@@ -497,13 +497,21 @@ router.get("/admin/attendance/summary", requireRole("admin"), async (req, res) =
 // ─── Admin: update a student's attendance record in a session ─────────────────
 router.patch("/admin/attendance/sessions/:sessionId/student/:studentId", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const sessionId = parseInt(req.params.sessionId);
     const studentId = parseInt(req.params.studentId);
 
     const [session] = await db
-      .select()
+      .select({
+        id: attendanceSessionsTable.id,
+        teacherId: attendanceSessionsTable.teacherId,
+        subjectId: attendanceSessionsTable.subjectId,
+        classId: attendanceSessionsTable.classId,
+        sessionDate: attendanceSessionsTable.sessionDate,
+      })
       .from(attendanceSessionsTable)
-      .where(eq(attendanceSessionsTable.id, sessionId))
+      .innerJoin(classesTable, eq(classesTable.id, attendanceSessionsTable.classId))
+      .where(and(eq(attendanceSessionsTable.id, sessionId), eq(classesTable.tenantId, tenantId)))
       .limit(1);
 
     if (!session) { res.status(404).json({ error: "Session introuvable" }); return; }

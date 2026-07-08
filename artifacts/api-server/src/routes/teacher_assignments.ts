@@ -98,6 +98,7 @@ async function computeHoursDone(assignmentId: number, ta: any) {
 // GET /api/admin/teacher-assignments/by-teacher/:teacherId — assignments for one teacher
 router.get("/by-teacher/:teacherId", requireRole("admin"), async (req, res) => {
   try {
+    const tenantId = req.tenantId!;
     const teacherId = parseInt(req.params.teacherId);
     if (isNaN(teacherId)) {
       return res.status(400).json({ error: "teacherId invalide" });
@@ -119,7 +120,7 @@ router.get("/by-teacher/:teacherId", requireRole("admin"), async (req, res) => {
       .innerJoin(subjectsTable, eq(subjectsTable.id, teacherAssignmentsTable.subjectId))
       .innerJoin(classesTable, eq(classesTable.id, teacherAssignmentsTable.classId))
       .innerJoin(semestersTable, eq(semestersTable.id, teacherAssignmentsTable.semesterId))
-      .where(eq(teacherAssignmentsTable.teacherId, teacherId));
+      .where(and(eq(teacherAssignmentsTable.teacherId, teacherId), eq(classesTable.tenantId, tenantId)));
     res.json({ assignments: rows });
   } catch (err) {
     console.error(err);
