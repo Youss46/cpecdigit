@@ -1307,24 +1307,26 @@ export default function AdminUsers() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === tab.key ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className={`text-xs rounded-full px-1.5 py-0.5 font-bold ${
-                  activeTab === tab.key ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"
-                }`}>{tab.count}</span>
-              )}
-            </button>
-          ))}
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex gap-1 p-1 bg-muted rounded-xl w-max sm:w-fit">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+                  activeTab === tab.key ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span className={`text-xs rounded-full px-1.5 py-0.5 font-bold ${
+                    activeTab === tab.key ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"
+                  }`}>{tab.count}</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Scolarité tab */}
