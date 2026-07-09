@@ -621,7 +621,7 @@ export default function DevDashboard() {
     <div className="min-h-screen bg-[#0a0a0f] text-white">
       {/* Top bar */}
       <header className="border-b border-zinc-800 bg-zinc-900/60 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
               <ShieldCheck className="w-4 h-4 text-violet-400" />
@@ -641,38 +641,41 @@ export default function DevDashboard() {
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
 
         {/* Tab navigation */}
-        <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 w-fit">
+        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+          <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 w-max sm:w-fit min-w-full sm:min-w-0">
           <button
             onClick={() => handleTabChange("keys")}
             className={cn(
-              "flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition-colors",
+              "flex items-center gap-2 text-sm px-3 sm:px-4 py-2 rounded-lg transition-colors whitespace-nowrap",
               activeTab === "keys"
                 ? "bg-violet-600 text-white"
                 : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
             )}
           >
             <Key className="w-4 h-4" />
-            Clés d'activation
+            <span className="hidden sm:inline">Clés d'activation</span>
+            <span className="sm:hidden">Clés</span>
           </button>
           <button
             onClick={() => handleTabChange("directeurs")}
             className={cn(
-              "flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition-colors",
+              "flex items-center gap-2 text-sm px-3 sm:px-4 py-2 rounded-lg transition-colors whitespace-nowrap",
               activeTab === "directeurs"
                 ? "bg-violet-600 text-white"
                 : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
             )}
           >
             <UserCog className="w-4 h-4" />
-            Directeurs de Centre
+            <span className="hidden sm:inline">Directeurs de Centre</span>
+            <span className="sm:hidden">Directeurs</span>
           </button>
           <button
             onClick={() => handleTabChange("schools")}
             className={cn(
-              "flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition-colors",
+              "flex items-center gap-2 text-sm px-3 sm:px-4 py-2 rounded-lg transition-colors whitespace-nowrap",
               activeTab === "schools"
                 ? "bg-violet-600 text-white"
                 : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
@@ -687,7 +690,7 @@ export default function DevDashboard() {
           <button
             onClick={() => handleTabChange("maintenance")}
             className={cn(
-              "flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition-colors",
+              "flex items-center gap-2 text-sm px-3 sm:px-4 py-2 rounded-lg transition-colors whitespace-nowrap",
               activeTab === "maintenance"
                 ? "bg-amber-600 text-white"
                 : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
@@ -699,10 +702,11 @@ export default function DevDashboard() {
               <span className="ml-1 w-2 h-2 rounded-full bg-amber-400 inline-block" />
             )}
           </button>
+          </div>
         </div>
 
         {/* Stats - only on keys tab */}
-        {activeTab === "keys" && <div className="grid grid-cols-4 gap-4">
+        {activeTab === "keys" && <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: "Total", value: stats.total, color: "text-zinc-300" },
             { label: "Disponibles", value: stats.available, color: "text-emerald-400" },
@@ -720,13 +724,13 @@ export default function DevDashboard() {
 
         {/* Keys section */}
         {activeTab === "keys" && <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Key className="w-5 h-5 text-violet-400" />
                 Clés d'activation
               </h2>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 {["all", "available", "assigned", "revoked"].map(f => (
                   <button
                     key={f}
@@ -745,7 +749,7 @@ export default function DevDashboard() {
             </div>
             <Button
               onClick={() => setGeneratingForm(v => !v)}
-              className="bg-violet-600 hover:bg-violet-700 text-white text-sm gap-2"
+              className="bg-violet-600 hover:bg-violet-700 text-white text-sm gap-2 self-start sm:self-auto"
               size="sm"
             >
               <Plus className="w-4 h-4" />
@@ -757,7 +761,7 @@ export default function DevDashboard() {
           {generatingForm && (
             <div className="bg-zinc-900 border border-violet-500/30 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-violet-300 mb-4">Nouvelle(s) clé(s) d'activation</h3>
-              <form onSubmit={handleGenerate} className="grid grid-cols-4 gap-4 items-end">
+              <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-zinc-400">Durée</Label>
                   <Select value={genDuration} onValueChange={setGenDuration}>
@@ -993,7 +997,7 @@ export default function DevDashboard() {
                   </div>
                 ) : (
                   <form onSubmit={handleCreateDirecteur} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
                           <User className="w-3 h-3" />Nom complet
@@ -1020,7 +1024,7 @@ export default function DevDashboard() {
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
                           <Lock className="w-3 h-3" />Mot de passe provisoire
@@ -1144,7 +1148,7 @@ export default function DevDashboard() {
                             <X className="w-4 h-4" />
                           </button>
                         </div>
-                        <form onSubmit={handleResetPassword} className="grid grid-cols-3 gap-3 items-end">
+                        <form onSubmit={handleResetPassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                           <div className="space-y-1.5">
                             <Label className="text-xs text-zinc-400">Nouveau mot de passe</Label>
                             <div className="relative">
@@ -1219,13 +1223,13 @@ export default function DevDashboard() {
         {activeTab === "schools" && (
           <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <School className="w-5 h-5 text-violet-400" />
                 Écoles enregistrées
                 <span className="text-sm font-normal text-zinc-500">({schools.length})</span>
               </h2>
-              <div className="flex gap-2">
+              <div className="flex gap-2 self-start sm:self-auto">
                 <button
                   onClick={fetchSchools}
                   className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 px-3 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
@@ -1291,7 +1295,7 @@ export default function DevDashboard() {
                   {/* Admin info */}
                   <div className="space-y-3">
                     <p className="text-xs text-zinc-500 uppercase tracking-wider">Compte Super Administrateur</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs text-zinc-400 flex items-center gap-1"><User className="w-3 h-3" /> Nom complet *</Label>
                         <Input
@@ -1671,7 +1675,7 @@ export default function DevDashboard() {
                         </div>
                       </div>
                     ) : (
-                      <div className="mt-3 flex items-center justify-between">
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => { setDeletingSchoolId(school.id); setRenewingSchoolId(null); }}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/40 rounded-lg transition-colors"
