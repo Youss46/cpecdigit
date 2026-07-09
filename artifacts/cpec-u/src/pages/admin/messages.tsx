@@ -13,6 +13,30 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getSocket } from "@/lib/socket";
+
+type MsgStatus = "sending" | "sent" | "received" | "read";
+
+function MessageStatus({ status, isMe }: { status: MsgStatus; isMe: boolean }) {
+  if (!isMe) return null;
+  if (status === "sending")
+    return <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", lineHeight: 1 }}>🕒</span>;
+  if (status === "sent")
+    return <span style={{ color: "rgba(255,255,255,0.80)", fontSize: "12px", lineHeight: 1, fontWeight: 700 }}>✓</span>;
+  if (status === "received")
+    return <span style={{ color: "rgba(255,255,255,0.80)", fontSize: "11px", lineHeight: 1, fontWeight: 700, letterSpacing: "-1px" }}>✓✓</span>;
+  if (status === "read")
+    return <span style={{ color: "#67e8f9", fontSize: "11px", lineHeight: 1, fontWeight: 700, letterSpacing: "-1px" }}>✓✓</span>;
+  return null;
+}
+
+function getMsgStatus(m: any, overrides: Map<number, MsgStatus>): MsgStatus {
+  const ov = overrides.get(m.id);
+  if (ov) return ov;
+  if (m.readAt) return "read";
+  if (m.receivedAt) return "received";
+  return "sent";
+}
 
 async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`/api${path}`, { credentials: "include", ...options });
@@ -131,12 +155,27 @@ export default function AdminMessages() {
   const [broadcastFile, setBroadcastFile] = useState<{ name: string; size: number; type: string; file: File } | null>(null);
   const [broadcastUploading, setBroadcastUploading] = useState(false);
 
+  const [msgStatuses, setMsgStatuses] = useState<Map<number, MsgStatus>>(new Map());
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const broadcastFileInputRef = useRef<HTMLInputElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const socket = getSocket();
+    const onStatus = ({ messageIds, status }: { messageIds: number[]; status: MsgStatus }) => {
+      setMsgStatuses(prev => {
+        const next = new Map(prev);
+        for (const id of messageIds) next.set(id, status);
+        return next;
+      });
+    };
+    socket.on("message:status", onStatus);
+    return () => { socket.off("message:status", onStatus); };
+  }, []);
 
   useEffect(() => {
     if (selectedUserId) {
@@ -464,9 +503,12 @@ export default function AdminMessages() {
                           {m.content && m.content.startsWith("📎") && !m.fileUrl && (
                             <p className="leading-relaxed whitespace-normal break-words block w-full">{m.content}</p>
                           )}
-                          <p className={`text-[10px] mt-1 ${isMe ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                            {formatTime(m.createdAt)}
-                          </p>
+                          <div className={`flex items-center gap-0.5 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
+                            <span className={`text-[10px] ${isMe ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                              {formatTime(m.createdAt)}
+                            </span>
+                            <MessageStatus status={getMsgStatus(m, msgStatuses)} isMe={isMe} />
+                          </div>
                         </div>
                       </div>
                     );
