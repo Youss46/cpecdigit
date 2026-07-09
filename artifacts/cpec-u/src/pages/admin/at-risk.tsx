@@ -78,34 +78,34 @@ export default function AtRiskPage() {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card className="p-4 border-red-200 bg-red-50">
-            <div className="flex items-center gap-3">
-              <XCircle className="w-7 h-7 text-red-600 shrink-0" />
-              <div>
-                <p className="text-xs text-red-700 font-medium uppercase tracking-wide">Critique</p>
-                <p className="text-3xl font-extrabold text-red-700">{isLoading ? "…" : counts.critical}</p>
-                <p className="text-xs text-red-600">Moyenne &lt; 8/20</p>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <Card className="p-3 sm:p-4 border-red-200 bg-red-50">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+              <XCircle className="w-5 h-5 sm:w-7 sm:h-7 text-red-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs text-red-700 font-medium uppercase tracking-wide">Critique</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-red-700 leading-tight">{isLoading ? "…" : counts.critical}</p>
+                <p className="text-[10px] sm:text-xs text-red-600 leading-snug">Moyenne &lt; 8/20</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4 border-orange-200 bg-orange-50">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-7 h-7 text-orange-600 shrink-0" />
-              <div>
-                <p className="text-xs text-orange-700 font-medium uppercase tracking-wide">Élevé</p>
-                <p className="text-3xl font-extrabold text-orange-700">{isLoading ? "…" : counts.high}</p>
-                <p className="text-xs text-orange-600">Note éliminatoire ou multi-échec</p>
+          <Card className="p-3 sm:p-4 border-orange-200 bg-orange-50">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+              <AlertTriangle className="w-5 h-5 sm:w-7 sm:h-7 text-orange-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs text-orange-700 font-medium uppercase tracking-wide">Élevé</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-orange-700 leading-tight">{isLoading ? "…" : counts.high}</p>
+                <p className="text-[10px] sm:text-xs text-orange-600 leading-snug">Note élim. ou multi-échec</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4 border-amber-200 bg-amber-50">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-7 h-7 text-amber-600 shrink-0" />
-              <div>
-                <p className="text-xs text-amber-700 font-medium uppercase tracking-wide">Modéré</p>
-                <p className="text-3xl font-extrabold text-amber-700">{isLoading ? "…" : counts.moderate}</p>
-                <p className="text-xs text-amber-600">Moyenne 8–10 ou absences élevées</p>
+          <Card className="p-3 sm:p-4 border-amber-200 bg-amber-50">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+              <AlertCircle className="w-5 h-5 sm:w-7 sm:h-7 text-amber-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs text-amber-700 font-medium uppercase tracking-wide">Modéré</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-amber-700 leading-tight">{isLoading ? "…" : counts.moderate}</p>
+                <p className="text-[10px] sm:text-xs text-amber-600 leading-snug">Moy. 8–10 ou abs. élevées</p>
               </div>
             </div>
           </Card>
