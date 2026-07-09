@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   MessageSquare, Send, Search, UserCircle2, GraduationCap, BookOpen, Plus, Users,
   CheckCircle2, Paperclip, X, FileText, Sheet, Presentation, FileArchive, Download,
+  ArrowLeft,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -334,11 +335,17 @@ export default function AdminMessages() {
 
   const canSend = !sending && !uploading && (!!messageText.trim() || !!pendingFile);
 
+  const mobileThreadOpen = !!selectedUserId;
+
+  const handleBack = () => {
+    setSelectedUserId(null);
+  };
+
   return (
     <AppLayout allowedRoles={["admin"]} noScroll>
       <div className="flex flex-col flex-1 min-h-0">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+        {/* Header — hidden on mobile when thread is open */}
+        <div className={`flex items-center justify-between mb-4 flex-shrink-0 ${mobileThreadOpen ? "hidden md:flex" : "flex"}`}>
           <div>
             <h1 className="text-3xl font-serif font-bold text-foreground flex items-center gap-2">
               <MessageSquare className="w-8 h-8 text-primary" />
@@ -353,9 +360,9 @@ export default function AdminMessages() {
         </div>
 
         {/* Chat layout */}
-        <div className="flex flex-1 gap-4 min-h-0 rounded-2xl border border-border overflow-hidden bg-card shadow-sm">
-          {/* Left: conversations list */}
-          <div className="w-72 flex-shrink-0 border-r border-border flex flex-col">
+        <div className="flex flex-1 min-h-0 rounded-2xl border border-border overflow-hidden bg-card shadow-sm">
+          {/* Left: conversations list — hidden on mobile when thread open */}
+          <div className={`${mobileThreadOpen ? "hidden md:flex" : "flex"} w-full md:w-72 flex-shrink-0 border-r border-border flex-col`}>
             <div className="p-3 border-b border-border">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
@@ -403,8 +410,8 @@ export default function AdminMessages() {
             </div>
           </div>
 
-          {/* Right: thread */}
-          <div className="flex-1 flex flex-col min-w-0">
+          {/* Right: thread — hidden on mobile when no thread open */}
+          <div className={`${mobileThreadOpen ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0`}>
             {!selectedUserId ? (
               <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
                 <MessageSquare className="w-12 h-12 opacity-15" />
@@ -414,7 +421,15 @@ export default function AdminMessages() {
               <>
                 {/* Thread header */}
                 <div className="px-4 py-3 border-b border-border flex items-center gap-3 flex-shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  {/* Back button — mobile only */}
+                  <button
+                    onClick={handleBack}
+                    className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted text-muted-foreground flex-shrink-0"
+                    aria-label="Retour"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
                     <RoleIcon role={other?.role ?? ""} />
                   </div>
                   <div>
