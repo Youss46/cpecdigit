@@ -1359,37 +1359,37 @@ export default function AdminMemoiresPage() {
             </h1>
             <p className="text-muted-foreground">Gestion complète du processus de soutenance académique.</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Export button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPDF}
-              disabled={exporting}
-              className="gap-1.5"
-            >
-              {exporting
-                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Export…</>
-                : <><Download className="w-3.5 h-3.5" />Planning PDF</>}
-            </Button>
-            {/* Tabs */}
-            <div className="flex rounded-xl border border-border overflow-hidden shadow-sm">
-              {([
-                { key: "submissions", label: "Soumissions",  icon: FileText },
-                { key: "archive",     label: "Bibliothèque", icon: BookOpen },
-                { key: "session",     label: "Périodes",     icon: CalendarClock },
-              ] as const).map(t => (
-                <button key={t.key} onClick={() => setActiveTab(t.key)}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-all ${activeTab === t.key ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
-                  <t.icon className="w-3.5 h-3.5" />{t.label}
-                  {t.key === "submissions" && (memoires as any[]).filter(m => !["SOUTENU","ARCHIVE"].includes(m.statut)).length > 0 && (
-                    <span className="ml-1 text-[10px] bg-primary-foreground/20 text-primary-foreground font-bold px-1.5 py-0.5 rounded-full">
-                      {(memoires as any[]).filter(m => !["SOUTENU","ARCHIVE"].includes(m.statut)).length}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPDF}
+            disabled={exporting}
+            className="gap-1.5 self-start sm:self-auto"
+          >
+            {exporting
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Export…</>
+              : <><Download className="w-3.5 h-3.5" />Planning PDF</>}
+          </Button>
+        </div>
+
+        {/* Tabs */}
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex rounded-xl border border-border overflow-hidden shadow-sm w-max sm:w-fit">
+            {([
+              { key: "submissions", label: "Soumissions",  icon: FileText },
+              { key: "archive",     label: "Bibliothèque", icon: BookOpen },
+              { key: "session",     label: "Périodes",     icon: CalendarClock },
+            ] as const).map(t => (
+              <button key={t.key} onClick={() => setActiveTab(t.key)}
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-all whitespace-nowrap ${activeTab === t.key ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}>
+                <t.icon className="w-3.5 h-3.5" />{t.label}
+                {t.key === "submissions" && (memoires as any[]).filter(m => !["SOUTENU","ARCHIVE"].includes(m.statut)).length > 0 && (
+                  <span className="ml-1 text-[10px] bg-primary-foreground/20 text-primary-foreground font-bold px-1.5 py-0.5 rounded-full">
+                    {(memoires as any[]).filter(m => !["SOUTENU","ARCHIVE"].includes(m.statut)).length}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
