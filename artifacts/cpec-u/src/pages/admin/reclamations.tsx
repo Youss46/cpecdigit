@@ -226,24 +226,26 @@ export default function AdminReclamations() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-muted rounded-xl p-1">
-          {([
-            { id: "list", label: "Réclamations", icon: FileText },
-            { id: "stats", label: "Statistiques", icon: BarChart3 },
-            { id: "periods", label: "Périodes", icon: Settings },
-          ] as { id: Tab; label: string; icon: any }[]).map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all",
-                tab === t.id ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <t.icon className="h-4 w-4" />
-              {t.label}
-            </button>
-          ))}
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex gap-1 bg-muted rounded-xl p-1 w-max sm:w-full">
+            {([
+              { id: "list", label: "Réclamations", icon: FileText },
+              { id: "stats", label: "Statistiques", icon: BarChart3 },
+              { id: "periods", label: "Périodes", icon: Settings },
+            ] as { id: Tab; label: string; icon: any }[]).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                  tab === t.id ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <t.icon className="h-4 w-4" />
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── LIST TAB ── */}
