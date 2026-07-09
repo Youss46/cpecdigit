@@ -603,7 +603,7 @@ export function AppLayout({ children, allowedRoles, noScroll = false }: AppLayou
   );
 
   return (
-    <div className="h-screen overflow-hidden flex bg-background">
+    <div className="h-dvh overflow-hidden flex bg-background">
       {/* Desktop Sidebar */}
       <aside className="hidden md:block w-72 shrink-0">
         <SidebarContent />
