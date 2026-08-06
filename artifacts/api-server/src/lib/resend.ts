@@ -121,6 +121,18 @@ export async function sendWelcomeCredentialsEmail(opts: {
               </tr>
             </table>
 
+            <!-- CTA Button -->
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="padding:4px 0 24px;">
+                  <a href="https://m15-edutech.ci"
+                     style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#1a3a5c,#0f2540);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:0.3px;">
+                    Accéder à la plateforme
+                  </a>
+                </td>
+              </tr>
+            </table>
+
             <!-- Warning -->
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef9ec;border:1px solid #fde68a;border-radius:8px;margin-bottom:28px;">
               <tr>
