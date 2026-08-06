@@ -38,6 +38,7 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  shell-quote: '1.10.0'
   '@tootallnate/once': '3.0.1'
   brace-expansion: '2.0.3'
   dompurify: '3.4.2'
