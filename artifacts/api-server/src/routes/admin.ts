@@ -179,7 +179,7 @@ function isValidStudentPhone(phone: string): boolean {
 router.post("/users", requireRole("admin"), async (req, res) => {
   try {
     const cu = req.session?.user as any;
-    const { email, name, firstName, lastName, password, role, adminSubRole, classId, phone,
+    const { email, name, firstName, lastName, role, adminSubRole, classId, phone,
             matricule, dateNaissance, lieuNaissance, parentName, parentPhone, sexe } = req.body;
 
     // ── Generic required fields ────────────────────────────────────────────
@@ -187,10 +187,14 @@ router.post("/users", requireRole("admin"), async (req, res) => {
       ? `${(firstName ?? "").trim()} ${(lastName ?? "").trim()}`.trim()
       : name;
 
-    if (!email?.trim() || !resolvedName?.trim() || !password || !role) {
-      res.status(400).json({ error: "Bad Request", message: "Les champs nom, email, mot de passe et rôle sont obligatoires." });
+    if (!email?.trim() || !resolvedName?.trim() || !role) {
+      res.status(400).json({ error: "Bad Request", message: "Les champs nom, email et rôle sont obligatoires." });
       return;
     }
+
+    // ── Auto-generate temporary password ──────────────────────────────────
+    const CHARS = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789@#!";
+    const tempPassword = Array.from({ length: 10 }, () => CHARS[Math.floor(Math.random() * CHARS.length)]).join("");
 
     // ── Student-specific validation ────────────────────────────────────────
     if (role === "student") {
@@ -257,7 +261,7 @@ router.post("/users", requireRole("admin"), async (req, res) => {
       return;
     }
 
-    const passwordHash = hashPassword(password);
+    const passwordHash = hashPassword(tempPassword);
     const [user] = await db.insert(usersTable).values({
       tenantId: req.tenantId!,
       email: email.trim(), name: resolvedName, passwordHash, role,
@@ -289,6 +293,7 @@ router.post("/users", requireRole("admin"), async (req, res) => {
       classId: classId ?? null, className: enroll[0]?.className ?? null,
       matricule: matricule?.trim() || null,
       createdAt: user.createdAt,
+      tempPassword,
     });
   } catch (err: any) {
     if (err?.code === "23505") {

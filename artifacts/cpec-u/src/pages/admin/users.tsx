@@ -687,6 +687,7 @@ export default function AdminUsers() {
   const [activeTab, setActiveTab] = useState<Tab>("teachers");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>("student");
+  const [tempPassDialog, setTempPassDialog] = useState<{ open: boolean; password: string; email: string; name: string }>({ open: false, password: "", email: "", name: "" });
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [editUser, setEditUser] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ name: "", email: "", password: "" });
@@ -797,7 +798,6 @@ export default function AdminUsers() {
           firstName: role === "student" ? f.firstName.trim() : undefined,
           lastName: role === "student" ? f.lastName.trim() : undefined,
           email: formData.get("email") as string,
-          password: formData.get("password") as string,
           role,
           classId: role === "student" && createStudentClassId ? parseInt(createStudentClassId) : undefined,
           adminSubRole: role === "admin" ? adminSubRole : undefined,
@@ -852,11 +852,15 @@ export default function AdminUsers() {
         }
       }
 
-      toast({ title: "Utilisateur créé avec succès" });
       setTeacherAssignmentRows([]);
       setCreateProfileForm(emptyCreateProfile);
       setIsDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      if ((newUser as any).tempPassword) {
+        setTempPassDialog({ open: true, password: (newUser as any).tempPassword, email: (newUser as any).email, name: (newUser as any).name });
+      } else {
+        toast({ title: "Utilisateur créé avec succès" });
+      }
     } catch (e: any) {
       toast({ title: e?.message ?? "Erreur lors de la création", variant: "destructive" });
     }
@@ -1046,7 +1050,6 @@ export default function AdminUsers() {
                     <div className="space-y-1"><Label>Nom complet</Label><Input name="name" required={selectedRole !== "student"} autoComplete="off" /></div>
                   )}
                   <div className="space-y-1"><Label>Email</Label><Input name="email" type="email" required autoComplete="off" /></div>
-                  <div className="space-y-1"><Label>Mot de passe</Label><PasswordInput name="password" required minLength={6} autoComplete="new-password" /></div>
                   <div className="space-y-1">
                     <Label>Rôle</Label>
                     <Select name="role" value={selectedRole} onValueChange={(v) => { setSelectedRole(v); setTeacherAssignmentRows([]); }}>
@@ -1803,6 +1806,40 @@ export default function AdminUsers() {
           onConfirm={() => pendingDeleteId !== null && handleDelete(pendingDeleteId)}
           onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}
         />
+
+        {/* ── Temp password dialog ── */}
+        <Dialog open={tempPassDialog.open} onOpenChange={(open) => setTempPassDialog(p => ({ ...p, open }))}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-green-600" />
+                Utilisateur créé
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-1">
+              <p className="text-sm text-muted-foreground">
+                Le compte <span className="font-semibold text-foreground">{tempPassDialog.name}</span> (<span className="font-mono text-xs">{tempPassDialog.email}</span>) a été créé avec le mot de passe temporaire suivant :
+              </p>
+              <div className="flex items-center gap-2 rounded-lg border bg-muted px-4 py-3">
+                <span className="flex-1 font-mono text-lg font-bold tracking-widest select-all">{tempPassDialog.password}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { navigator.clipboard.writeText(tempPassDialog.password); toast({ title: "Mot de passe copié !" }); }}
+                >
+                  Copier
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Communiquez ce mot de passe à l'utilisateur. Il lui sera demandé de le modifier à sa première connexion.
+              </p>
+              <Button className="w-full" onClick={() => setTempPassDialog(p => ({ ...p, open: false }))}>
+                Fermer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
