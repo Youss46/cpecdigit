@@ -305,6 +305,39 @@ router.post("/users", requireRole("admin"), async (req, res) => {
   }
 });
 
+router.post("/users/:id/send-credentials", requireRole("admin"), async (req, res) => {
+  try {
+    const tenantId = req.tenantId!;
+    const id = parseInt(req.params.id);
+    const { tempPassword } = req.body;
+
+    if (!tempPassword) {
+      res.status(400).json({ error: "Bad Request", message: "Le mot de passe temporaire est requis." });
+      return;
+    }
+
+    const [user] = await db.select().from(usersTable).where(and(eq(usersTable.id, id), eq(usersTable.tenantId, tenantId)));
+    if (!user) { res.status(404).json({ error: "Not Found" }); return; }
+
+    const [tenant] = await db.select({ name: tenantsTable.name }).from(tenantsTable).where(eq(tenantsTable.id, tenantId));
+
+    const { sendWelcomeCredentialsEmail } = await import("../lib/resend.js");
+    await sendWelcomeCredentialsEmail({
+      to: user.email,
+      name: user.name,
+      email: user.email,
+      tempPassword,
+      schoolName: tenant?.name ?? "M15 EduTech",
+      role: user.role,
+    });
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("send-credentials error:", err);
+    res.status(500).json({ error: "Internal Server Error", message: err?.message ?? "Erreur lors de l'envoi de l'email." });
+  }
+});
+
 router.get("/users/:id", requireRole("admin"), async (req, res) => {
   try {
     const tenantId = req.tenantId!;

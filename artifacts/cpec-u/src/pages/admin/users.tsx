@@ -687,7 +687,8 @@ export default function AdminUsers() {
   const [activeTab, setActiveTab] = useState<Tab>("teachers");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>("student");
-  const [tempPassDialog, setTempPassDialog] = useState<{ open: boolean; password: string; email: string; name: string }>({ open: false, password: "", email: "", name: "" });
+  const [tempPassDialog, setTempPassDialog] = useState<{ open: boolean; password: string; email: string; name: string; userId: number | null }>({ open: false, password: "", email: "", name: "", userId: null });
+  const [sendingCredentials, setSendingCredentials] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [editUser, setEditUser] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ name: "", email: "", password: "" });
@@ -857,7 +858,7 @@ export default function AdminUsers() {
       setIsDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       if ((newUser as any).tempPassword) {
-        setTempPassDialog({ open: true, password: (newUser as any).tempPassword, email: (newUser as any).email, name: (newUser as any).name });
+        setTempPassDialog({ open: true, password: (newUser as any).tempPassword, email: (newUser as any).email, name: (newUser as any).name, userId: (newUser as any).id });
       } else {
         toast({ title: "Utilisateur créé avec succès" });
       }
@@ -1834,6 +1835,36 @@ export default function AdminUsers() {
               <p className="text-xs text-muted-foreground">
                 Communiquez ce mot de passe à l'utilisateur. Il lui sera demandé de le modifier à sa première connexion.
               </p>
+              <Button
+                type="button"
+                className="w-full gap-2"
+                variant="outline"
+                disabled={sendingCredentials}
+                onClick={async () => {
+                  if (!tempPassDialog.userId) return;
+                  setSendingCredentials(true);
+                  try {
+                    const res = await fetch(`/api/admin/users/${tempPassDialog.userId}/send-credentials`, {
+                      method: "POST",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ tempPassword: tempPassDialog.password }),
+                    });
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => ({}));
+                      throw new Error(err?.message ?? "Erreur lors de l'envoi");
+                    }
+                    toast({ title: "Email envoyé !", description: `Les identifiants ont été envoyés à ${tempPassDialog.email}.` });
+                  } catch (e: any) {
+                    toast({ title: e?.message ?? "Erreur lors de l'envoi de l'email", variant: "destructive" });
+                  } finally {
+                    setSendingCredentials(false);
+                  }
+                }}
+              >
+                <Mail className="w-4 h-4" />
+                {sendingCredentials ? "Envoi en cours…" : "Envoyer par mail"}
+              </Button>
               <Button className="w-full" onClick={() => setTempPassDialog(p => ({ ...p, open: false }))}>
                 Fermer
               </Button>

@@ -56,6 +56,117 @@ export async function getResendClient() {
   return { client: new Resend(apiKey), fromEmail };
 }
 
+export async function sendWelcomeCredentialsEmail(opts: {
+  to: string;
+  name: string;
+  email: string;
+  tempPassword: string;
+  schoolName: string;
+  role: string;
+}): Promise<void> {
+  const { client, fromEmail } = await getResendClient();
+
+  const roleLabel =
+    opts.role === "teacher" ? "Enseignant"
+    : opts.role === "student" ? "Étudiant"
+    : opts.role === "admin" ? "Administrateur"
+    : opts.role;
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bienvenue sur M15 EduTech</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#1a3a5c 0%,#0f2540 100%);border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
+            <div style="display:inline-flex;align-items:center;gap:12px;">
+              <span style="font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">M15 <span style="color:#22c55e;">EduTech</span></span>
+            </div>
+            <p style="margin:8px 0 0;font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:2px;text-transform:uppercase;">Gestion Académique</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="background:#ffffff;padding:40px 40px 32px;">
+            <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f2540;">Bienvenue sur la plateforme !</h2>
+            <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Bonjour <strong>${opts.name}</strong>,</p>
+
+            <p style="margin:0 0 24px;font-size:14px;color:#374151;line-height:1.7;">
+              Votre compte <strong>${roleLabel}</strong> vient d'être créé sur la plateforme
+              <strong>${opts.schoolName}</strong>. Voici vos identifiants de connexion :
+            </p>
+
+            <!-- Credentials box -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:24px;">
+              <tr>
+                <td style="padding:20px 24px;">
+                  <p style="margin:0 0 12px;font-size:13px;color:#374151;">
+                    <span style="display:inline-block;width:140px;color:#6b7280;font-weight:600;">Adresse email :</span>
+                    <span style="font-weight:700;color:#0f2540;">${opts.email}</span>
+                  </p>
+                  <p style="margin:0;font-size:13px;color:#374151;">
+                    <span style="display:inline-block;width:140px;color:#6b7280;font-weight:600;">Mot de passe temporaire :</span>
+                    <span style="font-family:monospace;font-size:16px;font-weight:800;color:#1a3a5c;letter-spacing:2px;">${opts.tempPassword}</span>
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Warning -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef9ec;border:1px solid #fde68a;border-radius:8px;margin-bottom:28px;">
+              <tr>
+                <td style="padding:14px 18px;">
+                  <p style="margin:0;font-size:13px;color:#92400e;">
+                    🔑 Ce mot de passe est <strong>temporaire</strong>. Il vous sera demandé de le modifier dès votre première connexion.
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
+              Pour des raisons de sécurité, ne partagez pas ces identifiants avec d'autres personnes.<br />
+              Si vous n'êtes pas à l'origine de cette création de compte, contactez votre administrateur.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f9fafb;border-top:1px solid #e5e7eb;border-radius:0 0 12px 12px;padding:20px 40px;text-align:center;">
+            <p style="margin:0;font-size:11px;color:#9ca3af;">
+              © ${new Date().getFullYear()} M15 EduTech — ${opts.schoolName}<br />
+              Cet email a été envoyé automatiquement, merci de ne pas y répondre.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const { error } = await client.emails.send({
+    from: `M15 EduTech <${fromEmail}>`,
+    to: opts.to,
+    subject: `Vos identifiants de connexion — ${opts.schoolName}`,
+    html,
+  });
+
+  if (error) {
+    throw new Error(`Resend error: ${JSON.stringify(error)}`);
+  }
+}
+
 export async function sendPasswordResetEmail(opts: {
   to: string;
   name: string;
